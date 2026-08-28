@@ -14,16 +14,25 @@ export default function App() {
     return registration.unregister;
   }, []);
   useEffect(() => {
-    const revealHash = () => { const target = parseWorkflowHash(window.location.hash); if (target) select(target, undefined, true); };
-    window.addEventListener("hashchange", revealHash); revealHash();
+    const revealHash = () => {
+      const target = parseWorkflowHash(window.location.hash);
+      if (target) select(target, undefined, true);
+    };
+    window.addEventListener("hashchange", revealHash);
+    revealHash();
     return () => window.removeEventListener("hashchange", revealHash);
   }, [select]);
-  return <div className="app-shell">
-    <LiveStatus />
-    <main id="workspace">
-      <h1 className="sr-only">Workflow editor</h1>
-      <div className="workbench"><WorkflowCanvas /></div>
-      <ChangeHistory />
-    </main>
-  </div>;
+
+  return (
+    <div className="app-shell">
+      <LiveStatus />
+      <main id="workspace">
+        <h1 className="sr-only">Workflow editor</h1>
+        <div className="workbench">
+          <WorkflowCanvas />
+        </div>
+        <ChangeHistory />
+      </main>
+    </div>
+  );
 }

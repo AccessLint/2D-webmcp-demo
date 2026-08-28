@@ -23,6 +23,16 @@ npm run test:e2e
 
 The tests cover atomic graph commands, revision conflicts, validation, receipt accuracy, undo round trips, WebMCP handlers, and the accessible review path.
 
+## Code structure
+
+- `src/graph` owns the workflow model, commands, references, selectors, and validation.
+- `src/state` coordinates workflow transactions, receipts, UI state, and session persistence.
+- `src/receipts` turns committed workflow differences into verifiable change records.
+- `src/webmcp` defines schemas, handlers, browser actions, and native tool registration.
+- `src/components` renders the canvas, live announcements, and change history.
+
+The graph command executor is the main write interface. It clones the current workflow, applies the complete command batch, validates the result, and only then returns a new revision. The store records that result as a receipt and keeps browser persistence behind a separate module.
+
 ## WebMCP tools
 
 | Tool | Use it to |

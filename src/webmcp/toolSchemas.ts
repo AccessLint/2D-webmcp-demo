@@ -50,7 +50,8 @@ export const operationInputSchema = z.object({ operationId: z.string().min(1).de
 export const emptyInputSchema = z.object({}).strict();
 
 const jsonSchemaFor = (schema: z.ZodType) => {
-  const { $schema: _, ...jsonSchema } = z.toJSONSchema(schema);
+  const jsonSchema = z.toJSONSchema(schema);
+  Reflect.deleteProperty(jsonSchema, "$schema");
   return jsonSchema;
 };
 

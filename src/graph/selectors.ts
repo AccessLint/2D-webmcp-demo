@@ -1,9 +1,13 @@
 import type { ApplicationReference, WorkflowEdge, WorkflowNode, WorkflowState } from "./model";
-import { edgeReference, nodeReference } from "./validation";
+import { edgeReference, nodeReference } from "./references";
 
 export type NodeRelationship = { edge: WorkflowEdge; direction: "incoming" | "outgoing"; other: WorkflowNode };
 
-export function findObject(state: WorkflowState, kind: "workflow-node" | "workflow-edge", id: string) {
+export function findObject(
+  state: WorkflowState,
+  kind: "workflow-node" | "workflow-edge",
+  id: string,
+) {
   return kind === "workflow-node" ? state.nodes.find((node) => node.id === id) : state.edges.find((edge) => edge.id === id);
 }
 

@@ -1,6 +1,7 @@
 import type { WorkflowState } from "../graph/model";
 import { nodeDefinitions } from "../graph/nodeTypes";
-import { nodeReference, validateWorkflow } from "../graph/validation";
+import { nodeReference } from "../graph/references";
+import { validateWorkflow } from "../graph/validation";
 import { uiTargetList } from "./uiTargets";
 import { toolNames } from "./toolNames";
 

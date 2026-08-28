@@ -1,5 +1,6 @@
 import type { WorkflowState } from "../graph/model";
-import { edgeReference, nodeReference, type ValidationResult } from "../graph/validation";
+import { edgeReference, nodeReference } from "../graph/references";
+import type { ValidationResult } from "../graph/validation";
 import { summarizeChanges } from "./summarizeReceipt";
 import type { ChangeReceipt, WorkflowChange } from "./schema";
 
