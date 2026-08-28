@@ -29,5 +29,3 @@ The tests cover atomic graph commands, revision conflicts, validation, receipt a
 - `reveal_workflow_object`
 - `get_change_receipt`
 - `undo_workflow_change`
-
-The adapter contains no graph business logic. Unsupported browsers use the visible development panel to invoke the same handlers.
