@@ -44,6 +44,8 @@ export function createWorkflowStore(initial = createSeedWorkflow()): StoreApi<Wo
           baseRevision, resultingRevision: before.revision, status: result.status,
           summary: `Workflow change ${result.status === "conflict" ? "was not applied because the revision was stale" : "failed and was not applied"}.`,
           intent, affected: [], changes: [], validation, warnings: validation.problems.filter((problem) => problem.severity === "warning"), undo: { available: false },
+          failure: { code: result.code, message: result.message },
+          recovery: { tool: "get_workflow_summary", input: {}, currentRevision: before.revision, then: "apply_workflow_changes" },
         };
         set((current) => ({ history: [receipt, ...current.history], assertiveMessage: `${receipt.summary} ${result.message}` }));
         return receipt;

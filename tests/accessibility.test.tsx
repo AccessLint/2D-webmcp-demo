@@ -1,7 +1,8 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import App from "../src/app/App";
+import { nodeDefinitions } from "../src/graph/nodeTypes";
 import { validateWorkflow } from "../src/graph/validation";
 import { createReceipt } from "../src/receipts/createReceipt";
 import { workflowStore } from "../src/state/workflowStore";
@@ -16,6 +17,17 @@ describe("accessible workflow review", () => {
     expect(screen.getByRole("application", { name: /Workflow canvas/ })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Workflow outline" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Connections" })).not.toBeInTheDocument();
+  });
+
+  it("exposes every workflow node in the keyboard tab order with an accessible name", async () => {
+    render(<App />);
+    await waitFor(() => {
+      for (const node of workflowStore.getState().workflow.nodes) {
+        const renderedNode = screen.getByTestId(`rf__node-${node.id}`);
+        expect(renderedNode).toHaveAttribute("tabindex", "0");
+        expect(renderedNode).toHaveAttribute("aria-label", `${nodeDefinitions[node.type].title} node: ${node.label}`);
+      }
+    });
   });
 
   it("creates one concise receipt for the demo and exposes spot-check controls", async () => {

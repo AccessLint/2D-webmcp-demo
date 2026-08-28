@@ -3,8 +3,11 @@ import { changeHeadingId } from "../receipts/dom";
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 const intersects = (first: DOMRect, second: DOMRect) => first.bottom > second.top && first.right > second.left && first.top < second.bottom && first.left < second.right;
 const sameBounds = (first: DOMRect, second: DOMRect) => Math.abs(first.x - second.x) < .5 && Math.abs(first.y - second.y) < .5 && Math.abs(first.width - second.width) < .5 && Math.abs(first.height - second.height) < .5;
+export const domFocusWhen = "window-focus-or-accessibility-interaction" as const;
+let cancelPendingDomFocusRequest: (() => void) | null = null;
+let domFocusRequestGeneration = 0;
 
-async function waitForElement(find: () => HTMLElement | null, unavailableMessage: string) {
+async function waitForElement<ElementType extends Element>(find: () => ElementType | null, unavailableMessage: string) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const element = find();
     if (element) return element;
@@ -31,6 +34,8 @@ async function waitForStableElement(find: () => HTMLElement | null, unsettledMes
 export type UiActions = {
   focusChangeEntry: (operationId: string) => Promise<{ operationId: string; focusedIn: "change-history"; visible: true }>;
   focusWorkflowNode: (nodeId: string) => Promise<{ focused: true; visible: true }>;
+  focusDomNode: (selector: string) => Promise<{ selector: string; tagName: string; id: string | null; focusWhen: typeof domFocusWhen; queued: true }>;
+  cancelPendingDomFocus?: () => void;
 };
 
 export const browserUiActions: UiActions = {
@@ -63,5 +68,85 @@ export const browserUiActions: UiActions = {
       throw new Error(`Workflow node ${nodeId} could not be focused and revealed in the app UI (active: ${active}, visible: ${String(visible)}).`);
     }
     return { focused: true, visible: true };
+  },
+  async focusDomNode(selector) {
+    const requestGeneration = ++domFocusRequestGeneration;
+    cancelPendingDomFocusRequest?.();
+    const find = () => {
+      try {
+        return document.querySelector(selector);
+      } catch {
+        throw new Error(`DOM selector ${selector} is invalid.`);
+      }
+    };
+    const element = await waitForElement(find, `DOM node matching ${selector} is not available in the app UI.`);
+    if (requestGeneration !== domFocusRequestGeneration) throw new Error(`DOM focus request for ${selector} was superseded.`);
+    const focus = Reflect.get(element, "focus");
+    if (typeof focus !== "function") throw new Error(`DOM node matching ${selector} cannot receive focus.`);
+    let hasFocused = false;
+    let focusScheduled = false;
+    let restoringFocus = false;
+    let restoreAfterBlur = false;
+    let consumeScheduledFocus = false;
+    let active = true;
+    const focusElement = () => {
+      if (!active) return;
+      if (!element.isConnected) { cleanup(); return; }
+      element.scrollIntoView({ behavior: "instant", block: "center" });
+      focus.call(element, { preventScroll: true });
+      if (document.activeElement !== element) {
+        element.setAttribute("tabindex", "-1");
+        focus.call(element, { preventScroll: true });
+      }
+      hasFocused = document.activeElement === element;
+    };
+    const queueFocus = (consume = false) => {
+      restoringFocus = true;
+      consumeScheduledFocus ||= consume;
+      if (focusScheduled) return;
+      focusScheduled = true;
+      requestAnimationFrame(() => {
+        focusElement();
+        const shouldCleanup = consumeScheduledFocus && hasFocused;
+        focusScheduled = false;
+        restoringFocus = false;
+        restoreAfterBlur = false;
+        consumeScheduledFocus = false;
+        if (shouldCleanup) cleanup();
+      });
+    };
+    const onWindowFocus = () => queueFocus(restoreAfterBlur);
+    const onWindowBlur = () => { if (hasFocused) restoreAfterBlur = true; };
+    const onKeyDown = () => { if (!hasFocused) queueFocus(); };
+    const onFocusIn = (event: FocusEvent) => {
+      if (!hasFocused || restoringFocus) { queueFocus(); return; }
+      if (event.target !== element) cleanup();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (hasFocused && !restoringFocus && event.target !== element) cleanup();
+    };
+    const onAssistiveClick = (event: MouseEvent) => { if (!hasFocused && event.detail === 0) queueFocus(); };
+    const cleanup = () => {
+      active = false;
+      window.removeEventListener("focus", onWindowFocus, true);
+      window.removeEventListener("blur", onWindowBlur, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("focusin", onFocusIn, true);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("click", onAssistiveClick, true);
+      if (cancelPendingDomFocusRequest === cleanup) cancelPendingDomFocusRequest = null;
+    };
+    window.addEventListener("focus", onWindowFocus, true);
+    window.addEventListener("blur", onWindowBlur, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("focusin", onFocusIn, true);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("click", onAssistiveClick, true);
+    cancelPendingDomFocusRequest = cleanup;
+    return { selector, tagName: element.tagName.toLowerCase(), id: element.id || null, focusWhen: domFocusWhen, queued: true };
+  },
+  cancelPendingDomFocus() {
+    domFocusRequestGeneration += 1;
+    cancelPendingDomFocusRequest?.();
   },
 };

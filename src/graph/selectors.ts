@@ -1,5 +1,5 @@
 import type { ApplicationReference, WorkflowEdge, WorkflowNode, WorkflowState } from "./model";
-import { edgeReference, nodeReference, validateWorkflow } from "./validation";
+import { edgeReference, nodeReference } from "./validation";
 
 export type NodeRelationship = { edge: WorkflowEdge; direction: "incoming" | "outgoing"; other: WorkflowNode };
 
@@ -19,18 +19,6 @@ export function relationshipsForNode(state: WorkflowState, id: string): NodeRela
     }
     return [];
   });
-}
-
-export function workflowSummary(state: WorkflowState) {
-  const validation = validateWorkflow(state);
-  return {
-    revision: state.revision,
-    nodes: state.nodes.length,
-    edges: state.edges.length,
-    entryPoints: state.nodes.filter((node) => node.type === "start").map(nodeReference),
-    terminalNodes: state.nodes.filter((node) => node.type === "end").map(nodeReference),
-    validation,
-  };
 }
 
 export function referenceFor(state: WorkflowState, id: string): ApplicationReference | undefined {

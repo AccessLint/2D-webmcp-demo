@@ -18,6 +18,10 @@ test("canvas refits after becoming measurable", async ({ page }) => {
   const nodeBox = await page.getByTestId("rf__node-fetch-orders").evaluate((element) => element.getBoundingClientRect().toJSON());
   expect(nodeBox.x).toBeGreaterThanOrEqual(canvasBox.x);
   expect(nodeBox.x + nodeBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width);
+  const fetchOrders = page.getByRole("group", { name: "Action node: Fetch Orders" });
+  await expect(fetchOrders).toHaveAttribute("tabindex", "0");
+  await fetchOrders.focus();
+  await expect(fetchOrders).toBeFocused();
 });
 
 test("Retry receipt can be focused, spot checked, and undone", async ({ page }) => {
@@ -62,12 +66,50 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
   await expect(retryNode).not.toHaveClass(/selected/);
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    await tools.reveal_workflow_object.execute({ kind: "workflow-node", id: "retry" });
+    const focusResult = await tools.focus_dom_node.execute({ selector: "[data-id='retry']" }) as { queued: boolean; focusWhen: string };
+    if (!focusResult.queued || focusResult.focusWhen !== "window-focus-or-accessibility-interaction") throw new Error("Retry node focus was not queued.");
   });
-  await expect(retryNode).toHaveClass(/selected/);
+  await expect(retryNode).not.toHaveClass(/selected/);
+  await expect(retryNode).not.toBeFocused();
+  await page.keyboard.press("ArrowDown");
   await expect(retryNode).toBeFocused();
   await page.waitForTimeout(400);
   await expect(retryNode).toBeFocused();
+  await page.evaluate(() => {
+    window.dispatchEvent(new FocusEvent("blur"));
+    (document.activeElement as HTMLElement | null)?.blur();
+    window.dispatchEvent(new FocusEvent("focus"));
+    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    queueMicrotask(() => document.querySelector<HTMLElement>("a[href='#workspace']")?.focus());
+  });
+  await expect(retryNode).toBeFocused();
+  await page.evaluate(() => {
+    window.dispatchEvent(new FocusEvent("blur"));
+    (document.activeElement as HTMLElement | null)?.blur();
+    window.dispatchEvent(new FocusEvent("focus"));
+  });
+  await expect(retryNode).not.toBeFocused();
+  const saveNode = page.getByTestId("rf__node-save-results");
+  await page.evaluate(async () => {
+    const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
+    await tools.focus_dom_node.execute({ selector: "[data-id='save-results']" });
+  });
+  await page.getByRole("button", { name: "Zoom In" }).focus();
+  await expect(saveNode).toBeFocused();
+  await page.evaluate(async () => {
+    const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
+    const superseded = tools.focus_dom_node.execute({ selector: "#late-focus-target" }) as Promise<{ error?: { code: string } }>;
+    await tools.focus_dom_node.execute({ selector: "[data-id='save-results']" });
+    const lateTarget = document.createElement("button");
+    lateTarget.id = "late-focus-target";
+    document.body.append(lateTarget);
+    const supersededResult = await superseded;
+    lateTarget.remove();
+    if (supersededResult.error?.code !== "TOOL_EXECUTION_FAILED") throw new Error("Superseded focus request did not return a structured error.");
+  });
+  await page.keyboard.press("ArrowRight");
+  await expect(saveNode).toBeFocused();
+  await expect(retryNode).not.toBeFocused();
   await expect(receipt).not.toContainText("Agent intent");
   await expect(receipt).not.toContainText("Exact changes");
   await expect(receipt).not.toContainText("Revision 0");

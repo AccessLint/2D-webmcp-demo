@@ -13,6 +13,8 @@ main { padding: 24px; }
 .workbench { border: 1px solid var(--line); background: #0b141c; }
 .canvas-shell { height: min(72vh, 760px); min-height: 520px; background: #09121a; }
 .flow-node { min-width: 145px; padding: 14px 17px; border: 1px solid #40515d; border-radius: 4px; background: #14212b; box-shadow: 0 8px 28px rgba(0,0,0,.2); display: flex; flex-direction: column; gap: 4px; }
+.react-flow__node:focus-visible { outline: none; }
+.react-flow__node:focus-visible .flow-node { outline: 3px solid var(--lime); outline-offset: 4px; }
 .flow-node.is-selected { border-color: var(--lime); box-shadow: 0 0 0 2px rgba(201,255,115,.15), 0 12px 30px rgba(0,0,0,.3); }
 .flow-node--retry { background: #213020; border-color: #789050; }
 .flow-node__type { color: var(--lime); text-transform: uppercase; letter-spacing: .12em; font: 500 .55rem DM Mono, monospace; }

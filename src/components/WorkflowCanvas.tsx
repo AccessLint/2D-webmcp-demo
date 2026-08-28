@@ -31,6 +31,7 @@ export function WorkflowCanvas() {
   const fitFrame = useRef<number | null>(null);
   const nodes = useMemo<Node<CardData>[]>(() => workflow.nodes.map((node) => ({
     id: node.id, type: "workflow", position: node.position, data: { label: node.label, kind: node.type, properties: node.properties }, selected: selected?.kind === "node" && selected.id === node.id,
+    focusable: true, ariaLabel: `${nodeDefinitions[node.type].title} node: ${node.label}`,
   })), [workflow.nodes, selected]);
   const edges = useMemo<Edge[]>(() => workflow.edges.map((edge) => ({
     id: edge.id, source: edge.source, sourceHandle: edge.sourcePort, target: edge.target, targetHandle: edge.targetPort,
@@ -70,7 +71,7 @@ export function WorkflowCanvas() {
   const onConnect = (connection: Connection) => safely(() => apply(workflow.revision, [{ type: "connect", edge: { id: `edge-${crypto.randomUUID()}`, source: connection.source, sourcePort: connection.sourceHandle ?? "success", target: connection.target, targetPort: connection.targetHandle ?? "input" } }], "Canvas connection"));
   return <div ref={shell} className="canvas-shell" aria-label="Visual workflow canvas">
     <ReactFlow
-      nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView minZoom={0.25} maxZoom={1.5} proOptions={{ hideAttribution: true }}
+      nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesFocusable fitView minZoom={0.25} maxZoom={1.5} proOptions={{ hideAttribution: true }}
       onNodeClick={(_, node) => select({ kind: "node", id: node.id })}
       onEdgeClick={(_, edge) => select({ kind: "edge", id: edge.id })}
       onNodeDragStop={(_, node) => safely(() => apply(workflow.revision, [{ type: "updateNode", id: node.id, patch: { position: node.position } }], "Move node"))}

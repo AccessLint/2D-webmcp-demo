@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ApplicationReference, WorkflowEdge, WorkflowNode } from "../graph/model";
 import type { ValidationResult } from "../graph/validation";
+import type { BatchFailureCode } from "../graph/commands";
 
 export type ChangeAction = "created" | "updated" | "deleted" | "connected" | "disconnected" | "restored";
 
@@ -25,6 +26,8 @@ export type ChangeReceipt = {
   validation: ValidationResult;
   warnings: ValidationResult["problems"];
   undo: { available: boolean; operationId?: string };
+  failure?: { code: BatchFailureCode; message: string };
+  recovery?: { tool: "get_workflow_summary"; input: Record<string, never>; currentRevision: number; then: "apply_workflow_changes" };
 };
 
 const referenceSchema = z.object({
@@ -60,4 +63,11 @@ export const changeReceiptSchema: z.ZodType<ChangeReceipt> = z.object({
     code: z.string(), severity: z.enum(["error", "warning"]), message: z.string(), target: referenceSchema.optional(),
   })),
   undo: z.object({ available: z.boolean(), operationId: z.string().optional() }),
+  failure: z.object({
+    code: z.enum(["REVISION_CONFLICT", "INVALID_COMMAND", "NOT_FOUND", "ALREADY_EXISTS", "VALIDATION_FAILED"]),
+    message: z.string(),
+  }).optional(),
+  recovery: z.object({
+    tool: z.literal("get_workflow_summary"), input: z.object({}), currentRevision: z.number().int().nonnegative(), then: z.literal("apply_workflow_changes"),
+  }).optional(),
 });
