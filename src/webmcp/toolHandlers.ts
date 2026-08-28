@@ -40,7 +40,7 @@ export function createToolHandlers(store: StoreApi<WorkflowStore>) {
       const label = "label" in object && object.label ? object.label : object.id;
       store.getState().select({ kind: parsed.kind === "workflow-node" ? "node" : "edge", id: parsed.id }, undefined, true);
       store.getState().logInvocation("reveal_workflow_object", "Completed");
-      return { kind: parsed.kind, id: parsed.id, label, focused: `#${parsed.kind === "workflow-node" ? "node" : "edge"}-inspector-heading` };
+      return { kind: parsed.kind, id: parsed.id, label, revealedIn: "workflow-canvas" };
     },
     get_change_receipt(input: unknown) {
       const { operationId } = operationInputSchema.parse(input);

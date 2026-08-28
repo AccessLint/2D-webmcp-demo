@@ -43,7 +43,7 @@ export function WorkflowCanvas() {
   const onConnect = (connection: Connection) => safely(() => apply(workflow.revision, [{ type: "connect", edge: { id: `edge-${crypto.randomUUID()}`, source: connection.source, sourcePort: connection.sourceHandle ?? "success", target: connection.target, targetPort: connection.targetHandle ?? "input" } }], "Canvas connection"));
   return <div className="canvas-shell" aria-label="Visual workflow canvas">
     <ReactFlow
-      nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView minZoom={0.25} maxZoom={1.5}
+      nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView minZoom={0.25} maxZoom={1.5} proOptions={{ hideAttribution: true }}
       onNodeClick={(_, node) => select({ kind: "node", id: node.id })}
       onEdgeClick={(_, edge) => select({ kind: "edge", id: edge.id })}
       onNodeDragStop={(_, node) => safely(() => apply(workflow.revision, [{ type: "updateNode", id: node.id, patch: { position: node.position } }], "Move node"))}
@@ -51,7 +51,7 @@ export function WorkflowCanvas() {
       onInit={(instance) => { flow.current = instance; }}
       onNodesDelete={(items) => safely(() => apply(workflow.revision, items.map((node) => ({ type: "deleteNode" as const, id: node.id })), "Delete nodes"))}
       onEdgesDelete={(items) => safely(() => apply(workflow.revision, items.map((edge) => ({ type: "disconnect" as const, edgeId: edge.id })), "Disconnect edges"))}
-      aria-label="Workflow canvas. Use the workflow outline for a linear representation."
+      aria-label="Workflow canvas"
     >
       <Background color="#2d4254" gap={24} size={1} />
       <MiniMap pannable zoomable nodeColor="#c8ff80" bgColor="#0b151d" maskColor="rgba(6, 13, 20, .72)" />
