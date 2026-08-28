@@ -23,9 +23,12 @@ The tests cover atomic graph commands, revision conflicts, validation, receipt a
 
 ## WebMCP tools
 
-- `get_workflow_summary`
-- `inspect_workflow_objects`
-- `apply_workflow_changes`
-- `reveal_workflow_object`
-- `get_change_receipt`
-- `undo_workflow_change`
+```
+get_workflow_summary
+inspect_workflow_objects
+apply_workflow_changes
+reveal_workflow_object
+get_change_receipt
+undo_workflow_change
+focus_change_entry
+```
