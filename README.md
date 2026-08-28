@@ -1,4 +1,4 @@
-# Workflow Evidence Lab
+# Prove it with WebMCP
 
 A browser-based node editor demonstrating verifiable agent actions. Human UI controls and WebMCP tools share one authoritative graph model; every committed transaction produces a deterministic, inspectable change receipt.
 
