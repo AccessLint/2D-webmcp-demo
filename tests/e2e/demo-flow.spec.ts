@@ -38,7 +38,7 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
   expect(historyBox.top).toBeGreaterThan(viewport.height);
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    const receipt = tools.apply_workflow_changes.execute({
+    const receipt = tools.edit_workflow.execute({
       baseRevision: 0,
       intent: "Add Retry",
       commands: [
@@ -50,7 +50,7 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
         ] },
       ],
     }) as { operationId: string };
-    const focusResult = await tools.focus_change_entry.execute({ operationId: receipt.operationId }) as { visible: boolean };
+    const focusResult = await tools.show_edit_result.execute({ operationId: receipt.operationId }) as { visible: boolean };
     if (!focusResult.visible) throw new Error("Change entry was not visible after focus.");
     return receipt.operationId;
   });
@@ -66,7 +66,7 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
   await expect(retryNode).not.toHaveClass(/selected/);
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    const focusResult = await tools.focus_dom_node.execute({ selector: "[data-id='retry']" }) as { queued: boolean; focusWhen: string };
+    const focusResult = await tools.focus_page_element.execute({ selector: "[data-id='retry']" }) as { queued: boolean; focusWhen: string };
     if (!focusResult.queued || focusResult.focusWhen !== "window-focus-or-accessibility-interaction") throw new Error("Retry node focus was not queued.");
   });
   await expect(retryNode).not.toHaveClass(/selected/);
@@ -92,14 +92,14 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
   const saveNode = page.getByTestId("rf__node-save-results");
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    await tools.focus_dom_node.execute({ selector: "[data-id='save-results']" });
+    await tools.focus_page_element.execute({ selector: "[data-id='save-results']" });
   });
   await page.getByRole("button", { name: "Zoom In" }).focus();
   await expect(saveNode).toBeFocused();
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    const superseded = tools.focus_dom_node.execute({ selector: "#late-focus-target" }) as Promise<{ error?: { code: string } }>;
-    await tools.focus_dom_node.execute({ selector: "[data-id='save-results']" });
+    const superseded = tools.focus_page_element.execute({ selector: "#late-focus-target" }) as Promise<{ error?: { code: string } }>;
+    await tools.focus_page_element.execute({ selector: "[data-id='save-results']" });
     const lateTarget = document.createElement("button");
     lateTarget.id = "late-focus-target";
     document.body.append(lateTarget);

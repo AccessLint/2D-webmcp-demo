@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ApplicationReference, WorkflowEdge, WorkflowNode } from "../graph/model";
 import type { ValidationResult } from "../graph/validation";
 import type { BatchFailureCode } from "../graph/commands";
+import { toolNames } from "../webmcp/toolNames";
 
 export type ChangeAction = "created" | "updated" | "deleted" | "connected" | "disconnected" | "restored";
 
@@ -27,7 +28,7 @@ export type ChangeReceipt = {
   warnings: ValidationResult["problems"];
   undo: { available: boolean; operationId?: string };
   failure?: { code: BatchFailureCode; message: string };
-  recovery?: { tool: "get_workflow_summary"; input: Record<string, never>; currentRevision: number; then: "apply_workflow_changes" };
+  recovery?: { tool: typeof toolNames.discoverWorkflow; input: Record<string, never>; currentRevision: number; then: typeof toolNames.editWorkflow };
 };
 
 const referenceSchema = z.object({
@@ -68,6 +69,6 @@ export const changeReceiptSchema: z.ZodType<ChangeReceipt> = z.object({
     message: z.string(),
   }).optional(),
   recovery: z.object({
-    tool: z.literal("get_workflow_summary"), input: z.object({}), currentRevision: z.number().int().nonnegative(), then: z.literal("apply_workflow_changes"),
+    tool: z.literal(toolNames.discoverWorkflow), input: z.object({}), currentRevision: z.number().int().nonnegative(), then: z.literal(toolNames.editWorkflow),
   }).optional(),
 });

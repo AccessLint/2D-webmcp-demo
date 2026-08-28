@@ -2,6 +2,7 @@ import type { WorkflowState } from "../graph/model";
 import { nodeDefinitions } from "../graph/nodeTypes";
 import { nodeReference, validateWorkflow } from "../graph/validation";
 import { uiTargetList } from "./uiTargets";
+import { toolNames } from "./toolNames";
 
 export function workflowSummary(state: WorkflowState) {
   const validation = validateWorkflow(state);
@@ -21,9 +22,9 @@ export function workflowSummary(state: WorkflowState) {
       uiTargets: uiTargetList,
     },
     recommendedNextCalls: [
-      { tool: "inspect_workflow_objects", input: { objects: exampleNode ? [{ kind: "workflow-node" as const, id: exampleNode.id }] : [] } },
+      { tool: toolNames.inspectWorkflowItems, input: { objects: exampleNode ? [{ kind: "workflow-node" as const, id: exampleNode.id }] : [] } },
       ...(exampleNode ? [{
-        tool: "apply_workflow_changes",
+        tool: toolNames.editWorkflow,
         purpose: "Copy this valid call shape and replace the example command with the intended edit.",
         input: {
           baseRevision: state.revision,
