@@ -1,0 +1,14 @@
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  build: {
+    ssr: "src/siteWorker.ts",
+    outDir: "dist/server",
+    emptyOutDir: false,
+    rollupOptions: {
+      output: {
+        entryFileNames: "index.js",
+      },
+    },
+  },
+});
