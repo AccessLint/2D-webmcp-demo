@@ -58,8 +58,16 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
   expect(receiptBox.bottom).toBeGreaterThan(0);
   expect(receiptBox.top).toBeLessThan(viewport.height);
   const receipt = receiptHeading.locator("..");
-  await receipt.getByRole("button", { name: "Reveal Retry" }).click();
-  await expect(page.getByTestId("rf__node-retry")).toHaveClass(/selected/);
+  const retryNode = page.getByTestId("rf__node-retry");
+  await expect(retryNode).not.toHaveClass(/selected/);
+  await page.evaluate(async () => {
+    const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
+    await tools.reveal_workflow_object.execute({ kind: "workflow-node", id: "retry" });
+  });
+  await expect(retryNode).toHaveClass(/selected/);
+  await expect(retryNode).toBeFocused();
+  await page.waitForTimeout(400);
+  await expect(retryNode).toBeFocused();
   await expect(receipt).not.toContainText("Agent intent");
   await expect(receipt).not.toContainText("Exact changes");
   await expect(receipt).not.toContainText("Revision 0");

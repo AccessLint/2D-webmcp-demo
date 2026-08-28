@@ -33,15 +33,16 @@ export function createToolHandlers(store: StoreApi<WorkflowStore>, uiActions: Ui
       store.getState().logInvocation("apply_workflow_changes", receipt.status === "completed" ? "Completed" : `${receipt.status} recorded`);
       return receipt;
     },
-    reveal_workflow_object(input: unknown) {
+    async reveal_workflow_object(input: unknown) {
       const parsed = revealInputSchema.parse(input);
       const state = store.getState().workflow;
       const object = parsed.kind === "workflow-node" ? state.nodes.find((node) => node.id === parsed.id) : state.edges.find((edge) => edge.id === parsed.id);
       if (!object) throw new Error(`${parsed.kind === "workflow-node" ? "Node" : "Edge"} ${parsed.id} no longer exists.`);
       const label = "label" in object && object.label ? object.label : object.id;
       store.getState().select({ kind: parsed.kind === "workflow-node" ? "node" : "edge", id: parsed.id }, undefined, true);
+      const focusResult = parsed.kind === "workflow-node" ? await uiActions.focusWorkflowNode(parsed.id) : { focused: false as const, visible: null };
       store.getState().logInvocation("reveal_workflow_object", "Completed");
-      return { kind: parsed.kind, id: parsed.id, label, revealedIn: "workflow-canvas" };
+      return { kind: parsed.kind, id: parsed.id, label, revealedIn: "workflow-canvas", focused: focusResult.focused, visible: focusResult.visible };
     },
     get_change_receipt(input: unknown) {
       const { operationId } = operationInputSchema.parse(input);

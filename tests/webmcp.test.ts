@@ -6,10 +6,17 @@ describe("WebMCP tool boundary", () => {
   it("reads, edits, retrieves, focuses, reveals, and undoes through application state", async () => {
     const store = createWorkflowStore();
     let focusedOperationId: string | null = null;
-    const tools = createToolHandlers(store, { focusChangeEntry: async (operationId) => {
-      focusedOperationId = operationId;
-      return { operationId, focusedIn: "change-history", visible: true };
-    } });
+    let focusedNodeId: string | null = null;
+    const tools = createToolHandlers(store, {
+      focusChangeEntry: async (operationId) => {
+        focusedOperationId = operationId;
+        return { operationId, focusedIn: "change-history", visible: true };
+      },
+      focusWorkflowNode: async (nodeId) => {
+        focusedNodeId = nodeId;
+        return { focused: true, visible: true };
+      },
+    });
     expect(tools.get_workflow_summary({})).toMatchObject({ revision: 0, nodes: 5, edges: 3 });
 
     const receipt = tools.apply_workflow_changes({
@@ -28,7 +35,8 @@ describe("WebMCP tool boundary", () => {
     await expect(tools.focus_change_entry({ operationId: receipt.operationId })).resolves.toMatchObject({ operationId: receipt.operationId, summary: receipt.summary, focusedIn: "change-history", visible: true });
     expect(focusedOperationId).toBe(receipt.operationId);
     expect(tools.inspect_workflow_objects({ objects: [{ kind: "workflow-node", id: "retry" }] })[0]).toMatchObject({ label: "Retry", properties: { attempts: 3 } });
-    expect(tools.reveal_workflow_object({ kind: "workflow-node", id: "retry" })).toMatchObject({ id: "retry", label: "Retry" });
+    await expect(tools.reveal_workflow_object({ kind: "workflow-node", id: "retry" })).resolves.toMatchObject({ id: "retry", label: "Retry", focused: true, visible: true });
+    expect(focusedNodeId).toBe("retry");
     expect(store.getState().selected).toEqual({ kind: "node", id: "retry" });
     expect(tools.undo_workflow_change({ operationId: receipt.operationId }).summary).toContain("Undid");
   });
