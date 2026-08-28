@@ -1,5 +1,25 @@
 import { expect, test } from "@playwright/test";
 
+test("canvas refits after becoming measurable", async ({ page }) => {
+  await page.addInitScript(() => {
+    const observer = new MutationObserver(() => {
+      const shell = document.querySelector<HTMLElement>(".canvas-shell");
+      if (!shell || shell.dataset.measurementProbe) return;
+      shell.dataset.measurementProbe = "true";
+      shell.style.display = "none";
+      setTimeout(() => { shell.style.display = "block"; }, 250);
+      observer.disconnect();
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  });
+  await page.goto("/");
+  await page.waitForTimeout(500);
+  const canvasBox = await page.locator(".canvas-shell").evaluate((element) => element.getBoundingClientRect().toJSON());
+  const nodeBox = await page.getByTestId("rf__node-fetch-orders").evaluate((element) => element.getBoundingClientRect().toJSON());
+  expect(nodeBox.x).toBeGreaterThanOrEqual(canvasBox.x);
+  expect(nodeBox.x + nodeBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width);
+});
+
 test("Retry receipt can be inspected and undone without automatic focus movement", async ({ page }) => {
   await page.addInitScript(() => {
     const tools: Record<string, { execute: (input: unknown) => unknown }> = {};

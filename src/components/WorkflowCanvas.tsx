@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Background, Controls, Handle, MiniMap, Position, ReactFlow, type Connection, type Edge, type Node, type NodeProps, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { nodeDefinitions } from "../graph/nodeTypes";
@@ -27,6 +27,8 @@ export function WorkflowCanvas() {
   const select = useWorkflowStore((state) => state.select);
   const reportError = useWorkflowStore((state) => state.reportError);
   const flow = useRef<ReactFlowInstance<Node<CardData>, Edge> | null>(null);
+  const shell = useRef<HTMLDivElement | null>(null);
+  const fitFrame = useRef<number | null>(null);
   const nodes = useMemo<Node<CardData>[]>(() => workflow.nodes.map((node) => ({
     id: node.id, type: "workflow", position: node.position, data: { label: node.label, kind: node.type, properties: node.properties }, selected: selected?.kind === "node" && selected.id === node.id,
   })), [workflow.nodes, selected]);
@@ -34,6 +36,31 @@ export function WorkflowCanvas() {
     id: edge.id, source: edge.source, sourceHandle: edge.sourcePort, target: edge.target, targetHandle: edge.targetPort,
     label: edge.label ?? edge.sourcePort, selected: selected?.kind === "edge" && selected.id === edge.id,
   })), [workflow.edges, selected]);
+  const fitCanvas = useCallback(() => {
+    if (fitFrame.current !== null) cancelAnimationFrame(fitFrame.current);
+    fitFrame.current = requestAnimationFrame(() => {
+      fitFrame.current = requestAnimationFrame(() => {
+        fitFrame.current = null;
+        if (!flow.current || !shell.current?.clientWidth || !shell.current.clientHeight) return;
+        void flow.current.fitView({ padding: .2, duration: 0 });
+      });
+    });
+  }, []);
+  useEffect(() => {
+    const element = shell.current;
+    if (!element) return;
+    let wasMeasurable = false;
+    const observer = new ResizeObserver(([entry]) => {
+      const isMeasurable = entry.contentRect.width > 0 && entry.contentRect.height > 0;
+      if (isMeasurable && !wasMeasurable) fitCanvas();
+      wasMeasurable = isMeasurable;
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      if (fitFrame.current !== null) cancelAnimationFrame(fitFrame.current);
+    };
+  }, [fitCanvas]);
   useEffect(() => {
     if (!focusRequest || !selected || !flow.current) return;
     const nodeIds = selected.kind === "node" ? [selected.id] : workflow.edges.filter((edge) => edge.id === selected.id).flatMap((edge) => [edge.source, edge.target]);
@@ -41,14 +68,14 @@ export function WorkflowCanvas() {
   }, [focusRequest, selected, workflow.edges]);
   const safely = (task: () => void) => { try { task(); } catch (error) { reportError(error instanceof Error ? error.message : "The canvas change failed."); } };
   const onConnect = (connection: Connection) => safely(() => apply(workflow.revision, [{ type: "connect", edge: { id: `edge-${crypto.randomUUID()}`, source: connection.source, sourcePort: connection.sourceHandle ?? "success", target: connection.target, targetPort: connection.targetHandle ?? "input" } }], "Canvas connection"));
-  return <div className="canvas-shell" aria-label="Visual workflow canvas">
+  return <div ref={shell} className="canvas-shell" aria-label="Visual workflow canvas">
     <ReactFlow
       nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView minZoom={0.25} maxZoom={1.5} proOptions={{ hideAttribution: true }}
       onNodeClick={(_, node) => select({ kind: "node", id: node.id })}
       onEdgeClick={(_, edge) => select({ kind: "edge", id: edge.id })}
       onNodeDragStop={(_, node) => safely(() => apply(workflow.revision, [{ type: "updateNode", id: node.id, patch: { position: node.position } }], "Move node"))}
       onConnect={onConnect}
-      onInit={(instance) => { flow.current = instance; }}
+      onInit={(instance) => { flow.current = instance; fitCanvas(); }}
       onNodesDelete={(items) => safely(() => apply(workflow.revision, items.map((node) => ({ type: "deleteNode" as const, id: node.id })), "Delete nodes"))}
       onEdgesDelete={(items) => safely(() => apply(workflow.revision, items.map((edge) => ({ type: "disconnect" as const, edgeId: edge.id })), "Disconnect edges"))}
       aria-label="Workflow canvas"
