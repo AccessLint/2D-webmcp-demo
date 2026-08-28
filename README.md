@@ -9,7 +9,9 @@ npm install
 npm run dev
 ```
 
-Open the local URL and choose **Run Retry demo**. The fallback panel works in every browser. In a WebMCP-enabled Chrome build, the page also registers eight native tools through `document.modelContext`.
+Open the local URL. In a WebMCP-enabled Chrome build, the page registers eight native tools through `document.modelContext`; a connected agent can edit the workflow and the page presents the resulting receipt for human review.
+
+For a three-minute feature tour—including keyboard-only, VoiceOver, and NVDA checks—see the [judge smoke test](docs/TESTING.md).
 
 ## Verify
 
@@ -34,7 +36,7 @@ The tests cover atomic graph commands, revision conflicts, validation, receipt a
 | `show_edit_result` | Bring an edit result into view and move keyboard focus to it. |
 | `undo_workflow_edit` | Undo an edit while it is still the latest workflow revision. |
 
-Agents should call `get_workflow_summary` first. Its response includes the current revision, valid node IDs and ports, named UI targets, and copyable examples for the next tool call. `apply_workflow_changes` uses that revision to prevent stale edits and returns a receipt that can be inspected, focused, or undone.
+Agents should call `discover_workflow` first. Its response includes the current revision, valid node IDs and ports, named UI targets, and copyable examples for the next tool call. `edit_workflow` uses that revision to prevent stale edits and returns a receipt that can be inspected, focused, or undone.
 
 1. Call `discover_workflow`.
 2. Optionally call `inspect_workflow_items` for more detail.
