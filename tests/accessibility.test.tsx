@@ -2,6 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import App from "../src/app/App";
+import { validateWorkflow } from "../src/graph/validation";
+import { createReceipt } from "../src/receipts/createReceipt";
 import { workflowStore } from "../src/state/workflowStore";
 
 describe("accessible workflow review", () => {
@@ -16,7 +18,7 @@ describe("accessible workflow review", () => {
     expect(screen.queryByRole("heading", { name: "Connections" })).not.toBeInTheDocument();
   });
 
-  it("creates one concise receipt for the demo and exposes exact changes", async () => {
+  it("creates one concise receipt for the demo and exposes spot-check controls", async () => {
     const user = userEvent.setup();
     workflowStore.getState().apply(0, [
       { type: "createNode", node: { id: "retry", type: "retry", label: "Retry", position: { x: 525, y: 245 }, properties: { attempts: 3 } } },
@@ -31,7 +33,49 @@ describe("accessible workflow review", () => {
     expect(screen.getByRole("heading", { name: "Change history" })).toBeInTheDocument();
     const receiptHeading = screen.getByRole("heading", { name: "Created Retry and changed 4 connections. Workflow validation passed." });
     expect(receiptHeading).toBeInTheDocument();
-    await user.click(within(receiptHeading.closest("article")!).getByRole("button", { name: "Reveal Retry" }));
+    const receipt = within(receiptHeading.closest("article")!);
+    expect(receipt.queryByText("Agent intent", { exact: false })).not.toBeInTheDocument();
+    expect(receipt.queryByText("Exact changes")).not.toBeInTheDocument();
+    expect(receipt.getByRole("button", { name: "Mark reviewed" })).toBeInTheDocument();
+    expect(receipt.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    await user.click(receipt.getByRole("button", { name: "Reveal Retry" }));
     expect(workflowStore.getState().selected).toEqual({ kind: "node", id: "retry" });
+  });
+
+  it("shows validation errors and removed objects without dead reveal controls", () => {
+    const before = workflowStore.getState().workflow;
+    const after = {
+      ...before,
+      revision: 1,
+      nodes: before.nodes.filter((node) => node.id !== "complete"),
+      edges: before.edges.filter((edge) => edge.source !== "complete" && edge.target !== "complete"),
+    };
+    const receipt = createReceipt({ before, after, validation: validateWorkflow(after), intent: "Remove completion" });
+    workflowStore.setState({ workflow: after, history: [receipt] });
+    render(<App />);
+    const receiptHeading = screen.getByRole("heading", { name: "Changed 1 node and changed 1 connection. Workflow validation has errors." });
+    const receiptRegion = within(receiptHeading.closest("article")!);
+    expect(receiptRegion.getByText("Workflow must contain an End node.")).toBeInTheDocument();
+    expect(receiptRegion.getByText("Deleted Complete")).toBeInTheDocument();
+    expect(receiptRegion.queryByRole("button", { name: "Reveal Complete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Review latest change" })).not.toBeInTheDocument();
+  });
+
+  it("does not attribute a later deletion to an earlier receipt", () => {
+    const before = workflowStore.getState().workflow;
+    const withTemporary = {
+      ...before,
+      revision: 1,
+      nodes: [...before.nodes, { id: "temporary", type: "action" as const, label: "Temporary", position: { x: 400, y: 400 }, properties: {} }],
+    };
+    const after = { ...withTemporary, revision: 2, nodes: withTemporary.nodes.filter((node) => node.id !== "temporary") };
+    const created = createReceipt({ before, after: withTemporary, validation: validateWorkflow(withTemporary) });
+    const deleted = createReceipt({ before: withTemporary, after, validation: validateWorkflow(after) });
+    workflowStore.setState({ workflow: after, history: [deleted, created] });
+    render(<App />);
+    const createdHeading = screen.getByRole("heading", { name: "Created Temporary. Workflow validation passed." });
+    const createdReceipt = within(createdHeading.closest("article")!);
+    expect(createdReceipt.getByText("Unavailable Temporary")).toBeInTheDocument();
+    expect(createdReceipt.queryByText("Deleted Temporary")).not.toBeInTheDocument();
   });
 });

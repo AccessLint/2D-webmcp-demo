@@ -20,7 +20,7 @@ test("canvas refits after becoming measurable", async ({ page }) => {
   expect(nodeBox.x + nodeBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width);
 });
 
-test("Retry receipt can be inspected and undone without automatic focus movement", async ({ page }) => {
+test("Retry receipt can be spot checked and undone without automatic focus movement", async ({ page }) => {
   await page.addInitScript(() => {
     const tools: Record<string, { execute: (input: unknown) => unknown }> = {};
     Object.defineProperty(document, "modelContext", { configurable: true, value: { registerTool(tool: { name: string; execute: (input: unknown) => unknown }) { tools[tool.name] = tool; } } });
@@ -46,10 +46,10 @@ test("Retry receipt can be inspected and undone without automatic focus movement
   const receipt = receiptHeading.locator("..");
   await receipt.getByRole("button", { name: "Reveal Retry" }).click();
   await expect(page.getByTestId("rf__node-retry")).toHaveClass(/selected/);
-  await receipt.getByText("Exact changes").click();
-  await expect(receipt).toContainText("fetch-orders (success) → retry (input)");
-  await expect(receipt).toContainText("attempts: 3");
-  await receipt.getByRole("button", { name: "Undo this change" }).click();
+  await expect(receipt).not.toContainText("Agent intent");
+  await expect(receipt).not.toContainText("Exact changes");
+  await expect(receipt).not.toContainText("Revision 0");
+  await receipt.getByRole("button", { name: "Undo" }).click();
   await expect(page.getByRole("status")).toContainText("Undid the previous workflow change");
   await expect(receiptHeading).toBeFocused();
   await expect(page.getByTestId("rf__node-retry")).toHaveCount(0);
