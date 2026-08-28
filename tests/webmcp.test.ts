@@ -3,9 +3,13 @@ import { createWorkflowStore } from "../src/state/workflowStore";
 import { createToolHandlers } from "../src/webmcp/toolHandlers";
 
 describe("WebMCP tool boundary", () => {
-  it("reads, edits, retrieves, reveals, and undoes through application state", () => {
+  it("reads, edits, retrieves, focuses, reveals, and undoes through application state", async () => {
     const store = createWorkflowStore();
-    const tools = createToolHandlers(store);
+    let focusedOperationId: string | null = null;
+    const tools = createToolHandlers(store, { focusChangeEntry: async (operationId) => {
+      focusedOperationId = operationId;
+      return { operationId, focusedIn: "change-history", visible: true };
+    } });
     expect(tools.get_workflow_summary({})).toMatchObject({ revision: 0, nodes: 5, edges: 3 });
 
     const receipt = tools.apply_workflow_changes({
@@ -21,6 +25,8 @@ describe("WebMCP tool boundary", () => {
       ],
     });
     expect(tools.get_change_receipt({ operationId: receipt.operationId })).toEqual(receipt);
+    await expect(tools.focus_change_entry({ operationId: receipt.operationId })).resolves.toMatchObject({ operationId: receipt.operationId, summary: receipt.summary, focusedIn: "change-history", visible: true });
+    expect(focusedOperationId).toBe(receipt.operationId);
     expect(tools.inspect_workflow_objects({ objects: [{ kind: "workflow-node", id: "retry" }] })[0]).toMatchObject({ label: "Retry", properties: { attempts: 3 } });
     expect(tools.reveal_workflow_object({ kind: "workflow-node", id: "retry" })).toMatchObject({ id: "retry", label: "Retry" });
     expect(store.getState().selected).toEqual({ kind: "node", id: "retry" });
@@ -34,5 +40,11 @@ describe("WebMCP tool boundary", () => {
     expect(receipt).toMatchObject({ status: "conflict", baseRevision: 4, resultingRevision: 0, changes: [], undo: { available: false } });
     expect(store.getState().workflow.revision).toBe(0);
     expect(tools.get_change_receipt({ operationId: receipt.operationId })).toEqual(receipt);
+  });
+
+  it("does not request focus for a missing change entry", async () => {
+    const store = createWorkflowStore();
+    const tools = createToolHandlers(store);
+    await expect(tools.focus_change_entry({ operationId: "missing" })).rejects.toThrow("Receipt missing does not exist");
   });
 });

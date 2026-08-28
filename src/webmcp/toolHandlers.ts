@@ -3,8 +3,9 @@ import { relationshipsForNode, workflowSummary } from "../graph/selectors";
 import { edgeReference, nodeReference } from "../graph/validation";
 import type { WorkflowStore } from "../state/workflowStore";
 import { applyInputSchema, inspectInputSchema, operationInputSchema, revealInputSchema } from "./toolSchemas";
+import { browserUiActions, type UiActions } from "./uiActions";
 
-export function createToolHandlers(store: StoreApi<WorkflowStore>) {
+export function createToolHandlers(store: StoreApi<WorkflowStore>, uiActions: UiActions = browserUiActions) {
   return {
     get_workflow_summary(input: unknown) {
       void input;
@@ -48,6 +49,14 @@ export function createToolHandlers(store: StoreApi<WorkflowStore>) {
       if (!receipt) throw new Error(`Receipt ${operationId} does not exist.`);
       store.getState().logInvocation("get_change_receipt", "Completed");
       return receipt;
+    },
+    async focus_change_entry(input: unknown) {
+      const { operationId } = operationInputSchema.parse(input);
+      const receipt = store.getState().history.find((item) => item.operationId === operationId);
+      if (!receipt) throw new Error(`Receipt ${operationId} does not exist.`);
+      const focusResult = await uiActions.focusChangeEntry(operationId);
+      store.getState().logInvocation("focus_change_entry", "Completed");
+      return { ...focusResult, summary: receipt.summary, status: receipt.status };
     },
     undo_workflow_change(input: unknown) {
       const { operationId } = operationInputSchema.parse(input);

@@ -1,4 +1,5 @@
 import type { ApplicationReference } from "../graph/model";
+import { changeHeadingId } from "../receipts/dom";
 import type { ChangeReceipt } from "../receipts/schema";
 import { useWorkflowStore } from "../state/workflowStore";
 
@@ -25,15 +26,15 @@ export function ChangeHistory() {
     if (!kind || !referenceExists(reference)) { reportError(`${reference.label} no longer exists in the current workflow.`); return; }
     select({ kind, id: reference.id }, undefined, true);
   };
-  const focusReceipt = (operationId: string) => queueMicrotask(() => document.getElementById(`change-heading-${operationId}`)?.focus());
+  const focusReceipt = (operationId: string) => queueMicrotask(() => document.getElementById(changeHeadingId(operationId))?.focus());
   const runUndo = (operationId: string) => { try { undo(operationId); focusReceipt(operationId); } catch (error) { reportError(error instanceof Error ? error.message : "Undo failed."); } };
   return <section className="history" aria-labelledby="change-history-heading">
     <div className="history-heading"><h2 id="change-history-heading">Change history</h2></div>
     {history.length === 0 ? <div className="empty-history"><p>No changes yet.</p></div> : <ol className="history-list">{history.map((receipt) => {
       const affected = receipt.affected.filter((reference) => reference.kind !== "change-receipt");
-      return <li key={receipt.operationId}><article id={`change-${receipt.operationId}`} aria-labelledby={`change-heading-${receipt.operationId}`} className="change-card">
+      return <li key={receipt.operationId}><article id={`change-${receipt.operationId}`} aria-labelledby={changeHeadingId(receipt.operationId)} className="change-card">
         <div className="change-topline"><span className={`status-pill status-pill--${receipt.status}`}>{receipt.status}</span><span className="review-state">{reviewed.includes(receipt.operationId) ? "Reviewed" : "Unreviewed"}</span></div>
-        <h3 tabIndex={-1} id={`change-heading-${receipt.operationId}`}>{receipt.summary}</h3>
+        <h3 tabIndex={-1} id={changeHeadingId(receipt.operationId)}>{receipt.summary}</h3>
         {receipt.validation.problems.length ? <div className={`problems${receipt.validation.valid ? "" : " problems--error"}`}><h4>{receipt.validation.valid ? "Warnings" : "Needs attention"}</h4><ul>{receipt.validation.problems.map((problem, problemIndex) => <li key={`${problem.code}-${problemIndex}`}>{problem.message}</li>)}</ul></div> : null}
         <div className="change-footer">
           {affected.length ? <div className="affected" aria-label="Affected objects">{affected.map((reference) => referenceExists(reference)
