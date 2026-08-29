@@ -132,6 +132,23 @@ describe("WebMCP tool boundary", () => {
     expect(tools.get_edit_result({ operationId: receipt.operationId })).toEqual(receipt);
   });
 
+  it("accepts a discovered SurfaceSnapshot label when editing a node", () => {
+    const store = createWorkflowStore();
+    const tools = createToolHandlers(store);
+
+    const receipt = tools.edit_workflow({
+      baseRevision: 0,
+      commands: [{
+        type: "updateNode",
+        id: "fetch-orders",
+        patch: { label: { value: "Fetch Orders v2", source: "author" } },
+      }],
+    });
+
+    expect(receipt).toMatchObject({ status: "completed", resultingRevision: 1 });
+    expect(store.getState().workflow.nodes.find((node) => node.id === "fetch-orders")?.label).toBe("Fetch Orders v2");
+  });
+
   it("preserves a typed command failure and recovery guidance in the receipt", () => {
     const tools = createToolHandlers(createWorkflowStore());
     const receipt = tools.edit_workflow({
@@ -180,6 +197,7 @@ describe("WebMCP tool boundary", () => {
       "focus_page_element", "get_edit_result", "show_edit_result", "undo_workflow_edit",
     ]);
     expect(registered.get("discover_workflow")?.description).toContain("Call this first");
+    expect(registered.get("edit_workflow")?.description).toContain("Do not increment it");
     expect(registered.get("focus_page_element")?.description).toContain("Prefer targetId");
     const schema = registered.get("focus_page_element")?.inputSchema;
     expect(schema).toMatchObject({
@@ -194,7 +212,9 @@ describe("WebMCP tool boundary", () => {
     });
     expect(registered.get("edit_workflow")?.inputSchema).toMatchObject({
       properties: {
-        baseRevision: expect.objectContaining({ description: "Copy the current revision from discover_workflow." }),
+        baseRevision: expect.objectContaining({
+          description: expect.stringMatching(/surface\.documentVersion.*Do not increment/),
+        }),
         commands: expect.objectContaining({ description: "Atomic workflow edits. Every command must match one documented command type." }),
       },
       additionalProperties: false,

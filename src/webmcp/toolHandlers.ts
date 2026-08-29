@@ -8,6 +8,7 @@ import {
   emptyInputSchema,
   focusDomNodeInputSchema,
   inspectInputSchema,
+  normalizeCommands,
   operationInputSchema,
   revealInputSchema,
 } from "./toolSchemas";
@@ -67,7 +68,7 @@ export function createToolHandlers(store: StoreApi<WorkflowStore>, uiActions: Ui
     },
     [toolNames.editWorkflow](input: unknown) {
       const parsed = applyInputSchema.parse(input);
-      const receipt = store.getState().apply(parsed.baseRevision, parsed.commands, parsed.intent);
+      const receipt = store.getState().apply(parsed.baseRevision, normalizeCommands(parsed.commands), parsed.intent);
       store.getState().logInvocation(toolNames.editWorkflow, receipt.status === "completed" ? "Completed" : `${receipt.status} recorded`);
       return receipt;
     },

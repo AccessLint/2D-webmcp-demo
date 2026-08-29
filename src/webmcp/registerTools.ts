@@ -63,7 +63,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.editWorkflow,
       title: "Edit workflow",
-      description: `Call after ${toolNames.discoverWorkflow}. Copy its current revision into baseRevision, then atomically apply up to 20 typed commands. Returns an application-authored edit result; on conflict, follow recovery.`,
+      description: `Call after ${toolNames.discoverWorkflow}. Set baseRevision to its exact revision, or Number(surface.documentVersion) for a SurfaceSnapshot. Do not increment it. Atomically applies up to 20 typed commands; updateNode patch.label accepts a string or a copied Snapshot label object. On conflict, follow recovery.`,
       inputSchema: jsonSchemas.apply,
       annotations: { readOnlyHint: false },
       execute: handlers[toolNames.editWorkflow],

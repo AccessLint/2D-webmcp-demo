@@ -46,7 +46,7 @@ The graph command executor is the main write interface. It clones the current wo
 | `show_edit_result` | Bring an edit result into view and move keyboard focus to it. |
 | `undo_workflow_edit` | Undo an edit while it is still the latest workflow revision. |
 
-Agents should call `discover_workflow` first. Its response includes the current revision, valid node IDs and ports, named UI targets, and copyable examples for the next tool call. `edit_workflow` uses that revision to prevent stale edits and returns a receipt that can be inspected, focused, or undone.
+Agents should call `discover_workflow` first. Its response includes the current revision, valid node IDs and ports, named UI targets, and copyable examples for the next tool call. `edit_workflow` uses that exact revision without incrementing it to prevent stale edits and returns a receipt that can be inspected, focused, or undone. Node labels may be supplied either as strings or as label objects copied from the returned `surfaceSnapshot`.
 
 The discovery result also includes a `surfaceSnapshot` conforming to the draft 2D WebMCP `SurfaceSnapshot` proposal. The app vendors the draft JSON Schema in `src/webmcp/schemas` as a conformance fixture; it is not an npm dependency or a claim of a finalized standard.
 
