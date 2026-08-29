@@ -9,9 +9,11 @@ import { workflowSurfaceReceipt } from "../src/webmcp/surfaceReceipt";
 import surfaceSnapshotJsonSchema from "../src/webmcp/schemas/surface-snapshot.v0.1.schema.json";
 import surfaceReceiptJsonSchema from "../src/webmcp/schemas/surface-receipt.v0.1.schema.json";
 import {
-  genericEditorReceipt,
+  genericEditorResult,
   genericEditorSchemas,
   genericEditorSnapshot,
+} from "./genericEditorBaseline";
+import {
   workflowBaselineReceipt,
   workflowBaselineSchemas,
   workflowBaselineSnapshot,
@@ -41,7 +43,7 @@ export function createSurfaceEvalSession() {
           annotations: tool.annotations,
           outputSchemas: tool.name === toolNames.discoverWorkflow
             ? { genericEditor: genericEditorSchemas.snapshot, workflowBaseline: workflowBaselineSchemas.snapshot, surfaceRfc: surfaceSnapshotJsonSchema }
-            : { genericEditor: genericEditorSchemas.receipt, workflowBaseline: workflowBaselineSchemas.receipt, surfaceRfc: surfaceReceiptJsonSchema },
+            : { genericEditor: genericEditorSchemas.result, workflowBaseline: workflowBaselineSchemas.receipt, surfaceRfc: surfaceReceiptJsonSchema },
         }));
     },
     async execute(name: string, input: unknown) {
@@ -63,7 +65,7 @@ export function createSurfaceEvalSession() {
       return {
         native,
         outputs: {
-          genericEditor: genericEditorReceipt(native),
+          genericEditor: genericEditorResult(native),
           workflowBaseline: workflowBaselineReceipt(native),
           surfaceRfc: workflowSurfaceReceipt(native, commands),
         },

@@ -4,60 +4,6 @@ import { nodeDefinitions } from "../src/graph/nodeTypes";
 
 const scalar = { type: ["string", "number", "boolean"] };
 
-export const genericEditorSchemas = {
-  snapshot: {
-    title: "Generic editor snapshot",
-    type: "object",
-    properties: {
-      revision: { type: "integer", minimum: 0 },
-      items: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            id: { type: "string" }, label: { type: "string" },
-            x: { type: "number" }, y: { type: "number" },
-          },
-          required: ["id", "label", "x", "y"],
-          additionalProperties: false,
-        },
-      },
-      relationships: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            id: { type: "string" }, sourceId: { type: "string" }, sourceTerminal: { type: "string" },
-            targetId: { type: "string" }, targetTerminal: { type: "string" },
-          },
-          required: ["id", "sourceId", "sourceTerminal", "targetId", "targetTerminal"],
-          additionalProperties: false,
-        },
-      },
-    },
-    required: ["revision", "items", "relationships"],
-    additionalProperties: false,
-  },
-  receipt: {
-    title: "Generic editor result",
-    type: "object",
-    properties: {
-      status: { enum: ["completed", "partial", "failed", "conflict"] },
-      changed: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: { id: { type: "string" }, action: { type: "string" } },
-          required: ["id", "action"],
-          additionalProperties: false,
-        },
-      },
-    },
-    required: ["status", "changed"],
-    additionalProperties: false,
-  },
-};
-
 export const workflowBaselineSchemas = {
   snapshot: {
     title: "Workflow baseline snapshot",
@@ -133,25 +79,6 @@ export function workflowBaselineSnapshot(state: WorkflowState) {
   };
 }
 
-export function genericEditorSnapshot(state: WorkflowState) {
-  return {
-    revision: state.revision,
-    items: state.nodes.map((node) => ({
-      id: node.id,
-      label: node.label,
-      x: node.position.x,
-      y: node.position.y,
-    })),
-    relationships: state.edges.map((edge) => ({
-      id: edge.id,
-      sourceId: edge.source,
-      sourceTerminal: edge.sourcePort,
-      targetId: edge.target,
-      targetTerminal: edge.targetPort,
-    })),
-  };
-}
-
 export function workflowBaselineReceipt(receipt: ChangeReceipt) {
   return {
     operationId: receipt.operationId,
@@ -166,15 +93,5 @@ export function workflowBaselineReceipt(receipt: ChangeReceipt) {
       label: change.object.label,
     })),
     undoOperationId: receipt.undo.operationId ?? null,
-  };
-}
-
-export function genericEditorReceipt(receipt: ChangeReceipt) {
-  return {
-    status: receipt.status,
-    changed: receipt.changes.map((change) => ({
-      id: change.object.id,
-      action: change.action,
-    })),
   };
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createWorkflowStore } from "../src/state/workflowStore";
 import { createSurfaceEvalSession } from "./surfaceBridge";
-import { genericEditorReceipt, genericEditorSnapshot } from "./workflowBaseline";
+import { genericEditorResult, genericEditorSnapshot } from "./genericEditorBaseline";
 
 describe("generic editor eval baseline", () => {
   it("returns only the generic editor data needed to inspect and continue", () => {
@@ -26,11 +26,11 @@ describe("generic editor eval baseline", () => {
 
   it("returns the minimal conventional result for a successful edit", () => {
     const store = createWorkflowStore();
-    const receipt = store.getState().apply(0, [
+    const result = store.getState().apply(0, [
       { type: "updateNode", id: "fetch-orders", patch: { label: "Fetch Orders v2" } },
     ]);
 
-    expect(genericEditorReceipt(receipt)).toEqual({
+    expect(genericEditorResult(result)).toEqual({
       status: "completed",
       changed: [{ id: "fetch-orders", action: "updated" }],
     });
