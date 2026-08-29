@@ -6,6 +6,9 @@ import { createToolHandlers } from "../src/webmcp/toolHandlers";
 import { workflowToolDefinitions } from "../src/webmcp/registerTools";
 import { toolNames } from "../src/webmcp/toolNames";
 import { workflowSurfaceReceipt } from "../src/webmcp/surfaceReceipt";
+import surfaceSnapshotJsonSchema from "../src/webmcp/schemas/surface-snapshot.v0.1.schema.json";
+import surfaceReceiptJsonSchema from "../src/webmcp/schemas/surface-receipt.v0.1.schema.json";
+import { workflowBaselineReceipt, workflowBaselineSchemas, workflowBaselineSnapshot } from "./workflowBaseline";
 
 type BridgeRequest = {
   id: number;
@@ -29,6 +32,9 @@ export function createSurfaceEvalSession() {
           description: tool.description,
           inputSchema: tool.inputSchema,
           annotations: tool.annotations,
+          outputSchemas: tool.name === toolNames.discoverWorkflow
+            ? { workflowBaseline: workflowBaselineSchemas.snapshot, surfaceRfc: surfaceSnapshotJsonSchema }
+            : { workflowBaseline: workflowBaselineSchemas.receipt, surfaceRfc: surfaceReceiptJsonSchema },
         }));
     },
     async execute(name: string, input: unknown) {
@@ -36,9 +42,23 @@ export function createSurfaceEvalSession() {
       const execute = handlers[name as keyof typeof handlers];
       if (typeof execute !== "function") throw new Error(`Unknown workflow tool: ${name}`);
       const native = await execute(input, {});
-      if (name !== toolNames.editWorkflow) return { native };
+      if (name !== toolNames.editWorkflow) {
+        return {
+          native,
+          outputs: {
+            workflowBaseline: workflowBaselineSnapshot(store.getState().workflow),
+            surfaceRfc: native.surfaceSnapshot,
+          },
+        };
+      }
       const commands = (input as { commands: Parameters<typeof workflowSurfaceReceipt>[1] }).commands;
-      return { native, surfaceReceipt: workflowSurfaceReceipt(native, commands) };
+      return {
+        native,
+        outputs: {
+          workflowBaseline: workflowBaselineReceipt(native),
+          surfaceRfc: workflowSurfaceReceipt(native, commands),
+        },
+      };
     },
     bumpRevision() {
       const workflow = store.getState().workflow;
