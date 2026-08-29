@@ -37,4 +37,25 @@ describe("workflowSurfaceReceipt", () => {
       verification: "native-result",
     }));
   });
+
+  it("attributes relationships removed by a cascading node delete to that command", () => {
+    const store = createWorkflowStore(createSeedWorkflow());
+    store.getState().apply(0, [{
+      type: "connect",
+      edge: {
+        id: "edge-fetch-alert",
+        source: "fetch-orders",
+        sourcePort: "failure",
+        target: "alert-team",
+        targetPort: "input",
+      },
+    }]);
+    const commands = [{ type: "deleteNode" as const, id: "alert-team" }];
+    const nativeReceipt = store.getState().apply(1, commands);
+
+    expect(workflowSurfaceReceipt(nativeReceipt, commands).effects).toEqual([
+      { commandIndex: 0, itemId: "alert-team", effect: "deleted" },
+      { commandIndex: 0, relationshipId: "edge-fetch-alert", effect: "disconnected" },
+    ]);
+  });
 });

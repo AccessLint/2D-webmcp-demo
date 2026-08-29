@@ -12,8 +12,12 @@ function commandTouches(command: WorkflowCommand, change: WorkflowChange) {
   const id = change.object.id;
   switch (command.type) {
     case "createNode": return command.node.id === id;
-    case "updateNode":
-    case "deleteNode": return command.id === id;
+    case "updateNode": return change.object.kind === "workflow-node" && command.id === id;
+    case "deleteNode":
+      return (change.object.kind === "workflow-node" && command.id === id)
+        || (change.action === "disconnected" && change.before !== undefined
+          && "source" in change.before
+          && (change.before.source === command.id || change.before.target === command.id));
     case "connect": return command.edge.id === id;
     case "disconnect": return command.edgeId === id;
     case "replaceConnection":
