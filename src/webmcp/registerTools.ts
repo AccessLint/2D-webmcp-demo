@@ -42,7 +42,7 @@ const withRecovery = (execute: WebMCPTool["execute"]): WebMCPTool["execute"] => 
   }
 };
 
-function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
+export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
   return [
     {
       name: toolNames.discoverWorkflow,

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "eval:surface-bridge": "node evals/runSurfaceBridge.mjs",
     "build": "tsc -b && vite build && vite build --config vite.worker.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
