@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "0.1"
+    },
+    "operationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "surfaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "partial",
+        "failed",
+        "conflict"
+      ]
+    },
+    "atomic": {
+      "type": "boolean"
+    },
+    "documentVersionBefore": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "documentVersionAfter": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "commandIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "itemId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "relationshipId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "created",
+              "updated",
+              "deleted",
+              "connected",
+              "disconnected",
+              "restored",
+              "unchanged"
+            ]
+          }
+        },
+        "required": [
+          "commandIndex",
+          "effect"
+        ],
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "itemId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "relationshipId": false
+            },
+            "required": [
+              "itemId"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "itemId": false,
+              "relationshipId": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "relationshipId"
+            ]
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "undo": {
+      "type": "object",
+      "properties": {
+        "availability": {
+          "type": "string",
+          "enum": [
+            "none",
+            "session-history",
+            "operation-token"
+          ]
+        },
+        "token": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "availability",
+        "token"
+      ],
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "availability": {
+              "const": "operation-token"
+            },
+            "token": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "availability",
+            "token"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "availability": {
+              "enum": [
+                "none",
+                "session-history"
+              ]
+            },
+            "token": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "availability",
+            "token"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "string",
+      "enum": [
+        "native-result",
+        "native-diff",
+        "postcondition-read",
+        "unverified"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^(urn:|https?://)\\S+$"
+      },
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "surfaceId",
+    "status",
+    "atomic",
+    "documentVersionBefore",
+    "documentVersionAfter",
+    "effects",
+    "undo",
+    "verification"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:2d-webmcp:schema:surface-receipt:0.1",
+  "title": "2D WebMCP Surface Receipt"
+}
