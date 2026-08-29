@@ -23,11 +23,52 @@ describe("WebMCP tool boundary", () => {
         return { selector, tagName: "div", id: null, focusWhen: "window-focus-or-accessibility-interaction", queued: true };
       },
     });
-    expect(tools.discover_workflow({})).toMatchObject({
+    const discovery = tools.discover_workflow({});
+    expect(discovery).toMatchObject({
       schemaVersion: "1",
       revision: 0,
       nodes: 5,
       edges: 3,
+      surfaceSchema: {
+        id: "urn:2d-webmcp:schema:surface-snapshot:0.1",
+        status: "draft",
+        source: "2D-webmcp/schemas/surface-snapshot.v0.1.schema.json",
+        version: "0.1",
+      },
+      surfaceSnapshot: {
+        schemaVersion: "0.1",
+        surface: {
+          id: "workflow",
+          documentVersion: "0",
+          capabilities: {
+            atomicity: "arbitrary-batch",
+            revisionPreconditions: true,
+            undo: "operation-token",
+          },
+        },
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            id: "fetch-orders",
+            kind: "workflow-node",
+            label: { value: "Fetch Orders", source: "author" },
+            geometry: {
+              type: "point",
+              coordinateSpaceId: "world",
+              origin: "top-left",
+              x: 280,
+              y: 180,
+            },
+          }),
+        ]),
+        relationships: expect.arrayContaining([
+          expect.objectContaining({
+            id: "edge-fetch-save",
+            type: "connects",
+            from: { itemId: "fetch-orders", terminal: "success" },
+            to: { itemId: "save-results", terminal: "input" },
+          }),
+        ]),
+      },
       authoring: {
         nodeTypes: expect.arrayContaining([
           { type: "retry", title: "Retry", inputs: ["input"], outputs: ["success", "failure"] },

@@ -1,0 +1,791 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "0.1"
+    },
+    "surface": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "documentVersion": {
+          "type": "string"
+        },
+        "coordinateSystems": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "units": {
+                "type": "string",
+                "minLength": 1
+              },
+              "origin": {
+                "type": "string",
+                "enum": [
+                  "top-left",
+                  "center",
+                  "product-defined"
+                ]
+              },
+              "relativeToItemId": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id",
+              "units",
+              "origin"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "atomicity": {
+              "type": "string",
+              "enum": [
+                "none",
+                "create-only",
+                "single-execution",
+                "arbitrary-batch"
+              ]
+            },
+            "revisionPreconditions": {
+              "type": "boolean"
+            },
+            "undo": {
+              "type": "string",
+              "enum": [
+                "none",
+                "session-history",
+                "operation-token"
+              ]
+            }
+          },
+          "required": [
+            "atomicity",
+            "revisionPreconditions",
+            "undo"
+          ],
+          "additionalProperties": false
+        },
+        "extensions": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^(urn:|https?://)\\S+$"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "id",
+        "coordinateSystems",
+        "capabilities"
+      ],
+      "additionalProperties": false
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parentId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "zOrder": {
+            "type": "number"
+          },
+          "label": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "native",
+                  "author",
+                  "derived"
+                ]
+              }
+            },
+            "required": [
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          "description": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "native",
+                  "author",
+                  "derived"
+                ]
+              }
+            },
+            "required": [
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          "geometry": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "point"
+                  },
+                  "coordinateSpaceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "relativeToItemId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "top-left",
+                      "center",
+                      "product-defined"
+                    ]
+                  },
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "type",
+                  "coordinateSpaceId",
+                  "origin",
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "rect"
+                  },
+                  "coordinateSpaceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "relativeToItemId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "top-left",
+                      "center",
+                      "product-defined"
+                    ]
+                  },
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "rotation": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "type",
+                  "coordinateSpaceId",
+                  "origin",
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "transform"
+                  },
+                  "coordinateSpaceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "relativeToItemId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "top-left",
+                      "center",
+                      "product-defined"
+                    ]
+                  },
+                  "matrix": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 6,
+                    "maxItems": 6
+                  },
+                  "intrinsicSize": {
+                    "type": "object",
+                    "properties": {
+                      "width": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "height": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "width",
+                      "height"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "type",
+                  "coordinateSpaceId",
+                  "origin",
+                  "matrix",
+                  "intrinsicSize"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "polyline"
+                  },
+                  "coordinateSpaceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "relativeToItemId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "top-left",
+                      "center",
+                      "product-defined"
+                    ]
+                  },
+                  "points": {
+                    "minItems": 2,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "closed": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "type",
+                  "coordinateSpaceId",
+                  "origin",
+                  "points"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "path"
+                  },
+                  "coordinateSpaceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "relativeToItemId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "top-left",
+                      "center",
+                      "product-defined"
+                    ]
+                  },
+                  "data": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "type",
+                  "coordinateSpaceId",
+                  "origin",
+                  "data"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "connector"
+                  },
+                  "coordinateSpaceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "relativeToItemId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "top-left",
+                      "center",
+                      "product-defined"
+                    ]
+                  },
+                  "start": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "end": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "route": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "type",
+                  "coordinateSpaceId",
+                  "origin",
+                  "start",
+                  "end"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "worldBounds": {
+            "type": "object",
+            "properties": {
+              "coordinateSpaceId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              },
+              "width": {
+                "type": "number",
+                "minimum": 0
+              },
+              "height": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "coordinateSpaceId",
+              "x",
+              "y",
+              "width",
+              "height"
+            ],
+            "additionalProperties": false
+          },
+          "renderBounds": {
+            "type": "object",
+            "properties": {
+              "coordinateSpaceId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              },
+              "width": {
+                "type": "number",
+                "minimum": 0
+              },
+              "height": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "coordinateSpaceId",
+              "x",
+              "y",
+              "width",
+              "height"
+            ],
+            "additionalProperties": false
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "itemVersion": {
+            "type": "string"
+          },
+          "supportedActions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "extensions": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^(urn:|https?://)\\S+$"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "from": {
+            "type": "object",
+            "properties": {
+              "itemId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "terminal": {
+                "type": "string",
+                "minLength": 1
+              },
+              "anchor": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "normalized",
+                      "absolute",
+                      "product-defined"
+                    ]
+                  },
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "type",
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "itemId"
+            ],
+            "additionalProperties": false
+          },
+          "to": {
+            "type": "object",
+            "properties": {
+              "itemId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "terminal": {
+                "type": "string",
+                "minLength": 1
+              },
+              "anchor": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "normalized",
+                      "absolute",
+                      "product-defined"
+                    ]
+                  },
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "type",
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "itemId"
+            ],
+            "additionalProperties": false
+          },
+          "extensions": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^(urn:|https?://)\\S+$"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "session": {
+      "type": "object",
+      "properties": {
+        "selection": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "focusedItemId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extensions": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^(urn:|https?://)\\S+$"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "additionalProperties": false
+    },
+    "presence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "participantId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "selectedItemIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "extensions": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^(urn:|https?://)\\S+$"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "participantId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^(urn:|https?://)\\S+$"
+      },
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "surface",
+    "items",
+    "relationships"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:2d-webmcp:schema:surface-snapshot:0.1",
+  "title": "2D WebMCP Surface Snapshot"
+}

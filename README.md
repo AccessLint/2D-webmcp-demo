@@ -48,6 +48,8 @@ The graph command executor is the main write interface. It clones the current wo
 
 Agents should call `discover_workflow` first. Its response includes the current revision, valid node IDs and ports, named UI targets, and copyable examples for the next tool call. `edit_workflow` uses that revision to prevent stale edits and returns a receipt that can be inspected, focused, or undone.
 
+The discovery result also includes a `surfaceSnapshot` conforming to the draft 2D WebMCP `SurfaceSnapshot` proposal. The app vendors the draft JSON Schema in `src/webmcp/schemas` as a conformance fixture; it is not an npm dependency or a claim of a finalized standard.
+
 1. Call `discover_workflow`.
 2. Optionally call `inspect_workflow_items` for more detail.
 3. Copy the returned revision into `edit_workflow` and submit the intended commands.
