@@ -50,6 +50,8 @@ Agents should call `discover_workflow` first. Its response includes the current 
 
 The discovery result also includes a `surfaceSnapshot` conforming to the draft 2D WebMCP `SurfaceSnapshot` proposal. The app vendors the draft JSON Schema in `src/webmcp/schemas` as a conformance fixture; it is not an npm dependency or a claim of a finalized standard.
 
+The external eval bridge also exposes a minimal generic editor baseline for comparison. Its discovery result contains only `revision`, flat `items`, and flat `relationships`; its successful edit result is `{status, changed: [{id, action}]}`. This is an eval adapter, not an additional browser-facing tool contract.
+
 1. Call `discover_workflow`.
 2. Optionally call `inspect_workflow_items` for more detail.
 3. Copy the returned revision into `edit_workflow` and submit the intended commands.

@@ -8,7 +8,14 @@ import { toolNames } from "../src/webmcp/toolNames";
 import { workflowSurfaceReceipt } from "../src/webmcp/surfaceReceipt";
 import surfaceSnapshotJsonSchema from "../src/webmcp/schemas/surface-snapshot.v0.1.schema.json";
 import surfaceReceiptJsonSchema from "../src/webmcp/schemas/surface-receipt.v0.1.schema.json";
-import { workflowBaselineReceipt, workflowBaselineSchemas, workflowBaselineSnapshot } from "./workflowBaseline";
+import {
+  genericEditorReceipt,
+  genericEditorSchemas,
+  genericEditorSnapshot,
+  workflowBaselineReceipt,
+  workflowBaselineSchemas,
+  workflowBaselineSnapshot,
+} from "./workflowBaseline";
 
 type BridgeRequest = {
   id: number;
@@ -33,8 +40,8 @@ export function createSurfaceEvalSession() {
           inputSchema: tool.inputSchema,
           annotations: tool.annotations,
           outputSchemas: tool.name === toolNames.discoverWorkflow
-            ? { workflowBaseline: workflowBaselineSchemas.snapshot, surfaceRfc: surfaceSnapshotJsonSchema }
-            : { workflowBaseline: workflowBaselineSchemas.receipt, surfaceRfc: surfaceReceiptJsonSchema },
+            ? { genericEditor: genericEditorSchemas.snapshot, workflowBaseline: workflowBaselineSchemas.snapshot, surfaceRfc: surfaceSnapshotJsonSchema }
+            : { genericEditor: genericEditorSchemas.receipt, workflowBaseline: workflowBaselineSchemas.receipt, surfaceRfc: surfaceReceiptJsonSchema },
         }));
     },
     async execute(name: string, input: unknown) {
@@ -46,6 +53,7 @@ export function createSurfaceEvalSession() {
         return {
           native,
           outputs: {
+            genericEditor: genericEditorSnapshot(store.getState().workflow),
             workflowBaseline: workflowBaselineSnapshot(store.getState().workflow),
             surfaceRfc: native.surfaceSnapshot,
           },
@@ -55,6 +63,7 @@ export function createSurfaceEvalSession() {
       return {
         native,
         outputs: {
+          genericEditor: genericEditorReceipt(native),
           workflowBaseline: workflowBaselineReceipt(native),
           surfaceRfc: workflowSurfaceReceipt(native, commands),
         },
