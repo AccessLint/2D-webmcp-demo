@@ -189,6 +189,14 @@ export function WorkflowCanvas() {
     }
   }, [apply, runCanvasChange, select, selected, workflow.revision]);
 
+  const disconnectEdges = useCallback((edgeIds: string[]) => {
+    runCanvasChange(() => apply(
+      workflow.revision,
+      edgeIds.map((edgeId) => ({ type: "disconnect" as const, edgeId })),
+      edgeIds.length === 1 ? "Disconnect edge" : "Disconnect edges",
+    ));
+  }, [apply, runCanvasChange, workflow.revision]);
+
   const onConnect = (connection: Connection) => runCanvasChange(() => {
     apply(workflow.revision, [{
       type: "connect",
@@ -236,11 +244,7 @@ export function WorkflowCanvas() {
             items.map((node) => ({ type: "deleteNode" as const, id: node.id })),
             "Delete nodes",
           ))}
-          onEdgesDelete={(items) => runCanvasChange(() => apply(
-            workflow.revision,
-            items.map((edge) => ({ type: "disconnect" as const, edgeId: edge.id })),
-            "Disconnect edges",
-          ))}
+          onEdgesDelete={(items) => disconnectEdges(items.map((edge) => edge.id))}
           ariaLabelConfig={ariaLabelConfig}
           aria-label="Workflow canvas"
           aria-describedby="workflow-canvas-instructions"
@@ -285,11 +289,7 @@ export function WorkflowCanvas() {
                       select(null);
                     } else if (event.key === "Delete" || event.key === "Backspace") {
                       event.preventDefault();
-                      runCanvasChange(() => apply(
-                        workflow.revision,
-                        [{ type: "disconnect", edgeId: edge.id }],
-                        "Disconnect edge",
-                      ));
+                      disconnectEdges([edge.id]);
                       select(null);
                       queueMicrotask(() => {
                         document.getElementById("workflow-connections-heading")?.focus();
