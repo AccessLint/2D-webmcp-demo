@@ -29,7 +29,30 @@ function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
 
+const editCommandExamples = {
+  createNode: {
+    type: "createNode",
+    node: { id: "retry", type: "retry", label: "Retry", position: { x: 500, y: 200 }, properties: { attempts: 3 } },
+  },
+  connect: {
+    type: "connect",
+    edge: { id: "edge-new", source: "source-id", sourcePort: "success", target: "target-id", targetPort: "input" },
+  },
+  replaceConnection: {
+    type: "replaceConnection",
+    edgeId: "existing-edge-id",
+    replacement: [{ id: "edge-new", source: "source-id", sourcePort: "success", target: "target-id", targetPort: "input" }],
+  },
+} as const;
+
 function recoveryFor(tool: ToolName, invalidInput: boolean, code?: string) {
+  if (invalidInput && tool === toolNames.editWorkflow) {
+    return {
+      tool,
+      reason: "Correct the listed fields and retry. Every command needs a top-level type; never wrap it under a command name.",
+      commandExamples: editCommandExamples,
+    };
+  }
   if (invalidInput) return { tool, reason: "Correct the listed input fields and retry." };
   if (code === "UNDO_REVISION_CONFLICT") {
     return { action: "not-retryable", reason: "A later workflow edit makes this operation impossible to undo." };
@@ -164,7 +187,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.editWorkflow,
       title: "Edit workflow",
-      description: `Call after ${toolNames.discoverWorkflow}. Set baseRevision to its exact revision, or Number(surface.documentVersion) for a SurfaceSnapshot. Do not increment it. Atomically applies up to 20 typed commands; updateNode patch.label accepts a string or a copied Snapshot label object. On conflict, follow recovery.`,
+      description: `Call after ${toolNames.discoverWorkflow}. Set baseRevision to its exact revision, or Number(surface.documentVersion) for a SurfaceSnapshot. Do not increment it. Every command object needs a top-level type, for example {type:"createNode",node:{...}}. Never wrap a command as {createNode:{...}}. Atomically applies up to 20 commands; updateNode patch.label accepts a string or a copied Snapshot label object. On conflict, follow recovery.`,
       inputSchema: jsonSchemas.apply,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.editWorkflow],
@@ -196,7 +219,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.showEditResult,
       title: "Show edit result",
-      description: "Use an operationId from an edit result to bring that history entry into view and move keyboard focus to it for proof or review.",
+      description: `Use this as the final proof step after ${toolNames.editWorkflow}. Pass its operationId to bring that history entry into view and move keyboard focus to it as visible evidence for the user.`,
       inputSchema: jsonSchemas.operation,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.showEditResult],

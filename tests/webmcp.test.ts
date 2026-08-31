@@ -203,6 +203,8 @@ describe("WebMCP tool boundary", () => {
     ]);
     expect(registered.get("discover_workflow")?.description).toContain("Call this first");
     expect(registered.get("edit_workflow")?.description).toContain("Do not increment it");
+    expect(registered.get("edit_workflow")?.description).toContain("top-level type");
+    expect(registered.get("edit_workflow")?.description).toContain("Never wrap a command");
     expect(registered.get("focus_page_element")?.description).toContain("exactly one targetId");
     expect(registered.get("discover_workflow")?.annotations).toEqual({
       readOnlyHint: true,
@@ -254,8 +256,22 @@ describe("WebMCP tool boundary", () => {
             message: expect.stringContaining("createNode"),
           }),
         ]),
+        recovery: {
+          tool: "edit_workflow",
+          reason: expect.stringContaining("top-level type"),
+          commandExamples: {
+            createNode: expect.objectContaining({ type: "createNode", node: expect.any(Object) }),
+            connect: expect.objectContaining({ type: "connect", edge: expect.any(Object) }),
+            replaceConnection: expect.objectContaining({
+              type: "replaceConnection",
+              edgeId: expect.any(String),
+              replacement: expect.any(Array),
+            }),
+          },
+        },
       },
     });
+    expect(JSON.stringify(invalidEdit).length).toBeLessThanOrEqual(1_500);
     expect(registered.get("edit_workflow")?.inputSchema).toMatchObject({
       properties: {
         baseRevision: expect.objectContaining({
@@ -276,6 +292,11 @@ describe("WebMCP tool boundary", () => {
       operationId: expect.any(String),
       changeCount: 0,
       changePage: { cursor: 0, nextCursor: null, items: [] },
+      nextCall: {
+        tool: "show_edit_result",
+        input: { operationId: expect.any(String) },
+        purpose: expect.stringContaining("visible evidence"),
+      },
     });
     expect(store.getState().invocations.find((invocation) => invocation.tool === "edit_workflow")).toMatchObject({
       outcome: "completed",

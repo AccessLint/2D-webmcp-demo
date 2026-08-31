@@ -38,6 +38,33 @@ const metrics: Array<{
   },
 ];
 
+const scoreDimensions: Array<{
+  label: string;
+  description: string;
+  getScore: (run: EvalRun) => Score;
+}> = [
+  {
+    label: "Task completion",
+    description: "Reached the requested end state, including recovery after an invalid call.",
+    getScore: (run) => run.scoreBreakdown.taskCompletion,
+  },
+  {
+    label: "First-attempt edit validity",
+    description: "Sent a schema-valid complex edit before needing corrective feedback.",
+    getScore: (run) => run.scoreBreakdown.firstAttemptEditValidity,
+  },
+  {
+    label: "Visible edit evidence",
+    description: "Finished the edit by bringing its receipt into view for review.",
+    getScore: (run) => run.scoreBreakdown.visibleEditEvidence,
+  },
+  {
+    label: "Exact-call matching",
+    description: "Matched each expected tool call and input exactly; extra calls lower this diagnostic.",
+    getScore: (run) => run.strictSteps,
+  },
+];
+
 function TrendMetric({ label, description, getScore }: (typeof metrics)[number]) {
   const baseline = getScore(evalRuns[0]);
   const latest = getScore(evalRuns.at(-1)!);
@@ -119,6 +146,34 @@ export function EvalResultsPage() {
             while the exact-call score rose from 23.4% to 45.5%.
           </div>
         </header>
+
+        <section className="eval-section" aria-labelledby="score-breakdown-heading">
+          <div className="eval-section__heading">
+            <div>
+              <p className="eyebrow">What each score means</p>
+              <h2 id="score-breakdown-heading">Score breakdown</h2>
+            </div>
+            <p>The latest report was reviewed by outcome as well as by the evaluator’s strict step matcher.</p>
+          </div>
+          <div className="eval-score-breakdown">
+            {scoreDimensions.map(({ label, description, getScore }) => {
+              const baseline = getScore(evalRuns[0]);
+              const current = getScore(latest);
+              return (
+                <article className="eval-score-card" key={label}>
+                  <p>{label}</p>
+                  <strong>{current.passed}/{current.total}</strong>
+                  <span>Baseline {baseline.passed}/{baseline.total}</span>
+                  <small>{description}</small>
+                </article>
+              );
+            })}
+          </div>
+          <p className="eval-note">
+            All comparisons use the same unchanged fixture, <code>{latest.fixture}</code>. The application and
+            registered tool guidance changed; the evaluation tasks and expected calls did not.
+          </p>
+        </section>
 
         <section className="eval-section" aria-labelledby="model-outcomes-heading">
           <div className="eval-section__heading">

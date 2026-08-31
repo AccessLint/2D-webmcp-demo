@@ -117,6 +117,13 @@ function compactReceipt(result: UnknownRecord, input: unknown) {
       },
     },
     undo: result.undo,
+    ...(result.status === "completed" && typeof result.operationId === "string" ? {
+      nextCall: {
+        tool: "show_edit_result",
+        input: { operationId: result.operationId },
+        purpose: "Bring the receipt into view as visible evidence for the user.",
+      },
+    } : {}),
     ...(result.failure ? { failure: result.failure } : {}),
     ...(result.recovery ? { recovery: result.recovery } : {}),
   });

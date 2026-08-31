@@ -11,6 +11,11 @@ export type EvalRun = {
   reportPath: string;
   deterministicSmoke: { passed: number; total: number };
   strictSteps: { passed: number; total: number };
+  scoreBreakdown: {
+    taskCompletion: { passed: number; total: number };
+    firstAttemptEditValidity: { passed: number; total: number };
+    visibleEditEvidence: { passed: number; total: number };
+  };
   journeys: {
     discover: { passed: number; total: number };
     inspect: { passed: number; total: number };
@@ -36,6 +41,11 @@ export const evalRuns: EvalRun[] = [
     reportPath: "/evals/reports/gpt-5-mini-baseline.html",
     deterministicSmoke: { passed: 9, total: 9 },
     strictSteps: { passed: 61, total: 261 },
+    scoreBreakdown: {
+      taskCompletion: { passed: 40, total: 50 },
+      firstAttemptEditValidity: { passed: 0, total: 10 },
+      visibleEditEvidence: { passed: 0, total: 10 },
+    },
     journeys: {
       discover: { passed: 10, total: 10 },
       inspect: { passed: 10, total: 10 },
@@ -60,6 +70,11 @@ export const evalRuns: EvalRun[] = [
     reportPath: "/evals/reports/gpt-5-mini-iteration-1.html",
     deterministicSmoke: { passed: 9, total: 9 },
     strictSteps: { passed: 61, total: 134 },
+    scoreBreakdown: {
+      taskCompletion: { passed: 50, total: 50 },
+      firstAttemptEditValidity: { passed: 3, total: 10 },
+      visibleEditEvidence: { passed: 6, total: 10 },
+    },
     journeys: {
       discover: { passed: 10, total: 10 },
       inspect: { passed: 10, total: 10 },
