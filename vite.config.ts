@@ -8,6 +8,7 @@ function publishEvalReport(): Plugin {
   const reports = [
     [".evals/report-1788212058992.html", "gpt-5-mini-baseline.html"],
     [".evals/report-1788215449743.html", "gpt-5-mini-iteration-1.html"],
+    [".evals/report-1788217687512.html", "gpt-5-mini-iteration-2.html"],
   ] as const;
 
   return {
