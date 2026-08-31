@@ -165,6 +165,12 @@ export function WorkflowCanvas() {
     }
   }, [reportError]);
 
+  const toggleNodeSelection = useCallback((nodeId: string) => {
+    select(selected?.kind === "node" && selected.id === nodeId
+      ? null
+      : { kind: "node", id: nodeId });
+  }, [select, selected]);
+
   const onNodesChange = useCallback((changes: NodeChange<WorkflowFlowNode>[]) => {
     const selectedNode = changes.find(
       (change) => change.type === "select" && change.selected,
@@ -217,7 +223,7 @@ export function WorkflowCanvas() {
     <>
       <div ref={shell} className="canvas-shell" aria-label="Visual workflow canvas">
         <p id="workflow-canvas-instructions" className="sr-only">
-          Tab to a node. Press Enter or Space to select it. Use the Arrow keys to move it.
+          Tab to a node. Press Enter or Space to toggle its selection. Use the Arrow keys to move it.
           Hold Shift with an Arrow key to move farther. Press Backspace to delete it.
           Press Escape to clear selection. Use the Workflow connections region to review and
           select connections.
@@ -232,7 +238,18 @@ export function WorkflowCanvas() {
           minZoom={0.25}
           maxZoom={1.5}
           proOptions={{ hideAttribution: true }}
-          onNodeClick={(_, node) => select({ kind: "node", id: node.id })}
+          onNodeClick={(_, node) => toggleNodeSelection(node.id)}
+          onKeyDownCapture={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            const nodeElement = (event.target as HTMLElement).closest<HTMLElement>(
+              ".react-flow__node[data-id]",
+            );
+            const nodeId = nodeElement?.dataset.id;
+            if (!nodeId) return;
+            event.preventDefault();
+            event.stopPropagation();
+            toggleNodeSelection(nodeId);
+          }}
           onEdgeClick={(_, edge) => select({ kind: "edge", id: edge.id })}
           onNodesChange={onNodesChange}
           onConnect={onConnect}

@@ -55,6 +55,12 @@ test("node selection is exposed as accessibility state", async ({ page }) => {
   await startNode.click();
   await expect(startNode).toHaveAttribute("aria-pressed", "true");
 
+  await startNode.press("Space");
+  await expect(startNode).toHaveAttribute("aria-pressed", "false");
+
+  await startNode.press("Enter");
+  await expect(startNode).toHaveAttribute("aria-pressed", "true");
+
   await startNode.press("Escape");
   await expect(startNode).toHaveAttribute("aria-pressed", "false");
 });
@@ -65,7 +71,7 @@ test("the canvas application exposes its complete keyboard contract", async ({ p
   const canvas = page.getByRole("application", { name: "Workflow canvas" });
   await expect(canvas).toHaveAttribute("aria-describedby", "workflow-canvas-instructions");
   await expect(page.locator("#workflow-canvas-instructions")).toContainText(
-    "Tab to a node. Press Enter or Space to select it. Use the Arrow keys to move it.",
+    "Tab to a node. Press Enter or Space to toggle its selection. Use the Arrow keys to move it.",
   );
   await expect(page.locator("#workflow-canvas-instructions")).toContainText(
     "Press Escape to clear selection.",
