@@ -6,13 +6,16 @@ import {
   MiniMap,
   Position,
   ReactFlow,
+  type AriaLabelConfig,
   type Connection,
   type Edge,
   type Node,
+  type NodeChange,
   type NodeProps,
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import type { WorkflowCommand } from "../graph/commands";
 import type { WorkflowEdge, WorkflowNode } from "../graph/model";
 import { nodeDefinitions } from "../graph/nodeTypes";
 import { useWorkflowStore, type WorkflowSelection } from "../state/workflowStore";
@@ -59,6 +62,10 @@ function WorkflowCard({ data, selected }: NodeProps<WorkflowFlowNode>) {
 }
 
 const nodeTypes = { workflow: WorkflowCard };
+const ariaLabelConfig = {
+  "node.a11yDescription.ariaLiveMessage": ({ direction }: { direction: string }) =>
+    `Moved selected node ${direction}.`,
+} satisfies Partial<AriaLabelConfig>;
 
 function toFlowNode(node: WorkflowNode, selected: WorkflowSelection | null): WorkflowFlowNode {
   return {
@@ -155,6 +162,31 @@ export function WorkflowCanvas() {
     }
   }, [reportError]);
 
+  const onNodesChange = useCallback((changes: NodeChange<WorkflowFlowNode>[]) => {
+    const selectedNode = changes.find(
+      (change) => change.type === "select" && change.selected,
+    );
+    if (selectedNode?.type === "select") {
+      select({ kind: "node", id: selectedNode.id });
+    } else if (
+      selected?.kind === "node"
+      && changes.some(
+        (change) => change.type === "select" && !change.selected && change.id === selected.id,
+      )
+    ) {
+      select(null);
+    }
+
+    const positionCommands = changes.flatMap((change): WorkflowCommand[] => (
+      change.type === "position" && change.dragging === false && change.position
+        ? [{ type: "updateNode", id: change.id, patch: { position: change.position } }]
+        : []
+    ));
+    if (positionCommands.length > 0) {
+      runCanvasChange(() => apply(workflow.revision, positionCommands, "Move node"));
+    }
+  }, [apply, runCanvasChange, select, selected, workflow.revision]);
+
   const onConnect = (connection: Connection) => runCanvasChange(() => {
     apply(workflow.revision, [{
       type: "connect",
@@ -181,11 +213,7 @@ export function WorkflowCanvas() {
         proOptions={{ hideAttribution: true }}
         onNodeClick={(_, node) => select({ kind: "node", id: node.id })}
         onEdgeClick={(_, edge) => select({ kind: "edge", id: edge.id })}
-        onNodeDragStop={(_, node) => runCanvasChange(() => apply(
-          workflow.revision,
-          [{ type: "updateNode", id: node.id, patch: { position: node.position } }],
-          "Move node",
-        ))}
+        onNodesChange={onNodesChange}
         onConnect={onConnect}
         onInit={(instance) => {
           flow.current = instance;
@@ -201,6 +229,7 @@ export function WorkflowCanvas() {
           items.map((edge) => ({ type: "disconnect" as const, edgeId: edge.id })),
           "Disconnect edges",
         ))}
+        ariaLabelConfig={ariaLabelConfig}
         aria-label="Workflow canvas"
       >
         <Background color="#2d4254" gap={24} size={1} />
