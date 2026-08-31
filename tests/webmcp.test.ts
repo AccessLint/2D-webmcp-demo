@@ -149,6 +149,22 @@ describe("WebMCP tool boundary", () => {
     expect(store.getState().workflow.nodes.find((node) => node.id === "enrich-company")?.label).toBe("Enrich company v2");
   });
 
+  it("defaults omitted properties when creating a node", () => {
+    const store = createWorkflowStore();
+    const tools = createToolHandlers(store);
+
+    const receipt = tools.edit_workflow({
+      baseRevision: 0,
+      commands: [{
+        type: "createNode",
+        node: { id: "new-action", type: "action", label: "New action", position: { x: 700, y: 300 } },
+      }],
+    });
+
+    expect(receipt).toMatchObject({ status: "completed", resultingRevision: 1 });
+    expect(store.getState().workflow.nodes.find((node) => node.id === "new-action")?.properties).toEqual({});
+  });
+
   it("preserves a typed command failure and recovery guidance in the receipt", () => {
     const tools = createToolHandlers(createWorkflowStore());
     const receipt = tools.edit_workflow({
@@ -202,10 +218,14 @@ describe("WebMCP tool boundary", () => {
       "focus_page_element", "get_edit_result", "show_edit_result", "undo_workflow_edit",
     ]);
     expect(registered.get("discover_workflow")?.description).toContain("Call this first");
+    expect(registered.get("discover_workflow")?.description).toContain("do not call this tool again");
+    expect(registered.get("inspect_workflow_items")?.description).toContain("does not select or reveal");
     expect(registered.get("edit_workflow")?.description).toContain("Do not increment it");
     expect(registered.get("edit_workflow")?.description).toContain("top-level type");
     expect(registered.get("edit_workflow")?.description).toContain("Never wrap a command");
     expect(registered.get("focus_page_element")?.description).toContain("exactly one targetId");
+    expect(registered.get("focus_page_element")?.description).toContain("Always call discover_workflow first");
+    expect(registered.get("show_workflow_item")?.description).toContain("select, show, reveal, or bring an item into view");
     expect(registered.get("discover_workflow")?.annotations).toEqual({
       readOnlyHint: true,
       untrustedContentHint: true,

@@ -31,6 +31,9 @@ const nodeSchema = z.object({
   position: positionSchema,
   properties: propertiesSchema.describe("Up to 4 node-specific scalar properties; names and string values are length-limited."),
 }).strict().describe("Complete workflow node definition.");
+const creatableNodeSchema = nodeSchema.extend({
+  properties: propertiesSchema.default({}).describe("Optional node-specific scalar properties, up to 4. Omit when the node has no properties."),
+}).strict();
 const edgeSchema = z.object({
   id: idSchema,
   source: idSchema.describe("Existing source node ID."),
@@ -49,7 +52,7 @@ export const workflowCommandTypes = [
 ] as const;
 
 export const commandSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("createNode"), node: nodeSchema }).strict().describe("Create one new node."),
+  z.object({ type: z.literal("createNode"), node: creatableNodeSchema }).strict().describe("Create one new node."),
   z.object({ type: z.literal("updateNode"), id: idSchema, patch: nodeSchema.omit({ id: true }).partial().strict().describe("Only fields that should change; node IDs cannot be changed.") }).strict().describe("Update an existing node."),
   z.object({ type: z.literal("deleteNode"), id: idSchema }).strict().describe("Delete an existing node and its attached connections."),
   z.object({ type: z.literal("connect"), edge: edgeSchema }).strict().describe("Create one new connection."),
@@ -68,7 +71,7 @@ export function normalizeCommands(commands: z.infer<typeof commandSchema>[]): Wo
   return commands.map((command) => {
     switch (command.type) {
       case "createNode":
-        return { ...command, node: { ...command.node, label: labelValue(command.node.label) } };
+        return { ...command, node: { ...command.node, label: labelValue(command.node.label), properties: command.node.properties ?? {} } };
       case "updateNode": {
         const { label, ...patch } = command.patch;
         return { ...command, patch: label === undefined ? patch : { ...patch, label: labelValue(label) } };

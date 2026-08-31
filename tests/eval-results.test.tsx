@@ -8,12 +8,13 @@ describe("evaluation results", () => {
 
     const breakdown = screen.getByRole("region", { name: "Score breakdown" });
     expect(within(breakdown).getByText("Task completion")).toBeInTheDocument();
-    expect(within(breakdown).getByText("50/50")).toBeInTheDocument();
+    expect(within(breakdown).getByText("47/50")).toBeInTheDocument();
     expect(within(breakdown).getByText("First-attempt edit validity")).toBeInTheDocument();
-    expect(within(breakdown).getByText("3/10")).toBeInTheDocument();
+    expect(within(breakdown).getByText("4/10")).toBeInTheDocument();
     expect(within(breakdown).getByText("Visible edit evidence")).toBeInTheDocument();
-    expect(within(breakdown).getByText("6/10")).toBeInTheDocument();
-    expect(within(breakdown).getByText("61/134")).toBeInTheDocument();
+    expect(within(breakdown).getByText("10/10")).toBeInTheDocument();
+    expect(within(breakdown).getByText("69/173")).toBeInTheDocument();
     expect(within(breakdown).getByText(/same unchanged fixture/i)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("edit evidence reached 10/10");
   });
 });

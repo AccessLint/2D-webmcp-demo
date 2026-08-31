@@ -142,8 +142,9 @@ export function EvalResultsPage() {
             right inputs, and finishes the job. I will keep publishing each comparable run here.
           </p>
           <div className="eval-status" role="status">
-            <strong>Improvement measured.</strong> The complex edit-and-evidence journey rose from 0% to 60%,
-            while the exact-call score rose from 23.4% to 45.5%.
+            <strong>End-to-end evidence improved.</strong> The complex edit evidence reached
+            {` ${latest.scoreBreakdown.visibleEditEvidence.passed}/${latest.scoreBreakdown.visibleEditEvidence.total}`},
+            while exact-call matching is {displayPercent(latest.strictSteps)} because the agent made extra calls.
           </div>
         </header>
 
@@ -188,8 +189,8 @@ export function EvalResultsPage() {
           </div>
           <p className="eval-note">
             <strong>Complex edit detail:</strong> the Retry edit itself rose from {evalRuns[0].retryEdit.passed}/10
-            to {latest.retryEdit.passed}/10 successful attempts. The full journey is lower because four attempts
-            did not finish by showing the edit receipt.
+            to {latest.retryEdit.passed}/10 successful attempts, and visible receipt evidence rose from
+            {` ${evalRuns[0].journeys.retryJourney.passed}/10 to ${latest.journeys.retryJourney.passed}/10`}.
           </p>
           <p className="eval-note">
             <strong>Exact-call score:</strong> {evalRuns[0].strictSteps.passed}/{evalRuns[0].strictSteps.total}

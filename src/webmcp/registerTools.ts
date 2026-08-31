@@ -171,7 +171,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.discoverWorkflow,
       title: "Discover workflow",
-      description: "Call this first, and again after conflicts. Returns a compact page of item IDs, revision, valid ports, page targets, and next steps. Follow nextCursor for more IDs.",
+      description: "Call this first, once per task, and again only after conflicts or when following nextCursor. Returns a compact page of item IDs, labels, revision, valid ports, page targets, and next steps. If it answers a request to list what is on the canvas, do not call this tool again or inspect every item.",
       inputSchema: jsonSchemas.discovery,
       annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: handlers[toolNames.discoverWorkflow],
@@ -179,7 +179,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.inspectWorkflowItems,
       title: "Inspect workflow items",
-      description: `Call after ${toolNames.discoverWorkflow} to inspect up to five current nodes or connections by stable application ID, including properties and relationships.`,
+      description: `Call after ${toolNames.discoverWorkflow} only when detailed properties or relationships are requested. Returns data only; it does not select or reveal an item. For select, show, reveal, or bring into view, use ${toolNames.showWorkflowItem}.`,
       inputSchema: jsonSchemas.inspect,
       annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: handlers[toolNames.inspectWorkflowItems],
@@ -187,7 +187,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.editWorkflow,
       title: "Edit workflow",
-      description: `Call after ${toolNames.discoverWorkflow}. Set baseRevision to its exact revision, or Number(surface.documentVersion) for a SurfaceSnapshot. Do not increment it. Every command object needs a top-level type, for example {type:"createNode",node:{...}}. Never wrap a command as {createNode:{...}}. Atomically applies up to 20 commands; updateNode patch.label accepts a string or a copied Snapshot label object. On conflict, follow recovery.`,
+      description: `Call after ${toolNames.discoverWorkflow}. Reuse existing IDs from its itemPage; never create a node already listed there. Set baseRevision to its exact revision, or Number(surface.documentVersion) for a SurfaceSnapshot. Do not increment it. Every command object needs a top-level type, for example {type:"createNode",node:{...}}. Never wrap a command as {createNode:{...}}. Node properties may be omitted when empty. Edge endpoints are source and target, not sourceId and targetId. Atomically applies up to 20 commands; updateNode patch.label accepts a string or a copied Snapshot label object. On conflict, follow recovery.`,
       inputSchema: jsonSchemas.apply,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.editWorkflow],
@@ -195,7 +195,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.showWorkflowItem,
       title: "Show workflow item",
-      description: `Use a current item ID from ${toolNames.discoverWorkflow} to select a workflow node or connection and bring it into view. For nodes, also moves verified keyboard focus to the node.`,
+      description: `Use this after ${toolNames.discoverWorkflow} whenever the user asks to select, show, reveal, or bring an item into view. Do not substitute ${toolNames.inspectWorkflowItems}; inspection does not change the visible selection. For nodes, this also moves verified keyboard focus to the node.`,
       inputSchema: jsonSchemas.reveal,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.showWorkflowItem],
@@ -203,7 +203,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.focusPageElement,
       title: "Focus page element",
-      description: `Focus one named page target on the next browser focus or accessibility interaction. Pass exactly one targetId value returned by ${toolNames.discoverWorkflow}.`,
+      description: `Always call ${toolNames.discoverWorkflow} first in the current task, then focus one named page target. Pass exactly one targetId value returned by discovery.`,
       inputSchema: jsonSchemas.focusDomNode,
       annotations: { readOnlyHint: false },
       execute: handlers[toolNames.focusPageElement],

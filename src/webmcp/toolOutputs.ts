@@ -59,7 +59,7 @@ function compactDiscovery(result: UnknownRecord, input: unknown) {
     },
     nextCalls: {
       inspect: "Use inspect_workflow_items with IDs from itemPage.",
-      edit: `Use edit_workflow with baseRevision ${String(result.revision)}. Every command uses type. Edge commands: connect {edge:{id,source,sourcePort,target,targetPort}}; disconnect {edgeId}; replaceConnection {edgeId,replacement:[edge]}.`,
+      edit: `Use edit_workflow with baseRevision ${String(result.revision)}. Reuse listed node IDs; do not create duplicates. Every command uses type. Edge commands: connect {edge:{id,source,sourcePort,target,targetPort}}; disconnect {edgeId}; replaceConnection {edgeId,replacement:[edge]}.`,
     },
   });
 

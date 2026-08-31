@@ -86,4 +86,33 @@ export const evalRuns: EvalRun[] = [
     note:
       "The complex edit succeeded in all 10 attempts. Six attempts also surfaced the edit evidence, which is the remaining reliability gap.",
   },
+  {
+    id: "2026-08-31-gpt-5-mini-iteration-2",
+    label: "Iteration 2",
+    recordedAt: "2026-08-31T19:08:07-04:00",
+    model: "openai:gpt-5-mini",
+    backend: "Vercel",
+    browser: "Chrome Stable",
+    runsPerCase: 10,
+    cases: 5,
+    fixture: "evals/webmcp-evals.json",
+    reportPath: "/evals/reports/gpt-5-mini-iteration-2.html",
+    deterministicSmoke: { passed: 9, total: 9 },
+    strictSteps: { passed: 69, total: 173 },
+    scoreBreakdown: {
+      taskCompletion: { passed: 47, total: 50 },
+      firstAttemptEditValidity: { passed: 4, total: 10 },
+      visibleEditEvidence: { passed: 10, total: 10 },
+    },
+    journeys: {
+      discover: { passed: 10, total: 10 },
+      inspect: { passed: 10, total: 10 },
+      reveal: { passed: 7, total: 10 },
+      focus: { passed: 10, total: 10 },
+      retryJourney: { passed: 10, total: 10 },
+    },
+    retryEdit: { passed: 10, total: 10 },
+    note:
+      "All 10 complex edits surfaced visible evidence. Extra discovery and inspection calls lowered exact-call efficiency, and three reveal requests stopped at inspection instead of changing the visible selection.",
+  },
 ];
