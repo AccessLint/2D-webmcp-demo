@@ -62,7 +62,11 @@ function WorkflowCard({ data, selected }: NodeProps<WorkflowFlowNode>) {
 }
 
 const nodeTypes = { workflow: WorkflowCard };
+const nodeKeyboardDescription =
+  "Press Enter or Space to toggle selection. Use the Arrow keys to move the node, or hold Shift with an Arrow key to move farther. Press Delete or Backspace to remove it and Escape to clear selection.";
 const ariaLabelConfig = {
+  "node.a11yDescription.default": nodeKeyboardDescription,
+  "node.a11yDescription.keyboardDisabled": nodeKeyboardDescription,
   "node.a11yDescription.ariaLiveMessage": ({ direction }: { direction: string }) =>
     `Moved selected node ${direction}.`,
 } satisfies Partial<AriaLabelConfig>;

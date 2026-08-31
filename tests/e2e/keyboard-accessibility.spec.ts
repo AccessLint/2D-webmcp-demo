@@ -52,6 +52,10 @@ test("node selection is exposed as accessibility state", async ({ page }) => {
   await page.goto("/");
 
   const startNode = page.getByRole("button", { name: "Start node: Order received" });
+  const descriptionId = await startNode.getAttribute("aria-describedby");
+  expect(descriptionId).toBeTruthy();
+  await expect(page.locator(`#${descriptionId}`)).toContainText("toggle selection");
+
   await startNode.click();
   await expect(startNode).toHaveAttribute("aria-pressed", "true");
 
