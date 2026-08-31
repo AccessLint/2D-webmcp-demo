@@ -3,8 +3,8 @@ import { expect, test } from "@playwright/test";
 test("selected nodes move and cancel selection with the documented keyboard commands", async ({ page }) => {
   await page.goto("/");
 
-  const startNode = page.getByRole("group", { name: "Start node: Order received" });
-  await startNode.click();
+  const startNode = page.getByRole("button", { name: "Start node: Order received" });
+  await startNode.press("Enter");
   await expect(startNode).toHaveClass(/selected/);
 
   await startNode.press("ArrowRight");
@@ -42,8 +42,8 @@ test("connections use named keyboard controls instead of focusable SVG edges", a
   await firstConnection.press("Escape");
   await expect(firstConnection).toHaveAttribute("aria-pressed", "false");
 
-  await firstConnection.press("Enter");
-  await firstConnection.press("Delete");
+  await firstConnection.press("Space");
+  await firstConnection.press("Backspace");
   await expect(connections.getByRole("button")).toHaveCount(2);
   await expect(connections.getByRole("heading", { name: "Workflow connections" })).toBeFocused();
 });
@@ -51,12 +51,12 @@ test("connections use named keyboard controls instead of focusable SVG edges", a
 test("node selection is exposed as accessibility state", async ({ page }) => {
   await page.goto("/");
 
-  const startNode = page.getByRole("group", { name: "Start node: Order received" });
+  const startNode = page.getByRole("button", { name: "Start node: Order received" });
   await startNode.click();
-  await expect(startNode).toHaveAttribute("aria-current", "true");
+  await expect(startNode).toHaveAttribute("aria-pressed", "true");
 
   await startNode.press("Escape");
-  await expect(startNode).not.toHaveAttribute("aria-current");
+  await expect(startNode).toHaveAttribute("aria-pressed", "false");
 });
 
 test("the canvas application exposes its complete keyboard contract", async ({ page }) => {
@@ -73,6 +73,14 @@ test("the canvas application exposes its complete keyboard contract", async ({ p
   await expect(page.locator("#workflow-canvas-instructions")).toContainText(
     "Use the Workflow connections region to review and select connections.",
   );
+
+  const alertNode = page.getByRole("button", { name: "Action node: Alert Team" });
+  await alertNode.press("Space");
+  await expect(alertNode).toHaveAttribute("aria-pressed", "true");
+  await alertNode.press("Shift+ArrowRight");
+  await expect(alertNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 560, 300)");
+  await alertNode.press("Backspace");
+  await expect(alertNode).toHaveCount(0);
 });
 
 test("the skip link moves keyboard focus into the workflow workspace", async ({ page }) => {

@@ -77,7 +77,8 @@ function toFlowNode(node: WorkflowNode, selected: WorkflowSelection | null): Wor
     selected: isSelected,
     focusable: true,
     ariaLabel: `${nodeDefinitions[node.type].title} node: ${node.label}`,
-    domAttributes: { "aria-current": isSelected ? "true" : undefined },
+    ariaRole: "button",
+    domAttributes: { "aria-pressed": isSelected },
   };
 }
 

@@ -18,7 +18,7 @@ test("canvas refits after becoming measurable", async ({ page }) => {
   const nodeBox = await page.getByTestId("rf__node-fetch-orders").evaluate((element) => element.getBoundingClientRect().toJSON());
   expect(nodeBox.x).toBeGreaterThanOrEqual(canvasBox.x);
   expect(nodeBox.x + nodeBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width);
-  const fetchOrders = page.getByRole("group", { name: "Action node: Fetch Orders" });
+  const fetchOrders = page.getByRole("button", { name: "Action node: Fetch Orders" });
   await expect(fetchOrders).toHaveAttribute("tabindex", "0");
   await fetchOrders.focus();
   await expect(fetchOrders).toBeFocused();
