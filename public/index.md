@@ -2,7 +2,7 @@
 
 The 2D WebMCP Demo is an accessible browser-based node editor for verifiable agent actions. Human interface controls and WebMCP tools operate on one authoritative workflow graph. Each successful transaction produces a deterministic, inspectable change receipt that can be revealed, reviewed, or undone.
 
-Live application: <https://web-mcp-proof.cameron846558.chatgpt.site/>
+Live application: <https://2d-webmcp.netlify.app/>
 
 ## Agent workflow
 
@@ -45,4 +45,4 @@ The app vendors draft `SurfaceSnapshot` and `SurfaceReceipt` JSON Schemas as con
 
 - [Judge smoke test](https://raw.githubusercontent.com/AccessLint/webmcp-proof/main/docs/TESTING.md)
 - [Source repository](https://github.com/AccessLint/webmcp-proof)
-- [LLM navigation file](https://web-mcp-proof.cameron846558.chatgpt.site/llms.txt)
+- [LLM navigation file](https://2d-webmcp.netlify.app/llms.txt)
