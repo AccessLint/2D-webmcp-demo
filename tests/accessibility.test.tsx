@@ -15,13 +15,13 @@ describe("accessible workflow review", () => {
     expect(screen.getByRole("heading", { name: "Verifiable workflow editing with WebMCP" })).toBeInTheDocument();
     expect(screen.getByText(/This demo shows an agent editing the same workflow/)).toBeInTheDocument();
     expect(screen.getByText(/accessibility for screen reader users is a primary design goal/)).toBeInTheDocument();
-    expect(screen.getByText(/Add a Retry node with three attempts after Fetch Orders/)).toBeInTheDocument();
+    expect(screen.getByText(/Add a Retry node with three attempts after Enrich company/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy prompt" })).toBeInTheDocument();
     expect(screen.getByRole("application", { name: /Workflow canvas/ })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Workflow outline" })).not.toBeInTheDocument();
     const connections = screen.getByRole("region", { name: "Workflow connections" });
     expect(within(connections).getByRole("heading", { name: "Workflow connections" })).toBeInTheDocument();
-    expect(within(connections).getAllByRole("button")).toHaveLength(3);
+    expect(within(connections).getAllByRole("button")).toHaveLength(6);
   });
 
   it("exposes every workflow node in the keyboard tab order with an accessible name", async () => {
@@ -35,14 +35,48 @@ describe("accessible workflow review", () => {
     });
   });
 
+  it("adds a named node from the node editing controls", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Node type" }), "retry");
+    await user.type(screen.getByRole("textbox", { name: "New node name" }), "Retry enrichment");
+    await user.click(screen.getByRole("button", { name: "Add node" }));
+
+    const created = workflowStore.getState().workflow.nodes.find(
+      (node) => node.label === "Retry enrichment",
+    );
+    expect(created).toMatchObject({ type: "retry", properties: { attempts: 3 } });
+    expect(workflowStore.getState().selected).toEqual({ kind: "node", id: created?.id });
+    expect(screen.getByRole("textbox", { name: "New node name" })).toHaveValue("");
+    expect(await screen.findByRole("button", { name: "Retry node: Retry enrichment" })).toBeInTheDocument();
+  });
+
+  it("renames the selected node without changing its identity or connections", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const renameInput = screen.getByRole("textbox", { name: "Selected node name" });
+    expect(renameInput).toHaveValue("Enrich company");
+    await user.clear(renameInput);
+    await user.type(renameInput, "Research company");
+    await user.click(screen.getByRole("button", { name: "Rename node" }));
+
+    const state = workflowStore.getState().workflow;
+    expect(state.nodes.find((node) => node.id === "enrich-company")?.label).toBe("Research company");
+    expect(state.edges.some((edge) => edge.source === "enrich-company")).toBe(true);
+    expect(await screen.findByRole("button", { name: "Action node: Research company" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Renamed Enrich company to Research company");
+  });
+
   it("creates one concise receipt for the demo and exposes spot-check controls", async () => {
     const user = userEvent.setup();
     workflowStore.getState().apply(0, [
       { type: "createNode", node: { id: "retry", type: "retry", label: "Retry", position: { x: 525, y: 245 }, properties: { attempts: 3 } } },
-      { type: "replaceConnection", edgeId: "edge-fetch-save", replacement: [
-        { id: "edge-fetch-retry", source: "fetch-orders", sourcePort: "success", target: "retry", targetPort: "input" },
-        { id: "edge-retry-save", source: "retry", sourcePort: "success", target: "save-results", targetPort: "input" },
-        { id: "edge-retry-alert", source: "retry", sourcePort: "failure", target: "alert-team", targetPort: "input" },
+      { type: "replaceConnection", edgeId: "edge-enrich-qualified", replacement: [
+        { id: "edge-enrich-retry", source: "enrich-company", sourcePort: "success", target: "retry", targetPort: "input" },
+        { id: "edge-retry-qualified", source: "retry", sourcePort: "success", target: "qualified-lead", targetPort: "input" },
+        { id: "edge-retry-review", source: "retry", sourcePort: "failure", target: "manual-review", targetPort: "input" },
       ] },
     ], "Add Retry");
     render(<App />);
@@ -70,7 +104,7 @@ describe("accessible workflow review", () => {
     const receipt = createReceipt({ before, after, validation: validateWorkflow(after), intent: "Remove completion" });
     workflowStore.setState({ workflow: after, history: [receipt] });
     render(<App />);
-    const receiptHeading = screen.getByRole("heading", { name: "Changed 1 node and changed 1 connection. Workflow validation has errors." });
+    const receiptHeading = screen.getByRole("heading", { name: "Changed 1 node and changed 2 connections. Workflow validation has errors." });
     const receiptRegion = within(receiptHeading.closest("article")!);
     expect(receiptRegion.getByText("Workflow must contain an End node.")).toBeInTheDocument();
     expect(receiptRegion.getByText("Deleted Complete")).toBeInTheDocument();

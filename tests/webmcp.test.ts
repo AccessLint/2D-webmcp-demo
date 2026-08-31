@@ -27,8 +27,8 @@ describe("WebMCP tool boundary", () => {
     expect(discovery).toMatchObject({
       schemaVersion: "1",
       revision: 0,
-      nodes: 5,
-      edges: 3,
+      nodes: 7,
+      edges: 6,
       surfaceSchema: {
         id: "urn:2d-webmcp:schema:surface-snapshot:0.1",
         status: "draft",
@@ -48,24 +48,24 @@ describe("WebMCP tool boundary", () => {
         },
         items: expect.arrayContaining([
           expect.objectContaining({
-            id: "fetch-orders",
+            id: "enrich-company",
             kind: "workflow-node",
-            label: { value: "Fetch Orders", source: "author" },
+            label: { value: "Enrich company", source: "author" },
             geometry: {
               type: "point",
               coordinateSpaceId: "world",
               origin: "top-left",
               x: 280,
-              y: 180,
+              y: 220,
             },
           }),
         ]),
         relationships: expect.arrayContaining([
           expect.objectContaining({
-            id: "edge-fetch-save",
+            id: "edge-enrich-qualified",
             type: "connects",
-            from: { itemId: "fetch-orders", terminal: "success" },
-            to: { itemId: "save-results", terminal: "input" },
+            from: { itemId: "enrich-company", terminal: "success" },
+            to: { itemId: "qualified-lead", terminal: "input" },
           }),
         ]),
       },
@@ -74,34 +74,34 @@ describe("WebMCP tool boundary", () => {
           { type: "retry", title: "Retry", inputs: ["input"], outputs: ["success", "failure"] },
         ]),
         nodes: expect.arrayContaining([
-          { id: "fetch-orders", type: "action", label: "Fetch Orders", inputs: ["input"], outputs: ["success", "failure"] },
+          { id: "enrich-company", type: "action", label: "Enrich company", inputs: ["input"], outputs: ["success", "failure"] },
         ]),
         edges: expect.arrayContaining([
-          { id: "edge-fetch-save", source: "fetch-orders", sourcePort: "success", target: "save-results", targetPort: "input" },
+          { id: "edge-enrich-qualified", source: "enrich-company", sourcePort: "success", target: "qualified-lead", targetPort: "input" },
         ]),
         uiTargets: expect.arrayContaining([
           { id: "canvas.zoom-in", label: "Zoom In", selector: "button[aria-label='Zoom In']" },
         ]),
       },
       recommendedNextCalls: expect.arrayContaining([
-        { tool: "inspect_workflow_items", input: { objects: [{ kind: "workflow-node", id: "fetch-orders" }] } },
+        { tool: "inspect_workflow_items", input: { objects: [{ kind: "workflow-node", id: "enrich-company" }] } },
         {
           tool: "edit_workflow",
           purpose: "Copy this valid call shape and replace the example command with the intended edit.",
-          input: { baseRevision: 0, commands: [{ type: "updateNode", id: "fetch-orders", patch: { label: "Fetch Orders" } }] },
+          input: { baseRevision: 0, commands: [{ type: "updateNode", id: "enrich-company", patch: { label: "Enrich company" } }] },
         },
       ]),
     });
 
     const receipt = tools.edit_workflow({
       baseRevision: 0,
-      intent: "Add a Retry step after Fetch Orders",
+      intent: "Add a Retry step after Enrich company",
       commands: [
         { type: "createNode", node: { id: "retry", type: "retry", label: "Retry", position: { x: 500, y: 200 }, properties: { attempts: 3 } } },
-        { type: "replaceConnection", edgeId: "edge-fetch-save", replacement: [
-          { id: "edge-fetch-retry", source: "fetch-orders", sourcePort: "success", target: "retry", targetPort: "input" },
-          { id: "edge-retry-save", source: "retry", sourcePort: "success", target: "save-results", targetPort: "input" },
-          { id: "edge-retry-alert", source: "retry", sourcePort: "failure", target: "alert-team", targetPort: "input" },
+        { type: "replaceConnection", edgeId: "edge-enrich-qualified", replacement: [
+          { id: "edge-enrich-retry", source: "enrich-company", sourcePort: "success", target: "retry", targetPort: "input" },
+          { id: "edge-retry-qualified", source: "retry", sourcePort: "success", target: "qualified-lead", targetPort: "input" },
+          { id: "edge-retry-review", source: "retry", sourcePort: "failure", target: "manual-review", targetPort: "input" },
         ] },
       ],
     });
@@ -122,7 +122,7 @@ describe("WebMCP tool boundary", () => {
   it("returns application evidence for a stale edit without changing the graph", () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store);
-    const receipt = tools.edit_workflow({ baseRevision: 4, commands: [{ type: "deleteNode", id: "fetch-orders" }] });
+    const receipt = tools.edit_workflow({ baseRevision: 4, commands: [{ type: "deleteNode", id: "enrich-company" }] });
     expect(receipt).toMatchObject({
       status: "conflict", baseRevision: 4, resultingRevision: 0, changes: [], undo: { available: false },
       failure: { code: "REVISION_CONFLICT", message: "Expected revision 0, received 4." },
@@ -140,13 +140,13 @@ describe("WebMCP tool boundary", () => {
       baseRevision: 0,
       commands: [{
         type: "updateNode",
-        id: "fetch-orders",
-        patch: { label: { value: "Fetch Orders v2", source: "author" } },
+        id: "enrich-company",
+        patch: { label: { value: "Enrich company v2", source: "author" } },
       }],
     });
 
     expect(receipt).toMatchObject({ status: "completed", resultingRevision: 1 });
-    expect(store.getState().workflow.nodes.find((node) => node.id === "fetch-orders")?.label).toBe("Fetch Orders v2");
+    expect(store.getState().workflow.nodes.find((node) => node.id === "enrich-company")?.label).toBe("Enrich company v2");
   });
 
   it("preserves a typed command failure and recovery guidance in the receipt", () => {
@@ -203,7 +203,7 @@ describe("WebMCP tool boundary", () => {
     ]);
     expect(registered.get("discover_workflow")?.description).toContain("Call this first");
     expect(registered.get("edit_workflow")?.description).toContain("Do not increment it");
-    expect(registered.get("focus_page_element")?.description).toContain("Prefer targetId");
+    expect(registered.get("focus_page_element")?.description).toContain("exactly one targetId");
     expect(registered.get("discover_workflow")?.annotations).toEqual({
       readOnlyHint: true,
       untrustedContentHint: true,
@@ -215,10 +215,12 @@ describe("WebMCP tool boundary", () => {
     expect(registered.get("focus_page_element")?.annotations).toEqual({ readOnlyHint: false });
     const schema = registered.get("focus_page_element")?.inputSchema;
     expect(schema).toMatchObject({
-      anyOf: expect.arrayContaining([
-        expect.objectContaining({ properties: { targetId: expect.objectContaining({ enum: ["canvas.zoom-in", "canvas.zoom-out", "canvas.fit-view"] }) }, required: ["targetId"], additionalProperties: false }),
-        expect.objectContaining({ properties: { selector: expect.objectContaining({ type: "string", minLength: 1, maxLength: 500 }) }, required: ["selector"], additionalProperties: false }),
-      ]),
+      type: "object",
+      properties: {
+        targetId: expect.objectContaining({ enum: ["canvas.zoom-in", "canvas.zoom-out", "canvas.fit-view"] }),
+      },
+      required: ["targetId"],
+      additionalProperties: false,
     });
     const invalidDiscovery = registered.get("discover_workflow")!.execute({ unexpected: true });
     expect(invalidDiscovery).toMatchObject({
@@ -238,6 +240,22 @@ describe("WebMCP tool boundary", () => {
       durationMs: expect.any(Number),
     });
     expect(observedInvocations[0]).toMatchObject({ tool: "discover_workflow", code: "INVALID_INPUT" });
+    const invalidEdit = registered.get("edit_workflow")!.execute({
+      baseRevision: 0,
+      commands: [{ command: "createNode", node: {} }],
+    });
+    expect(invalidEdit).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_INPUT",
+        issues: expect.arrayContaining([
+          expect.objectContaining({
+            path: ["commands", 0, "type"],
+            message: expect.stringContaining("createNode"),
+          }),
+        ]),
+      },
+    });
     expect(registered.get("edit_workflow")?.inputSchema).toMatchObject({
       properties: {
         baseRevision: expect.objectContaining({
@@ -249,7 +267,7 @@ describe("WebMCP tool boundary", () => {
     });
     const applied = registered.get("edit_workflow")!.execute({
       baseRevision: 0,
-      commands: [{ type: "updateNode", id: "fetch-orders", patch: { label: "Fetch Orders" } }],
+      commands: [{ type: "updateNode", id: "enrich-company", patch: { label: "Enrich company" } }],
     });
     expect(applied).not.toBeInstanceOf(Promise);
     expect(applied).toMatchObject({
@@ -266,16 +284,27 @@ describe("WebMCP tool boundary", () => {
       operationId: expect.any(String),
     });
     expect(JSON.stringify(applied).length).toBeLessThanOrEqual(1_500);
-    const compactDiscovery = registered.get("discover_workflow")!.execute({});
+    const compactDiscovery = registered.get("discover_workflow")!.execute({}) as {
+      itemPage: { items: unknown[] };
+    };
     expect(compactDiscovery).toMatchObject({
       revision: 1,
-      itemPage: { cursor: 0, items: expect.any(Array) },
+      itemPage: {
+        cursor: 0,
+        items: expect.arrayContaining([
+          expect.objectContaining({ id: "enrich-company", label: "Enrich company" }),
+        ]),
+      },
+      nextCalls: {
+        edit: expect.stringMatching(/connect.*source.*sourcePort.*target.*targetPort/),
+      },
       validation: {
         valid: true,
         problemCount: 2,
-        problemPage: { cursor: 0, nextCursor: null, items: expect.any(Array) },
+        problemPage: { cursor: 0, nextCursor: 0, items: [] },
       },
     });
+    expect(compactDiscovery.itemPage.items).toHaveLength(5);
     expect(JSON.stringify(compactDiscovery).length).toBeLessThanOrEqual(1_500);
     const discoveryPage = registered.get("discover_workflow")!.execute({ limit: 1, problemLimit: 1 });
     expect(discoveryPage).toMatchObject({
@@ -283,13 +312,13 @@ describe("WebMCP tool boundary", () => {
       validation: { problemPage: { cursor: 0, nextCursor: 1, items: [expect.any(Object)] } },
     });
     const compactInspection = registered.get("inspect_workflow_items")!.execute({
-      objects: [{ kind: "workflow-node", id: "fetch-orders" }],
+      objects: [{ kind: "workflow-node", id: "enrich-company" }],
       detail: "summary",
     });
     expect(compactInspection).toMatchObject({
       requestedCount: 1,
       returnedCount: 1,
-      items: [expect.objectContaining({ id: "fetch-orders" })],
+      items: [expect.objectContaining({ id: "enrich-company" })],
     });
     expect(Array.isArray(compactInspection)).toBe(false);
     expect(registered.get("get_edit_result")!.execute({ operationId: "missing" })).toMatchObject({
@@ -394,7 +423,7 @@ describe("WebMCP tool boundary", () => {
     const store = createWorkflowStore();
     store.getState().apply(0, [{
       type: "updateNode",
-      id: "fetch-orders",
+      id: "enrich-company",
       patch: {
         label: "F".repeat(120),
         properties: {
@@ -413,18 +442,18 @@ describe("WebMCP tool boundary", () => {
     const registration = registerWorkflowTools(createToolHandlers(store));
 
     const result = registered.get("inspect_workflow_items")!.execute({
-      objects: [{ kind: "workflow-node", id: "fetch-orders" }],
+      objects: [{ kind: "workflow-node", id: "enrich-company" }],
       detail: "properties",
     });
 
     expect(result).toMatchObject({
-      items: [expect.objectContaining({ kind: "workflow-node", id: "fetch-orders", relationshipCount: 2 })],
+      items: [expect.objectContaining({ kind: "workflow-node", id: "enrich-company", relationshipCount: 2 })],
       requestedCount: 1,
       returnedCount: 1,
     });
     expect(JSON.stringify(result).length).toBeLessThanOrEqual(1_500);
     const relationshipPage = registered.get("inspect_workflow_items")!.execute({
-      objects: [{ kind: "workflow-node", id: "fetch-orders" }],
+      objects: [{ kind: "workflow-node", id: "enrich-company" }],
       detail: "relationships",
       cursor: 1,
       limit: 1,
@@ -553,8 +582,8 @@ describe("WebMCP tool boundary", () => {
 
   it("reports a non-retryable undo after a later edit", () => {
     const store = createWorkflowStore();
-    const first = store.getState().apply(0, [{ type: "updateNode", id: "fetch-orders", patch: { label: "Load Orders" } }]);
-    store.getState().apply(1, [{ type: "updateNode", id: "save-results", patch: { label: "Store Results" } }]);
+    const first = store.getState().apply(0, [{ type: "updateNode", id: "enrich-company", patch: { label: "Enrich account" } }]);
+    store.getState().apply(1, [{ type: "updateNode", id: "create-opportunity", patch: { label: "Create opportunity" } }]);
     const registered = new Map<string, WebMCPTool>();
     const modelContext = Object.assign(new EventTarget(), {
       registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },

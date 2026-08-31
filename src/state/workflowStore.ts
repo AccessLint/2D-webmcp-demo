@@ -52,7 +52,7 @@ export type WorkflowStore = {
   logInvocation: (invocation: InvocationInput) => void;
 };
 
-const DEFAULT_SELECTION: WorkflowSelection = { kind: "node", id: "fetch-orders" };
+const DEFAULT_SELECTION: WorkflowSelection = { kind: "node", id: "enrich-company" };
 
 function createInitialState(workflow: WorkflowState) {
   return {

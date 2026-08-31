@@ -1,21 +1,26 @@
 import { ZodError, type ZodIssue } from "zod";
 import type { ToolHandlers } from "./toolHandlers";
-import { jsonSchemas } from "./toolSchemas";
+import { jsonSchemas, workflowCommandTypes } from "./toolSchemas";
 import { ToolError } from "./errors";
 import { toolNames, type ToolName } from "./toolNames";
 import { fitToolOutput } from "./toolOutputs";
 
 function flattenIssues(issues: ZodIssue[]): Array<{ path: Array<string | number>; code: string; message: string }> {
   return issues.flatMap((issue) => {
-    if (issue.code === "invalid_union") {
+    if (issue.code === "invalid_union" && issue.errors.length > 0) {
       return issue.errors.flatMap((branch) => flattenIssues(branch));
     }
+    const invalidCommandType = issue.code === "invalid_union"
+      && "discriminator" in issue
+      && issue.discriminator === "type";
     return [{
       path: issue.path.map((part) => typeof part === "symbol"
         ? part.description ?? String(part)
         : part),
       code: issue.code,
-      message: issue.message,
+      message: invalidCommandType
+        ? `Expected command type to be one of: ${workflowCommandTypes.join(", ")}. Put it in the command's type field.`
+        : issue.message,
     }];
   });
 }
@@ -175,7 +180,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.focusPageElement,
       title: "Focus page element",
-      description: `Focus a named page target or advanced CSS selector on the next browser focus or accessibility interaction. Prefer targetId values returned by ${toolNames.discoverWorkflow}; use selector only as an advanced fallback.`,
+      description: `Focus one named page target on the next browser focus or accessibility interaction. Pass exactly one targetId value returned by ${toolNames.discoverWorkflow}.`,
       inputSchema: jsonSchemas.focusDomNode,
       annotations: { readOnlyHint: false },
       execute: handlers[toolNames.focusPageElement],

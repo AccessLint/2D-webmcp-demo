@@ -14,10 +14,12 @@ Press `Tab` once. Focus should land on **Skip to workflow workspace** with a vis
 
 You should encounter five clearly named workflow nodes:
 
-- **Start node: Order received**
-- **Action node: Fetch Orders**
-- **Action node: Save Results**
-- **Action node: Alert Team**
+- **Start node: New lead submitted**
+- **Action node: Enrich company**
+- **Condition node: Qualified lead?**
+- **Action node: Create CRM opportunity**
+- **Action node: Add to nurture campaign**
+- **Action node: Manual review**
 - **End node: Complete**
 
 The **Zoom In**, **Zoom Out**, and **Fit View** controls are also keyboard accessible. With a screen reader, the page exposes a **Workflow editor** heading, a **Workflow canvas**, and a **Most recent change** heading.
@@ -26,7 +28,7 @@ The **Zoom In**, **Zoom Out**, and **Fit View** controls are also keyboard acces
 
 Give the connected agent this exact request:
 
-> Inspect the workflow. Add a Retry node with three attempts after Fetch Orders, route Retry success to Save Results and Retry failure to Alert Team, and then show me the edit result.
+> Inspect the workflow. Add a Retry node with three attempts after Enrich company, route Retry success to Qualified lead? and Retry failure to Manual review, and then show me the edit result.
 
 The agent should discover the current revision, make one atomic edit, and focus the application-authored receipt in **Most recent change**.
 
@@ -65,7 +67,7 @@ After Undo:
 
 - A screen reader announces **Undid the previous workflow change and restored 4 connections. Workflow validation passed.**
 - Focus moves to the new undo receipt heading.
-- Retry disappears and the original Fetch Orders-to-Save Results connection returns.
+- Retry disappears and the original Enrich company-to-Qualified lead? connection returns.
 - A new receipt replaces the original receipt in the UI and records the undo.
 
 ## Pass criteria

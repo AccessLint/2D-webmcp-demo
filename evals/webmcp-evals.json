@@ -16,12 +16,12 @@
     ]
   },
   {
-    "name": "Inspect Fetch Orders relationships",
+    "name": "Inspect Enrich company relationships",
     "messages": [
       {
         "role": "user",
         "type": "message",
-        "content": "What is connected immediately after Fetch Orders? Inspect the workflow rather than guessing."
+        "content": "What is connected immediately after Enrich company? Inspect the workflow rather than guessing."
       }
     ],
     "expectedCall": [
@@ -35,7 +35,7 @@
           "objects": [
             {
               "kind": "workflow-node",
-              "id": "fetch-orders"
+              "id": "enrich-company"
             }
           ]
         }
@@ -48,7 +48,7 @@
       {
         "role": "user",
         "type": "message",
-        "content": "Inspect the workflow. Add a Retry node with three attempts after Fetch Orders, route Retry success to Save Results and Retry failure to Alert Team, and then show me the edit result."
+        "content": "Inspect the workflow. Add a Retry node with three attempts after Enrich company, route Retry success to Qualified lead? and Retry failure to Manual review, and then show me the edit result."
       }
     ],
     "expectedCall": [
@@ -82,27 +82,27 @@
             },
             {
               "type": "replaceConnection",
-              "edgeId": "edge-fetch-save",
+              "edgeId": "edge-enrich-qualified",
               "replacement": [
                 {
-                  "id": "edge-fetch-retry",
-                  "source": "fetch-orders",
+                  "id": "edge-enrich-retry",
+                  "source": "enrich-company",
                   "sourcePort": "success",
                   "target": "retry",
                   "targetPort": "input"
                 },
                 {
-                  "id": "edge-retry-save",
+                  "id": "edge-retry-qualified",
                   "source": "retry",
                   "sourcePort": "success",
-                  "target": "save-results",
+                  "target": "qualified-lead",
                   "targetPort": "input"
                 },
                 {
-                  "id": "edge-retry-alert",
+                  "id": "edge-retry-review",
                   "source": "retry",
                   "sourcePort": "failure",
-                  "target": "alert-team",
+                  "target": "manual-review",
                   "targetPort": "input"
                 }
               ]
@@ -149,7 +149,7 @@
       {
         "role": "user",
         "type": "message",
-        "content": "Show me the Fetch Orders workflow node."
+        "content": "Show me the Enrich company workflow node."
       }
     ],
     "expectedCall": [
@@ -161,7 +161,7 @@
         "functionName": "show_workflow_item",
         "arguments": {
           "kind": "workflow-node",
-          "id": "fetch-orders"
+          "id": "enrich-company"
         }
       }
     ]

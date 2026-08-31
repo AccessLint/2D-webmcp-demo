@@ -15,13 +15,13 @@ test("canvas refits after becoming measurable", async ({ page }) => {
   await page.goto("/");
   await page.waitForTimeout(500);
   const canvasBox = await page.locator(".canvas-shell").evaluate((element) => element.getBoundingClientRect().toJSON());
-  const nodeBox = await page.getByTestId("rf__node-fetch-orders").evaluate((element) => element.getBoundingClientRect().toJSON());
+  const nodeBox = await page.getByTestId("rf__node-enrich-company").evaluate((element) => element.getBoundingClientRect().toJSON());
   expect(nodeBox.x).toBeGreaterThanOrEqual(canvasBox.x);
   expect(nodeBox.x + nodeBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width);
-  const fetchOrders = page.getByRole("button", { name: "Action node: Fetch Orders" });
-  await expect(fetchOrders).toHaveAttribute("tabindex", "0");
-  await fetchOrders.focus();
-  await expect(fetchOrders).toBeFocused();
+  const enrichCompany = page.getByRole("button", { name: "Action node: Enrich company" });
+  await expect(enrichCompany).toHaveAttribute("tabindex", "0");
+  await enrichCompany.focus();
+  await expect(enrichCompany).toBeFocused();
 });
 
 test("Retry receipt can be focused, spot checked, and undone", async ({ page }) => {
@@ -31,7 +31,7 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
     (window as unknown as { __workflowTools: typeof tools }).__workflowTools = tools;
   });
   await page.goto("/");
-  await expect(page.getByTestId("rf__node-fetch-orders")).toBeVisible();
+  await expect(page.getByTestId("rf__node-enrich-company")).toBeVisible();
   await page.locator(".canvas-shell").evaluate((element) => { (element as HTMLElement).style.height = "1200px"; });
   const viewport = page.viewportSize()!;
   const historyBox = await page.getByRole("heading", { name: "Most recent change" }).evaluate((element) => element.getBoundingClientRect().toJSON());
@@ -43,10 +43,10 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
       intent: "Add Retry",
       commands: [
         { type: "createNode", node: { id: "retry", type: "retry", label: "Retry", position: { x: 525, y: 245 }, properties: { attempts: 3 } } },
-        { type: "replaceConnection", edgeId: "edge-fetch-save", replacement: [
-          { id: "edge-fetch-retry", source: "fetch-orders", sourcePort: "success", target: "retry", targetPort: "input" },
-          { id: "edge-retry-save", source: "retry", sourcePort: "success", target: "save-results", targetPort: "input" },
-          { id: "edge-retry-alert", source: "retry", sourcePort: "failure", target: "alert-team", targetPort: "input" },
+        { type: "replaceConnection", edgeId: "edge-enrich-qualified", replacement: [
+          { id: "edge-enrich-retry", source: "enrich-company", sourcePort: "success", target: "retry", targetPort: "input" },
+          { id: "edge-retry-qualified", source: "retry", sourcePort: "success", target: "qualified-lead", targetPort: "input" },
+          { id: "edge-retry-review", source: "retry", sourcePort: "failure", target: "manual-review", targetPort: "input" },
         ] },
       ],
     }) as { operationId: string };
@@ -89,17 +89,17 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
     window.dispatchEvent(new FocusEvent("focus"));
   });
   await expect(retryNode).not.toBeFocused();
-  const saveNode = page.getByTestId("rf__node-save-results");
+  const qualifiedNode = page.getByTestId("rf__node-qualified-lead");
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    await tools.focus_page_element.execute({ selector: "[data-id='save-results']" });
+    await tools.focus_page_element.execute({ selector: "[data-id='qualified-lead']" });
   });
   await page.getByRole("button", { name: "Zoom In" }).focus();
-  await expect(saveNode).toBeFocused();
+  await expect(qualifiedNode).toBeFocused();
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
     const superseded = tools.focus_page_element.execute({ selector: "#late-focus-target" }) as Promise<{ error?: { code: string } }>;
-    await tools.focus_page_element.execute({ selector: "[data-id='save-results']" });
+    await tools.focus_page_element.execute({ selector: "[data-id='qualified-lead']" });
     const lateTarget = document.createElement("button");
     lateTarget.id = "late-focus-target";
     document.body.append(lateTarget);
@@ -108,7 +108,7 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
     if (supersededResult.error?.code !== "TOOL_EXECUTION_FAILED") throw new Error("Superseded focus request did not return a structured error.");
   });
   await page.keyboard.press("ArrowRight");
-  await expect(saveNode).toBeFocused();
+  await expect(qualifiedNode).toBeFocused();
   await expect(retryNode).not.toBeFocused();
   await expect(receipt).not.toContainText("Agent intent");
   await expect(receipt).not.toContainText("Exact changes");

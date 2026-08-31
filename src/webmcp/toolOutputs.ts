@@ -11,7 +11,7 @@ function compactDiscovery(result: UnknownRecord, input: unknown) {
   const nodes = Array.isArray(authoring.nodes) ? authoring.nodes.filter(isRecord) : [];
   const edges = Array.isArray(authoring.edges) ? authoring.edges.filter(isRecord) : [];
   const allItems = [
-    ...nodes.map((node) => ({ kind: "workflow-node", id: node.id, type: node.type })),
+    ...nodes.map((node) => ({ kind: "workflow-node", id: node.id, type: node.type, label: node.label })),
     ...edges.map((edge) => ({ kind: "workflow-edge", id: edge.id })),
   ];
   const parsedInput = isRecord(input) ? input : {};
@@ -59,14 +59,14 @@ function compactDiscovery(result: UnknownRecord, input: unknown) {
     },
     nextCalls: {
       inspect: "Use inspect_workflow_items with IDs from itemPage.",
-      edit: `Use edit_workflow with baseRevision ${String(result.revision)}.`,
+      edit: `Use edit_workflow with baseRevision ${String(result.revision)}. Every command uses type. Edge commands: connect {edge:{id,source,sourcePort,target,targetPort}}; disconnect {edgeId}; replaceConnection {edgeId,replacement:[edge]}.`,
     },
   });
 
   let output = createOutput();
   while (JSON.stringify(output).length > TOOL_OUTPUT_CHARACTER_BUDGET && (pageItems.length > 1 || problemItems.length > 1)) {
-    if (pageItems.length > 1) pageItems.pop();
-    else problemItems.pop();
+    if (problemItems.length > 0) problemItems.pop();
+    else if (pageItems.length > 1) pageItems.pop();
     output = createOutput();
   }
   return output;

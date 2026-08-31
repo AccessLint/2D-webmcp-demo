@@ -6,7 +6,7 @@ import { workflowSurfaceReceipt } from "./surfaceReceipt";
 describe("workflowSurfaceReceipt", () => {
   it("projects a successful native edit into the shared receipt contract", () => {
     const store = createWorkflowStore(createSeedWorkflow());
-    const commands = [{ type: "updateNode" as const, id: "fetch-orders", patch: { label: "Fetch Orders v2" } }];
+    const commands = [{ type: "updateNode" as const, id: "enrich-company", patch: { label: "Enrich company v2" } }];
     const nativeReceipt = store.getState().apply(0, commands, "Rename the item");
 
     expect(workflowSurfaceReceipt(nativeReceipt, commands)).toEqual(expect.objectContaining({
@@ -17,7 +17,7 @@ describe("workflowSurfaceReceipt", () => {
       atomic: true,
       documentVersionBefore: "0",
       documentVersionAfter: "1",
-      effects: [{ commandIndex: 0, itemId: "fetch-orders", effect: "updated" }],
+      effects: [{ commandIndex: 0, itemId: "enrich-company", effect: "updated" }],
       undo: { availability: "operation-token", token: nativeReceipt.operationId },
       verification: "native-diff",
     }));
@@ -25,7 +25,7 @@ describe("workflowSurfaceReceipt", () => {
 
   it("projects a revision conflict without inventing effects or undo", () => {
     const store = createWorkflowStore(createSeedWorkflow());
-    const commands = [{ type: "updateNode" as const, id: "fetch-orders", patch: { label: "Fetch Orders v2" } }];
+    const commands = [{ type: "updateNode" as const, id: "enrich-company", patch: { label: "Enrich company v2" } }];
     const nativeReceipt = store.getState().apply(99, commands);
 
     expect(workflowSurfaceReceipt(nativeReceipt, commands)).toEqual(expect.objectContaining({
@@ -43,19 +43,19 @@ describe("workflowSurfaceReceipt", () => {
     store.getState().apply(0, [{
       type: "connect",
       edge: {
-        id: "edge-fetch-alert",
-        source: "fetch-orders",
+        id: "edge-enrich-review",
+        source: "enrich-company",
         sourcePort: "failure",
-        target: "alert-team",
+        target: "manual-review",
         targetPort: "input",
       },
     }]);
-    const commands = [{ type: "deleteNode" as const, id: "alert-team" }];
+    const commands = [{ type: "deleteNode" as const, id: "manual-review" }];
     const nativeReceipt = store.getState().apply(1, commands);
 
     expect(workflowSurfaceReceipt(nativeReceipt, commands).effects).toEqual([
-      { commandIndex: 0, itemId: "alert-team", effect: "deleted" },
-      { commandIndex: 0, relationshipId: "edge-fetch-alert", effect: "disconnected" },
+      { commandIndex: 0, itemId: "manual-review", effect: "deleted" },
+      { commandIndex: 0, relationshipId: "edge-enrich-review", effect: "disconnected" },
     ]);
   });
 });

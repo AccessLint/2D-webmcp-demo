@@ -73,8 +73,8 @@ export function createSurfaceEvalSession() {
     },
     bumpRevision() {
       const workflow = store.getState().workflow;
-      const node = workflow.nodes.find((item) => item.id === "alert-team");
-      if (!node) throw new Error("The eval fixture is missing alert-team.");
+      const node = workflow.nodes.find((item) => item.id === "manual-review");
+      if (!node) throw new Error("The eval fixture is missing manual-review.");
       return store.getState().apply(workflow.revision, [{
         type: "updateNode",
         id: node.id,
@@ -85,7 +85,7 @@ export function createSurfaceEvalSession() {
       const state = store.getState();
       return {
         revision: state.workflow.revision,
-        targetLabel: state.workflow.nodes.find((item) => item.id === "fetch-orders")?.label ?? null,
+        targetLabel: state.workflow.nodes.find((item) => item.id === "enrich-company")?.label ?? null,
         itemCount: state.workflow.nodes.length,
         relationshipCount: state.workflow.edges.length,
       };

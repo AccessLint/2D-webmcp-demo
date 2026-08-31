@@ -39,6 +39,15 @@ const edgeSchema = z.object({
   targetPort: portSchema.describe(`Valid input port returned for the target node by ${toolNames.discoverWorkflow}.`),
   label: z.string().max(120).regex(printableTextPattern).optional().describe("Optional human-readable connection label."),
 }).strict().describe("Complete workflow connection definition.");
+export const workflowCommandTypes = [
+  "createNode",
+  "updateNode",
+  "deleteNode",
+  "connect",
+  "disconnect",
+  "replaceConnection",
+] as const;
+
 export const commandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("createNode"), node: nodeSchema }).strict().describe("Create one new node."),
   z.object({ type: z.literal("updateNode"), id: idSchema, patch: nodeSchema.omit({ id: true }).partial().strict().describe("Only fields that should change; node IDs cannot be changed.") }).strict().describe("Update an existing node."),
@@ -80,8 +89,11 @@ export const inspectInputSchema = z.object({
   limit: z.number().int().min(1).max(3).optional().describe("Relationships per item, from 1 to 3."),
 }).strict();
 export const revealInputSchema = objectReferenceInputSchema;
+export const focusTargetInputSchema = z.object({
+  targetId: z.enum(uiTargetIds).describe(`Stable page target ID returned by ${toolNames.discoverWorkflow}.`),
+}).strict();
 export const focusDomNodeInputSchema = z.union([
-  z.object({ targetId: z.enum(uiTargetIds).describe(`Stable page target ID returned by ${toolNames.discoverWorkflow}.`) }).strict(),
+  focusTargetInputSchema,
   z.object({ selector: z.string().min(1).max(500).describe("Advanced fallback CSS selector for a focusable DOM element.") }).strict(),
 ]);
 export const operationInputSchema = z.object({ operationId: z.string().min(1).max(100).regex(identifierPattern).describe(`Edit result operation ID returned by ${toolNames.editWorkflow}.`) }).strict();
@@ -109,7 +121,7 @@ export const jsonSchemas = {
   inspect: jsonSchemaFor(inspectInputSchema),
   apply: jsonSchemaFor(applyInputSchema),
   reveal: jsonSchemaFor(revealInputSchema),
-  focusDomNode: jsonSchemaFor(focusDomNodeInputSchema),
+  focusDomNode: jsonSchemaFor(focusTargetInputSchema),
   operation: jsonSchemaFor(operationInputSchema),
   getEditResult: jsonSchemaFor(getEditResultInputSchema),
 };

@@ -3,17 +3,17 @@ import { expect, test } from "@playwright/test";
 test("selected nodes move and cancel selection with the documented keyboard commands", async ({ page }) => {
   await page.goto("/");
 
-  const startNode = page.getByRole("button", { name: "Start node: Order received" });
+  const startNode = page.getByRole("button", { name: "Start node: New lead submitted" });
   await startNode.press("Enter");
   await expect(startNode).toHaveClass(/selected/);
 
   await startNode.press("ArrowRight");
 
-  await expect(startNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 45, 180)");
+  await expect(startNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 45, 220)");
   await expect(page.locator("#react-flow__aria-live-1")).toHaveText("Moved selected node right.");
 
   await page.reload();
-  await expect(startNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 45, 180)");
+  await expect(startNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 45, 220)");
   await expect(startNode).toHaveClass(/selected/);
 
   await startNode.press("Escape");
@@ -26,10 +26,10 @@ test("connections use named keyboard controls instead of focusable SVG edges", a
   await expect(page.locator(".react-flow__edge[tabindex='0']")).toHaveCount(0);
 
   const connections = page.getByRole("region", { name: "Workflow connections" });
-  await expect(connections.getByRole("button")).toHaveCount(3);
+  await expect(connections.getByRole("button")).toHaveCount(6);
 
   const firstConnection = connections.getByRole("button", {
-    name: /Order received to Fetch Orders next connection/,
+    name: /New lead submitted to Enrich company next connection/,
   });
   await firstConnection.focus();
   await expect(firstConnection).toBeFocused();
@@ -37,21 +37,21 @@ test("connections use named keyboard controls instead of focusable SVG edges", a
 
   await firstConnection.press("Enter");
   await expect(firstConnection).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".react-flow__edge[data-id='edge-start-fetch']")).toHaveClass(/selected/);
+  await expect(page.locator(".react-flow__edge[data-id='edge-lead-enrich']")).toHaveClass(/selected/);
 
   await firstConnection.press("Escape");
   await expect(firstConnection).toHaveAttribute("aria-pressed", "false");
 
   await firstConnection.press("Space");
   await firstConnection.press("Backspace");
-  await expect(connections.getByRole("button")).toHaveCount(2);
+  await expect(connections.getByRole("button")).toHaveCount(5);
   await expect(connections.getByRole("heading", { name: "Workflow connections" })).toBeFocused();
 });
 
 test("node selection is exposed as accessibility state", async ({ page }) => {
   await page.goto("/");
 
-  const startNode = page.getByRole("button", { name: "Start node: Order received" });
+  const startNode = page.getByRole("button", { name: "Start node: New lead submitted" });
   const descriptionId = await startNode.getAttribute("aria-describedby");
   expect(descriptionId).toBeTruthy();
   await expect(page.locator(`#${descriptionId}`)).toContainText("toggle selection");
@@ -68,10 +68,10 @@ test("node selection is exposed as accessibility state", async ({ page }) => {
   await startNode.press("Escape");
   await expect(startNode).toHaveAttribute("aria-pressed", "false");
 
-  const alertNode = page.getByRole("button", { name: "Action node: Alert Team" });
-  await alertNode.press("Enter");
-  await alertNode.press("Delete");
-  await expect(alertNode).toHaveCount(0);
+  const reviewNode = page.getByRole("button", { name: "Action node: Manual review" });
+  await reviewNode.press("Enter");
+  await reviewNode.press("Delete");
+  await expect(reviewNode).toHaveCount(0);
 });
 
 test("the canvas application exposes its complete keyboard contract", async ({ page }) => {
@@ -89,13 +89,13 @@ test("the canvas application exposes its complete keyboard contract", async ({ p
     "Use the Workflow connections region to review and select connections.",
   );
 
-  const alertNode = page.getByRole("button", { name: "Action node: Alert Team" });
-  await alertNode.press("Space");
-  await expect(alertNode).toHaveAttribute("aria-pressed", "true");
-  await alertNode.press("Shift+ArrowRight");
-  await expect(alertNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 560, 300)");
-  await alertNode.press("Backspace");
-  await expect(alertNode).toHaveCount(0);
+  const reviewNode = page.getByRole("button", { name: "Action node: Manual review" });
+  await reviewNode.press("Space");
+  await expect(reviewNode).toHaveAttribute("aria-pressed", "true");
+  await reviewNode.press("Shift+ArrowRight");
+  await expect(reviewNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 780, 500)");
+  await reviewNode.press("Backspace");
+  await expect(reviewNode).toHaveCount(0);
 });
 
 test("the skip link moves keyboard focus into the workflow workspace", async ({ page }) => {

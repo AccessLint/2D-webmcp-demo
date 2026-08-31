@@ -4,10 +4,10 @@ import { createSeedWorkflow } from "../src/graph/seedWorkflow";
 
 const retryCommands: WorkflowCommand[] = [
   { type: "createNode", node: { id: "retry", type: "retry", label: "Retry", position: { x: 530, y: 200 }, properties: { attempts: 3 } } },
-  { type: "disconnect", edgeId: "edge-fetch-save" },
-  { type: "connect", edge: { id: "edge-fetch-retry", source: "fetch-orders", sourcePort: "success", target: "retry", targetPort: "input" } },
-  { type: "connect", edge: { id: "edge-retry-save", source: "retry", sourcePort: "success", target: "save-results", targetPort: "input" } },
-  { type: "connect", edge: { id: "edge-retry-alert", source: "retry", sourcePort: "failure", target: "alert-team", targetPort: "input" } },
+  { type: "disconnect", edgeId: "edge-enrich-qualified" },
+  { type: "connect", edge: { id: "edge-enrich-retry", source: "enrich-company", sourcePort: "success", target: "retry", targetPort: "input" } },
+  { type: "connect", edge: { id: "edge-retry-qualified", source: "retry", sourcePort: "success", target: "qualified-lead", targetPort: "input" } },
+  { type: "connect", edge: { id: "edge-retry-review", source: "retry", sourcePort: "failure", target: "manual-review", targetPort: "input" } },
 ];
 
 describe("workflow transactions", () => {
@@ -20,10 +20,10 @@ describe("workflow transactions", () => {
     expect(result.state.revision).toBe(1);
     expect(result.state.nodes.find((node) => node.id === "retry")?.properties.attempts).toBe(3);
     expect(result.state.edges).toEqual(expect.arrayContaining([
-      expect.objectContaining({ source: "retry", sourcePort: "success", target: "save-results" }),
-      expect.objectContaining({ source: "retry", sourcePort: "failure", target: "alert-team" }),
+      expect.objectContaining({ source: "retry", sourcePort: "success", target: "qualified-lead" }),
+      expect.objectContaining({ source: "retry", sourcePort: "failure", target: "manual-review" }),
     ]));
-    expect(result.state.edges.some((edge) => edge.id === "edge-fetch-save")).toBe(false);
+    expect(result.state.edges.some((edge) => edge.id === "edge-enrich-qualified")).toBe(false);
   });
 
   it("rejects a stale or invalid batch without changing the supplied state", () => {
@@ -41,11 +41,11 @@ describe("workflow transactions", () => {
   it("supports updates and deletions while keeping a mixed batch atomic", () => {
     const before = createSeedWorkflow();
     const updated = executeBatch(before, { baseRevision: 0, commands: [
-      { type: "updateNode", id: "alert-team", patch: { label: "Page Operations" } },
-      { type: "deleteNode", id: "alert-team" },
+      { type: "updateNode", id: "manual-review", patch: { label: "Review manually" } },
+      { type: "deleteNode", id: "manual-review" },
       { type: "disconnect", edgeId: "missing-edge" },
     ] });
     expect(updated).toMatchObject({ ok: false, status: "failed" });
-    expect(before.nodes.find((node) => node.id === "alert-team")?.label).toBe("Alert Team");
+    expect(before.nodes.find((node) => node.id === "manual-review")?.label).toBe("Manual review");
   });
 });

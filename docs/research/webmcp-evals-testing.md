@@ -27,7 +27,7 @@ Create `evals/webmcp-evals.json` with realistic prompt variations for these beha
 - Discovery: a request to inspect or summarize the workflow should begin with `discover_workflow`.
 - Inspection: a relationship question should call `discover_workflow`, then `inspect_workflow_items` with copied stable IDs.
 - Main edit journey: the Retry prompt from `docs/TESTING.md` should call `discover_workflow`, `edit_workflow`, and `show_edit_result` in order.
-- Argument accuracy: the edit must use revision `0`, create a Retry node with `attempts: 3`, replace `edge-fetch-save`, and route success/failure correctly. Coordinates and generated operation IDs should use matcher constraints rather than exact values.
+- Argument accuracy: the edit must use revision `0`, create a Retry node with `attempts: 3`, replace `edge-enrich-qualified`, and route success/failure correctly. Coordinates and generated operation IDs should use matcher constraints rather than exact values.
 - Page focus: “Put keyboard focus on Zoom In” should discover targets and call `focus_page_element` with `targetId: "canvas.zoom-in"`.
 - Reveal: after creating Retry, “Show the Retry workflow node” should call `show_workflow_item` with the new node ID.
 - Undo: after an edit, the model should pass the returned operation ID to `undo_workflow_edit`.

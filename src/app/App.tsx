@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChangeHistory } from "../components/ChangeHistory";
+import { EvalResultsPage } from "../components/EvalResultsPage";
 import { LiveStatus } from "../components/LiveStatus";
 import { WorkflowCanvas } from "../components/WorkflowCanvas";
 import { workflowStore, useWorkflowStore } from "../state/workflowStore";
@@ -7,9 +8,9 @@ import { registerWorkflowTools } from "../webmcp/registerTools";
 import { createToolHandlers } from "../webmcp/toolHandlers";
 import { parseWorkflowHash } from "./routes";
 
-const demoPrompt = "Inspect the workflow. Add a Retry node with three attempts after Fetch Orders, route Retry success to Save Results and Retry failure to Alert Team, and then show me the edit result.";
+const demoPrompt = "Inspect the workflow. Add a Retry node with three attempts after Enrich company, route Retry success to Qualified lead? and Retry failure to Manual review, and then show me the edit result.";
 
-export default function App() {
+function WorkflowDemo() {
   const select = useWorkflowStore((state) => state.select);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
   const copyDemoPrompt = async () => {
@@ -41,6 +42,10 @@ export default function App() {
     <div className="app-shell">
       <LiveStatus />
       <main id="workspace" tabIndex={-1}>
+        <nav className="site-nav" aria-label="Primary">
+          <a href="/" aria-current="page">WebMCP demo</a>
+          <a href="/evals">Evaluation history</a>
+        </nav>
         <header className="demo-intro">
           <h1>Verifiable workflow editing with WebMCP</h1>
           <p>
@@ -68,4 +73,10 @@ export default function App() {
       </main>
     </div>
   );
+}
+
+export default function App() {
+  return window.location.pathname.replace(/\/$/, "") === "/evals"
+    ? <EvalResultsPage />
+    : <WorkflowDemo />;
 }

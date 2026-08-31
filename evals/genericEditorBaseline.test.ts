@@ -10,16 +10,21 @@ describe("generic editor eval baseline", () => {
     expect(genericEditorSnapshot(store.getState().workflow)).toEqual({
       revision: 0,
       items: [
-        { id: "start", label: "Order received", x: 40, y: 180 },
-        { id: "fetch-orders", label: "Fetch Orders", x: 280, y: 180 },
-        { id: "save-results", label: "Save Results", x: 540, y: 100 },
-        { id: "alert-team", label: "Alert Team", x: 540, y: 300 },
-        { id: "complete", label: "Complete", x: 800, y: 180 },
+        { id: "new-lead", label: "New lead submitted", x: 40, y: 220 },
+        { id: "enrich-company", label: "Enrich company", x: 280, y: 220 },
+        { id: "qualified-lead", label: "Qualified lead?", x: 520, y: 220 },
+        { id: "create-opportunity", label: "Create CRM opportunity", x: 760, y: 100 },
+        { id: "add-to-nurture", label: "Add to nurture campaign", x: 760, y: 300 },
+        { id: "manual-review", label: "Manual review", x: 760, y: 500 },
+        { id: "complete", label: "Complete", x: 1020, y: 220 },
       ],
       relationships: [
-        { id: "edge-start-fetch", sourceId: "start", sourceTerminal: "next", targetId: "fetch-orders", targetTerminal: "input" },
-        { id: "edge-fetch-save", sourceId: "fetch-orders", sourceTerminal: "success", targetId: "save-results", targetTerminal: "input" },
-        { id: "edge-save-end", sourceId: "save-results", sourceTerminal: "success", targetId: "complete", targetTerminal: "input" },
+        { id: "edge-lead-enrich", sourceId: "new-lead", sourceTerminal: "next", targetId: "enrich-company", targetTerminal: "input" },
+        { id: "edge-enrich-qualified", sourceId: "enrich-company", sourceTerminal: "success", targetId: "qualified-lead", targetTerminal: "input" },
+        { id: "edge-qualified-opportunity", sourceId: "qualified-lead", sourceTerminal: "yes", targetId: "create-opportunity", targetTerminal: "input" },
+        { id: "edge-qualified-nurture", sourceId: "qualified-lead", sourceTerminal: "no", targetId: "add-to-nurture", targetTerminal: "input" },
+        { id: "edge-opportunity-end", sourceId: "create-opportunity", sourceTerminal: "success", targetId: "complete", targetTerminal: "input" },
+        { id: "edge-nurture-end", sourceId: "add-to-nurture", sourceTerminal: "success", targetId: "complete", targetTerminal: "input" },
       ],
     });
   });
@@ -27,12 +32,12 @@ describe("generic editor eval baseline", () => {
   it("returns the minimal conventional result for a successful edit", () => {
     const store = createWorkflowStore();
     const result = store.getState().apply(0, [
-      { type: "updateNode", id: "fetch-orders", patch: { label: "Fetch Orders v2" } },
+      { type: "updateNode", id: "enrich-company", patch: { label: "Enrich company v2" } },
     ]);
 
     expect(genericEditorResult(result)).toEqual({
       status: "completed",
-      changed: [{ id: "fetch-orders", action: "updated" }],
+      changed: [{ id: "enrich-company", action: "updated" }],
     });
   });
 
@@ -49,20 +54,20 @@ describe("generic editor eval baseline", () => {
     expect(discovery.outputs.genericEditor).toMatchObject({
       revision: 0,
       items: expect.arrayContaining([
-        { id: "start", label: "Order received", x: 40, y: 180 },
+        { id: "new-lead", label: "New lead submitted", x: 40, y: 220 },
       ]),
       relationships: expect.arrayContaining([
-        expect.objectContaining({ sourceId: "fetch-orders", sourceTerminal: "success", targetId: "save-results", targetTerminal: "input" }),
+        expect.objectContaining({ sourceId: "enrich-company", sourceTerminal: "success", targetId: "qualified-lead", targetTerminal: "input" }),
       ]),
     });
 
     const edit = await session.execute("edit_workflow", {
       baseRevision: 0,
-      commands: [{ type: "updateNode", id: "fetch-orders", patch: { label: "Fetch Orders v2" } }],
+      commands: [{ type: "updateNode", id: "enrich-company", patch: { label: "Enrich company v2" } }],
     });
     expect(edit.outputs.genericEditor).toEqual({
       status: "completed",
-      changed: [{ id: "fetch-orders", action: "updated" }],
+      changed: [{ id: "enrich-company", action: "updated" }],
     });
   });
 });
