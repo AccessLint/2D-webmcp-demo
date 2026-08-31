@@ -1,0 +1,20 @@
+# 2D WebMCP Demo
+
+> An accessible browser-based workflow editor demonstrating verifiable agent actions through WebMCP. Human controls and agent tools share one graph model, and every committed edit produces an application-authored change receipt.
+
+Agents using the live application should call `discover_workflow` before any other WebMCP tool. Use the returned revision and identifiers for edits; after a stale-input or conflict error, discover again before retrying. Prefer named page target IDs over CSS selectors when moving focus.
+
+## Documentation
+
+- [Application overview](https://web-mcp-proof.cameron846558.chatgpt.site/index.md): Architecture, WebMCP tools, recommended agent workflow, and verification commands.
+- [Judge smoke test](https://raw.githubusercontent.com/AccessLint/webmcp-proof/main/docs/TESTING.md): A three-minute keyboard, screen-reader, agent-editing, receipt-review, and undo walkthrough.
+
+## Source references
+
+- [Source repository](https://github.com/AccessLint/webmcp-proof): TypeScript source, tests, schemas, and evaluation adapters.
+- [SurfaceSnapshot schema](https://raw.githubusercontent.com/AccessLint/webmcp-proof/main/src/webmcp/schemas/surface-snapshot.v0.1.schema.json): Draft 2D WebMCP discovery-surface schema used as a conformance fixture.
+- [SurfaceReceipt schema](https://raw.githubusercontent.com/AccessLint/webmcp-proof/main/src/webmcp/schemas/surface-receipt.v0.1.schema.json): Draft application-authored edit-result schema used as a conformance fixture.
+
+## Optional
+
+- [Gemini Nano WebMCP research](https://raw.githubusercontent.com/AccessLint/webmcp-proof/main/docs/research/gemini-nano-webmcp-tool-calls.md): Notes on local-model tool calling and the discovery/edit evaluation bridge.
