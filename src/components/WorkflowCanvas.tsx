@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type FormEvent } from "react";
 import {
   Background,
   Controls,
@@ -16,7 +16,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { WorkflowCommand } from "../graph/commands";
-import type { WorkflowEdge, WorkflowNode } from "../graph/model";
+import type { NodeKind, WorkflowEdge, WorkflowNode } from "../graph/model";
 import { nodeDefinitions } from "../graph/nodeTypes";
 import { useWorkflowStore, type WorkflowSelection } from "../state/workflowStore";
 
@@ -71,6 +71,24 @@ const ariaLabelConfig = {
     `Moved selected node ${direction}.`,
 } satisfies Partial<AriaLabelConfig>;
 
+function createNodeId(label: string, nodes: WorkflowNode[]) {
+  const base = label
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 48) || "node";
+  const ids = new Set(nodes.map((node) => node.id));
+  let id = base;
+  let suffix = 2;
+  while (ids.has(id)) id = `${base}-${suffix++}`;
+  return id;
+}
+
+function isNodeKind(value: string): value is NodeKind {
+  return Object.prototype.hasOwnProperty.call(nodeDefinitions, value);
+}
+
 function toFlowNode(node: WorkflowNode, selected: WorkflowSelection | null): WorkflowFlowNode {
   const isSelected = selected?.kind === "node" && selected.id === node.id;
   return {
@@ -116,6 +134,9 @@ export function WorkflowCanvas() {
     () => workflow.edges.map((edge) => toFlowEdge(edge, selected)),
     [workflow.edges, selected],
   );
+  const selectedNode = selected?.kind === "node"
+    ? workflow.nodes.find((node) => node.id === selected.id) ?? null
+    : null;
 
   const fitCanvas = useCallback(() => {
     if (fitFrame.current !== null) cancelAnimationFrame(fitFrame.current);
@@ -221,10 +242,103 @@ export function WorkflowCanvas() {
     }], "Canvas connection");
   });
 
+  const addNode = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const label = String(data.get("label") ?? "").trim();
+    const typeValue = String(data.get("type") ?? "action");
+    if (!label) {
+      reportError("Enter a name for the new node.");
+      return;
+    }
+    if (!isNodeKind(typeValue)) {
+      reportError("Choose a valid node type.");
+      return;
+    }
+    const type = typeValue;
+
+    const id = createNodeId(label, workflow.nodes);
+    const bounds = shell.current?.getBoundingClientRect();
+    const position = flow.current && bounds?.width && bounds.height
+      ? flow.current.screenToFlowPosition({
+        x: bounds.left + (bounds.width / 2) - 75 + (workflow.nodes.length % 4) * 18,
+        y: bounds.top + (bounds.height / 2) - 35 + (workflow.nodes.length % 4) * 18,
+      })
+      : { x: 120 + (workflow.nodes.length % 5) * 45, y: 120 + (workflow.nodes.length % 4) * 70 };
+    const receipt = apply(workflow.revision, [{
+      type: "createNode",
+      node: {
+        id,
+        type,
+        label,
+        position,
+        properties: structuredClone(nodeDefinitions[type].defaultProperties),
+      },
+    }], `Add ${label}`);
+    if (receipt.status !== "completed") return;
+    form.reset();
+    select({ kind: "node", id }, undefined, true);
+  };
+
+  const renameNode = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedNode) return;
+    const data = new FormData(event.currentTarget);
+    const label = String(data.get("label") ?? "").trim();
+    if (!label) {
+      reportError("Enter a name for the selected node.");
+      return;
+    }
+    if (label === selectedNode.label) return;
+    apply(workflow.revision, [{
+      type: "updateNode",
+      id: selectedNode.id,
+      patch: { label },
+    }], `Rename ${selectedNode.label} to ${label}`);
+  };
+
   const nodeLabels = new Map(workflow.nodes.map((node) => [node.id, node.label]));
 
   return (
     <>
+      <section className="node-editor" aria-labelledby="node-editor-heading">
+        <div className="node-editor__heading">
+          <h2 id="node-editor-heading">Edit nodes</h2>
+          <span>{workflow.nodes.length} nodes</span>
+        </div>
+        <div className="node-editor__forms">
+          <form onSubmit={addNode}>
+            <label>
+              <span>Node type</span>
+              <select name="type" defaultValue="action">
+                {Object.entries(nodeDefinitions).map(([type, definition]) => (
+                  <option key={type} value={type}>{definition.title}</option>
+                ))}
+              </select>
+            </label>
+            <label className="node-editor__name">
+              <span>New node name</span>
+              <input name="label" type="text" maxLength={80} required />
+            </label>
+            <button type="submit">Add node</button>
+          </form>
+          <form key={selectedNode ? `${selectedNode.id}:${selectedNode.label}` : "no-node"} onSubmit={renameNode}>
+            <label className="node-editor__name">
+              <span>Selected node name</span>
+              <input
+                name="label"
+                type="text"
+                defaultValue={selectedNode?.label ?? ""}
+                maxLength={80}
+                required
+                disabled={!selectedNode}
+              />
+            </label>
+            <button type="submit" disabled={!selectedNode}>Rename node</button>
+          </form>
+        </div>
+      </section>
       <div ref={shell} className="canvas-shell" aria-label="Visual workflow canvas">
         <p id="workflow-canvas-instructions" className="sr-only">
           Tab to a node. Press Enter or Space to toggle its selection. Use the Arrow keys to move it.

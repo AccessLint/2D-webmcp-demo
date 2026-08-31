@@ -24,6 +24,29 @@ test("canvas refits after becoming measurable", async ({ page }) => {
   await expect(enrichCompany).toBeFocused();
 });
 
+test("nodes can be added and renamed from the editing panel", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("combobox", { name: "Node type" }).selectOption("retry");
+  await page.getByRole("textbox", { name: "New node name" }).fill("Retry enrichment");
+  await page.getByRole("button", { name: "Add node" }).click();
+
+  const createdNode = page.getByRole("button", { name: "Retry node: Retry enrichment" });
+  await expect(createdNode).toBeVisible();
+  await expect(createdNode).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("status")).toContainText("Created Retry enrichment");
+
+  const renameInput = page.getByRole("textbox", { name: "Selected node name" });
+  await expect(renameInput).toHaveValue("Retry enrichment");
+  await renameInput.fill("Retry company lookup");
+  await page.getByRole("button", { name: "Rename node" }).click();
+
+  await expect(page.getByRole("button", { name: "Retry node: Retry company lookup" })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText(
+    "Renamed Retry enrichment to Retry company lookup",
+  );
+});
+
 test("Retry receipt can be focused, spot checked, and undone", async ({ page }) => {
   await page.addInitScript(() => {
     const tools: Record<string, { execute: (input: unknown) => unknown }> = {};

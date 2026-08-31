@@ -49,7 +49,12 @@ describe("accessible workflow review", () => {
     expect(created).toMatchObject({ type: "retry", properties: { attempts: 3 } });
     expect(workflowStore.getState().selected).toEqual({ kind: "node", id: created?.id });
     expect(screen.getByRole("textbox", { name: "New node name" })).toHaveValue("");
-    expect(await screen.findByRole("button", { name: "Retry node: Retry enrichment" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId(`rf__node-${created?.id}`)).toHaveAttribute(
+        "aria-label",
+        "Retry node: Retry enrichment",
+      );
+    });
   });
 
   it("renames the selected node without changing its identity or connections", async () => {
@@ -65,8 +70,16 @@ describe("accessible workflow review", () => {
     const state = workflowStore.getState().workflow;
     expect(state.nodes.find((node) => node.id === "enrich-company")?.label).toBe("Research company");
     expect(state.edges.some((edge) => edge.source === "enrich-company")).toBe(true);
-    expect(await screen.findByRole("button", { name: "Action node: Research company" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("rf__node-enrich-company")).toHaveAttribute(
+        "aria-label",
+        "Action node: Research company",
+      );
+    });
     expect(screen.getByRole("status")).toHaveTextContent("Renamed Enrich company to Research company");
+
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(screen.getByRole("textbox", { name: "Selected node name" })).toHaveValue("Enrich company");
   });
 
   it("creates one concise receipt for the demo and exposes spot-check controls", async () => {
