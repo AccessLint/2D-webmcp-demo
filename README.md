@@ -37,18 +37,18 @@ The graph command executor is the main write interface. It clones the current wo
 
 | Tool | Use it to |
 | --- | --- |
-| `discover_workflow` | Start here. Get the current revision, valid item IDs and ports, named page targets, validation state, and example calls. |
-| `inspect_workflow_items` | Read full details and relationships for specific nodes or connections. |
+| `discover_workflow` | Start here. Get a compact, paginated list of item IDs plus the current revision, valid ports, named page targets, and next steps. |
+| `inspect_workflow_items` | Read compact summaries, properties, or paginated relationships for specific nodes or connections. |
 | `edit_workflow` | Apply one atomic set of typed workflow commands using the latest revision. |
 | `show_workflow_item` | Select a node or connection and bring it into view. Nodes also receive keyboard focus. |
 | `focus_page_element` | Queue focus for a named page target, or use a CSS selector as an advanced fallback. |
-| `get_edit_result` | Retrieve the application-authored result for an edit operation. |
+| `get_edit_result` | Retrieve paginated changes and validation problems for an edit operation. |
 | `show_edit_result` | Bring an edit result into view and move keyboard focus to it. |
 | `undo_workflow_edit` | Undo an edit while it is still the latest workflow revision. |
 
-Agents should call `discover_workflow` first. Its response includes the current revision, valid node IDs and ports, named UI targets, and copyable examples for the next tool call. `edit_workflow` uses that exact revision without incrementing it to prevent stale edits and returns a receipt that can be inspected, focused, or undone. Node labels may be supplied either as strings or as label objects copied from the returned `surfaceSnapshot`.
+Agents should call `discover_workflow` first. Its browser-facing response stays within a 1,500-character budget and includes the current revision, valid node types and ports, named UI targets, paginated validation problems, and a page of stable item IDs. Pass each `nextCursor` back through the corresponding cursor field to continue. `edit_workflow` uses the discovered revision without incrementing it to prevent stale edits and returns compact evidence; use `get_edit_result` to page through every change or validation problem. Node labels may be supplied either as strings or as label objects copied from a `SurfaceSnapshot` adapter.
 
-The discovery result also includes a `surfaceSnapshot` conforming to the draft 2D WebMCP `SurfaceSnapshot` proposal. The app vendors the draft JSON Schema in `src/webmcp/schemas` as a conformance fixture; it is not an npm dependency or a claim of a finalized standard.
+The direct handler and external eval adapter retain a `surfaceSnapshot` conforming to the draft 2D WebMCP `SurfaceSnapshot` proposal. Native browser registration compacts that result to meet the tool-output budget. The app vendors the draft JSON Schema in `src/webmcp/schemas` as a conformance fixture; it is not an npm dependency or a claim of a finalized standard.
 
 The external eval bridge also exposes a minimal generic editor baseline for comparison. Its discovery result contains only `revision`, flat `items`, and flat `relationships`; its successful edit result is `{status, changed: [{id, action}]}`. This is an eval adapter, not an additional browser-facing tool contract.
 
@@ -61,4 +61,6 @@ If an edit conflicts or a tool reports stale input, follow its recovery instruct
 
 For page focus, prefer a named `targetId` such as `canvas.zoom-in`. A CSS `selector` remains available as an advanced fallback. Focus is queued until the browser receives a keyboard, DOM-focus, or assistive-technology interaction, rather than being repeatedly forced afterward.
 
-The registered JSON Schemas are generated from the same definitions used to validate tool inputs at runtime. Invalid input and missing items return structured error codes, field-level issues, and a recovery call back to `discover_workflow`.
+The registered JSON Schemas are generated from the same definitions used to validate tool inputs at runtime. IDs, labels, ports, property names and values, operation IDs, and property counts have explicit limits. Invalid input and missing items return structured error codes, field-level issues, and context-specific recovery guidance.
+
+Tools returning workflow or receipt content are marked with `untrustedContentHint`. Browser-facing outputs are compacted to at most 1,500 characters, while application-authored receipts remain complete in the UI. Registration is transactional through the returned `ready` promise, and abort signals cancel pending UI work. The session keeps the latest 100 privacy-limited invocation records—tool name, parameter names, outcome/code, latency, revisions, and operation ID—without storing parameter values. Each record is also emitted as a `webmcp:invocation` window event so production telemetry can consume the safe event without coupling analytics to the tool handlers.

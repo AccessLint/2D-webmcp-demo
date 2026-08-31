@@ -11,6 +11,9 @@ export default function App() {
   const select = useWorkflowStore((state) => state.select);
   useEffect(() => {
     const registration = registerWorkflowTools(createToolHandlers(workflowStore));
+    void registration.ready.catch(() => {
+      workflowStore.getState().reportError("WebMCP tools could not be registered. Reload the page and try again.");
+    });
     return registration.unregister;
   }, []);
   useEffect(() => {

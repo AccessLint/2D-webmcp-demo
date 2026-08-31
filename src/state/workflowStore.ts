@@ -9,7 +9,26 @@ import type { ChangeReceipt } from "../receipts/schema";
 import { toolNames } from "../webmcp/toolNames";
 import { installSessionPersistence } from "./sessionPersistence";
 
-export type Invocation = { id: string; tool: string; at: string; outcome: string };
+export type Invocation = {
+  id: string;
+  tool: string;
+  at: string;
+  outcome: "completed" | "failed" | "aborted";
+  code?: string;
+  durationMs: number;
+  parameterNames: string[];
+  unknownParameterCount?: number;
+  baseRevision?: number;
+  resultingRevision?: number;
+  operationId?: string;
+};
+export type InvocationInput = Omit<Invocation, "id" | "at">;
+export class WorkflowUndoError extends Error {
+  constructor(readonly code: "UNDO_NOT_AVAILABLE" | "UNDO_REVISION_CONFLICT", message: string) {
+    super(message);
+    this.name = "WorkflowUndoError";
+  }
+}
 export type WorkflowSnapshot = { operationId: string; state: WorkflowState; resultingRevision: number };
 export type WorkflowSelection = { kind: "node" | "edge"; id: string };
 
@@ -30,7 +49,7 @@ export type WorkflowStore = {
   reportError: (message: string) => void;
   markReviewed: (operationId: string) => void;
   reset: () => void;
-  logInvocation: (tool: string, outcome: string) => void;
+  logInvocation: (invocation: InvocationInput) => void;
 };
 
 const DEFAULT_SELECTION: WorkflowSelection = { kind: "node", id: "fetch-orders" };
@@ -122,10 +141,10 @@ export function createWorkflowStore(initial = createSeedWorkflow()): StoreApi<Wo
       const current = get();
       const snapshot = current.snapshots.find((item) => item.operationId === operationId);
       if (!snapshot) {
-        throw new Error(`Operation ${operationId} cannot be undone.`);
+        throw new WorkflowUndoError("UNDO_NOT_AVAILABLE", `Operation ${operationId} cannot be undone.`);
       }
       if (snapshot.resultingRevision !== current.workflow.revision) {
-        throw new Error("This change cannot be undone after a later workflow edit.");
+        throw new WorkflowUndoError("UNDO_REVISION_CONFLICT", "This change cannot be undone after a later workflow edit.");
       }
 
       const restored = { ...structuredClone(snapshot.state), revision: current.workflow.revision + 1 };
@@ -163,12 +182,13 @@ export function createWorkflowStore(initial = createSeedWorkflow()): StoreApi<Wo
       ...createInitialState(createSeedWorkflow()),
       politeMessage: "Workflow reset.",
     }),
-    logInvocation: (tool, outcome) => set((current) => ({
-      invocations: [
-        { id: crypto.randomUUID(), tool, at: new Date().toISOString(), outcome },
-        ...current.invocations,
-      ].slice(0, 8),
-    })),
+    logInvocation: (invocation) => {
+      const entry = { id: crypto.randomUUID(), at: new Date().toISOString(), ...invocation };
+      set((current) => ({ invocations: [entry, ...current.invocations].slice(0, 100) }));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("webmcp:invocation", { detail: entry }));
+      }
+    },
   }));
 }
 

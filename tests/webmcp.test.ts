@@ -186,12 +186,17 @@ describe("WebMCP tool boundary", () => {
   });
 
   it("publishes runtime schemas and returns structured recovery errors", async () => {
+    const store = createWorkflowStore();
+    const observedInvocations: unknown[] = [];
+    const observeInvocation = (event: Event) => observedInvocations.push((event as CustomEvent).detail);
+    window.addEventListener("webmcp:invocation", observeInvocation);
     const registered = new Map<string, WebMCPTool>();
     const modelContext = Object.assign(new EventTarget(), {
       registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
     });
     Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
-    const registration = registerWorkflowTools(createToolHandlers(createWorkflowStore()));
+    const registration = registerWorkflowTools(createToolHandlers(store));
+    await expect(registration.ready).resolves.toBe(true);
     expect([...registered.keys()]).toEqual([
       "discover_workflow", "inspect_workflow_items", "edit_workflow", "show_workflow_item",
       "focus_page_element", "get_edit_result", "show_edit_result", "undo_workflow_edit",
@@ -199,6 +204,15 @@ describe("WebMCP tool boundary", () => {
     expect(registered.get("discover_workflow")?.description).toContain("Call this first");
     expect(registered.get("edit_workflow")?.description).toContain("Do not increment it");
     expect(registered.get("focus_page_element")?.description).toContain("Prefer targetId");
+    expect(registered.get("discover_workflow")?.annotations).toEqual({
+      readOnlyHint: true,
+      untrustedContentHint: true,
+    });
+    expect(registered.get("edit_workflow")?.annotations).toEqual({
+      readOnlyHint: false,
+      untrustedContentHint: true,
+    });
+    expect(registered.get("focus_page_element")?.annotations).toEqual({ readOnlyHint: false });
     const schema = registered.get("focus_page_element")?.inputSchema;
     expect(schema).toMatchObject({
       anyOf: expect.arrayContaining([
@@ -206,10 +220,24 @@ describe("WebMCP tool boundary", () => {
         expect.objectContaining({ properties: { selector: expect.objectContaining({ type: "string", minLength: 1, maxLength: 500 }) }, required: ["selector"], additionalProperties: false }),
       ]),
     });
-    expect(registered.get("discover_workflow")!.execute({ unexpected: true })).toMatchObject({
+    const invalidDiscovery = registered.get("discover_workflow")!.execute({ unexpected: true });
+    expect(invalidDiscovery).toMatchObject({
       ok: false,
-      error: { code: "INVALID_INPUT", issues: expect.arrayContaining([expect.objectContaining({ path: [] })]) },
+      error: {
+        code: "INVALID_INPUT",
+        issues: expect.arrayContaining([expect.objectContaining({ path: [] })]),
+        recovery: { tool: "discover_workflow", reason: expect.stringContaining("Correct") },
+      },
     });
+    expect(store.getState().invocations[0]).toMatchObject({
+      tool: "discover_workflow",
+      outcome: "failed",
+      code: "INVALID_INPUT",
+      parameterNames: [],
+      unknownParameterCount: 1,
+      durationMs: expect.any(Number),
+    });
+    expect(observedInvocations[0]).toMatchObject({ tool: "discover_workflow", code: "INVALID_INPUT" });
     expect(registered.get("edit_workflow")?.inputSchema).toMatchObject({
       properties: {
         baseRevision: expect.objectContaining({
@@ -224,20 +252,372 @@ describe("WebMCP tool boundary", () => {
       commands: [{ type: "updateNode", id: "fetch-orders", patch: { label: "Fetch Orders" } }],
     });
     expect(applied).not.toBeInstanceOf(Promise);
-    expect(applied).toMatchObject({ status: "completed", resultingRevision: 1, operationId: expect.any(String) });
+    expect(applied).toMatchObject({
+      status: "completed",
+      resultingRevision: 1,
+      operationId: expect.any(String),
+      changeCount: 0,
+      changePage: { cursor: 0, nextCursor: null, items: [] },
+    });
+    expect(store.getState().invocations.find((invocation) => invocation.tool === "edit_workflow")).toMatchObject({
+      outcome: "completed",
+      baseRevision: 0,
+      resultingRevision: 1,
+      operationId: expect.any(String),
+    });
+    expect(JSON.stringify(applied).length).toBeLessThanOrEqual(1_500);
+    const compactDiscovery = registered.get("discover_workflow")!.execute({});
+    expect(compactDiscovery).toMatchObject({
+      revision: 1,
+      itemPage: { cursor: 0, items: expect.any(Array) },
+      validation: {
+        valid: true,
+        problemCount: 2,
+        problemPage: { cursor: 0, nextCursor: null, items: expect.any(Array) },
+      },
+    });
+    expect(JSON.stringify(compactDiscovery).length).toBeLessThanOrEqual(1_500);
+    const discoveryPage = registered.get("discover_workflow")!.execute({ limit: 1, problemLimit: 1 });
+    expect(discoveryPage).toMatchObject({
+      itemPage: { cursor: 0, nextCursor: 1, items: [expect.any(Object)] },
+      validation: { problemPage: { cursor: 0, nextCursor: 1, items: [expect.any(Object)] } },
+    });
+    const compactInspection = registered.get("inspect_workflow_items")!.execute({
+      objects: [{ kind: "workflow-node", id: "fetch-orders" }],
+      detail: "summary",
+    });
+    expect(compactInspection).toMatchObject({
+      requestedCount: 1,
+      returnedCount: 1,
+      items: [expect.objectContaining({ id: "fetch-orders" })],
+    });
+    expect(Array.isArray(compactInspection)).toBe(false);
     expect(registered.get("get_edit_result")!.execute({ operationId: "missing" })).toMatchObject({
       ok: false,
-      error: { code: "NOT_FOUND", message: "Receipt missing does not exist." },
+      error: {
+        code: "NOT_FOUND",
+        message: "Receipt missing does not exist.",
+        recovery: { tool: "get_edit_result", reason: expect.stringContaining("operationId") },
+      },
     });
     await expect(registered.get("focus_page_element")!.execute({ targetId: "canvas.missing" })).resolves.toMatchObject({
       ok: false,
       error: {
         code: "INVALID_INPUT",
         issues: expect.arrayContaining([expect.objectContaining({ path: ["targetId"] })]),
-        recovery: { tool: "discover_workflow", input: {}, reason: "Refresh valid IDs, ports, UI targets, and examples before retrying." },
+        recovery: { tool: "focus_page_element", reason: expect.stringContaining("Correct") },
+      },
+    });
+    window.removeEventListener("webmcp:invocation", observeInvocation);
+    registration.unregister();
+    delete document.modelContext;
+  });
+
+  it("rejects oversized domain strings before they enter workflow state", () => {
+    const registered = new Map<string, WebMCPTool>();
+    const modelContext = Object.assign(new EventTarget(), {
+      registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
+    });
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+    const registration = registerWorkflowTools(createToolHandlers(createWorkflowStore()));
+
+    const result = registered.get("edit_workflow")!.execute({
+      baseRevision: 0,
+      commands: [{
+        type: "createNode",
+        node: {
+          id: "x".repeat(65),
+          type: "action",
+          label: "Valid label",
+          position: { x: 0, y: 0 },
+          properties: {},
+        },
+      }],
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+
+    const tooManyProperties = registered.get("edit_workflow")!.execute({
+      baseRevision: 0,
+      commands: [{
+        type: "createNode",
+        node: {
+          id: "bounded-properties",
+          type: "action",
+          label: "Bounded properties",
+          position: { x: 0, y: 0 },
+          properties: { one: 1, two: 2, three: 3, four: 4, five: 5 },
+        },
+      }],
+    });
+    expect(tooManyProperties).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+
+    const controlCharacters = registered.get("edit_workflow")!.execute({
+      baseRevision: 0,
+      commands: [{
+        type: "createNode",
+        node: {
+          id: "control-character",
+          type: "action",
+          label: `Unsafe\u0000label`,
+          position: { x: 0, y: 0 },
+          properties: {},
+        },
+      }],
+    });
+    expect(controlCharacters).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+
+    const manyInvalidCommands = registered.get("edit_workflow")!.execute({
+      baseRevision: 0,
+      commands: Array.from({ length: 20 }, (_, index) => ({
+        type: "deleteNode",
+        id: `${String(index)}-${"x".repeat(65)}`,
+      })),
+    });
+    expect(manyInvalidCommands).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_INPUT",
+        issueCount: 20,
+        issuesTruncated: true,
+      },
+    });
+    expect(JSON.stringify(manyInvalidCommands).length).toBeLessThanOrEqual(1_500);
+    const oversizedError = registered.get("discover_workflow")!.execute({ ["x".repeat(2_000)]: true });
+    expect(oversizedError).toMatchObject({ ok: false, error: { code: "OUTPUT_TOO_LARGE" } });
+    expect(JSON.stringify(oversizedError).length).toBeLessThanOrEqual(1_500);
+    registration.unregister();
+    delete document.modelContext;
+  });
+
+  it("compacts oversized inspection results without dropping the requested item", () => {
+    const store = createWorkflowStore();
+    store.getState().apply(0, [{
+      type: "updateNode",
+      id: "fetch-orders",
+      patch: {
+        label: "F".repeat(120),
+        properties: {
+          first: "a".repeat(120),
+          second: "b".repeat(120),
+          third: "c".repeat(120),
+          fourth: "d".repeat(120),
+        },
+      },
+    }]);
+    const registered = new Map<string, WebMCPTool>();
+    const modelContext = Object.assign(new EventTarget(), {
+      registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
+    });
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+    const registration = registerWorkflowTools(createToolHandlers(store));
+
+    const result = registered.get("inspect_workflow_items")!.execute({
+      objects: [{ kind: "workflow-node", id: "fetch-orders" }],
+      detail: "properties",
+    });
+
+    expect(result).toMatchObject({
+      items: [expect.objectContaining({ kind: "workflow-node", id: "fetch-orders", relationshipCount: 2 })],
+      requestedCount: 1,
+      returnedCount: 1,
+    });
+    expect(JSON.stringify(result).length).toBeLessThanOrEqual(1_500);
+    const relationshipPage = registered.get("inspect_workflow_items")!.execute({
+      objects: [{ kind: "workflow-node", id: "fetch-orders" }],
+      detail: "relationships",
+      cursor: 1,
+      limit: 1,
+    });
+    expect(relationshipPage).toMatchObject({
+      items: [expect.objectContaining({
+        relationshipPage: { cursor: 1, nextCursor: null, items: [expect.any(Object)] },
+      })],
+    });
+    registration.unregister();
+    delete document.modelContext;
+  });
+
+  it("pages compact receipt changes and validation problems without losing details", () => {
+    const store = createWorkflowStore();
+    const registered = new Map<string, WebMCPTool>();
+    const modelContext = Object.assign(new EventTarget(), {
+      registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
+    });
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+    const registration = registerWorkflowTools(createToolHandlers(store));
+
+    const edit = registered.get("edit_workflow")!.execute({
+      baseRevision: 0,
+      commands: Array.from({ length: 6 }, (_, index) => ({
+        type: "createNode",
+        node: {
+          id: `isolated-${String(index)}`,
+          type: "action",
+          label: `Isolated ${String(index)}`,
+          position: { x: index * 20, y: 500 },
+          properties: {},
+        },
+      })),
+    }) as { operationId: string; changePage: { nextCursor: number | null }; validation: { problemPage: { nextCursor: number | null } } };
+
+    expect(edit.changePage.nextCursor).toBe(3);
+    expect(edit.validation.problemPage.nextCursor).toBe(2);
+    const nextPage = registered.get("get_edit_result")!.execute({
+      operationId: edit.operationId,
+      changeCursor: 3,
+      changeLimit: 3,
+      problemCursor: 2,
+      problemLimit: 2,
+    });
+    expect(nextPage).toMatchObject({
+      changePage: { cursor: 3, nextCursor: null, items: expect.arrayContaining([expect.objectContaining({ id: "isolated-5" })]) },
+      validation: {
+        problemPage: {
+          cursor: 2,
+          items: expect.arrayContaining([expect.objectContaining({ code: expect.any(String), message: expect.any(String) })]),
+        },
+      },
+    });
+    expect(JSON.stringify(nextPage).length).toBeLessThanOrEqual(1_500);
+    registration.unregister();
+    delete document.modelContext;
+  });
+
+  it("rolls back registration when any tool fails to register", async () => {
+    let registrationSignal: AbortSignal | undefined;
+    const modelContext = Object.assign(new EventTarget(), {
+      registerTool(tool: WebMCPTool, options?: { signal?: AbortSignal }) {
+        registrationSignal = options?.signal;
+        return tool.name === "edit_workflow"
+          ? Promise.reject(new Error("registration denied"))
+          : Promise.resolve();
+      },
+    });
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+
+    const registration = registerWorkflowTools(createToolHandlers(createWorkflowStore()));
+
+    await expect(registration.ready).rejects.toThrow("WebMCP tool registration failed");
+    expect(registrationSignal?.aborted).toBe(true);
+    registration.unregister();
+    delete document.modelContext;
+  });
+
+  it("honors an invocation abort before starting an asynchronous UI action", async () => {
+    let focusRequested = false;
+    const registered = new Map<string, WebMCPTool>();
+    const modelContext = Object.assign(new EventTarget(), {
+      registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
+    });
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+    const registration = registerWorkflowTools(createToolHandlers(createWorkflowStore(), {
+      focusChangeEntry: async (operationId) => ({ operationId, focusedIn: "change-history", visible: true }),
+      focusWorkflowNode: async () => ({ focused: true, visible: true }),
+      focusDomNode: async (selector) => {
+        focusRequested = true;
+        return { selector, tagName: "button", id: null, focusWhen: "window-focus-or-accessibility-interaction", queued: true };
+      },
+    }));
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(registered.get("focus_page_element")!.execute(
+      { targetId: "canvas.zoom-in" },
+      { signal: controller.signal },
+    )).rejects.toHaveProperty("name", "AbortError");
+    expect(focusRequested).toBe(false);
+    registration.unregister();
+    delete document.modelContext;
+  });
+
+  it("treats a custom abort reason as cancellation", async () => {
+    const store = createWorkflowStore();
+    const registered = new Map<string, WebMCPTool>();
+    const modelContext = Object.assign(new EventTarget(), {
+      registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
+    });
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+    const registration = registerWorkflowTools(createToolHandlers(store));
+    const controller = new AbortController();
+    controller.abort("cancelled");
+
+    await expect(registered.get("focus_page_element")!.execute(
+      { targetId: "canvas.zoom-in" },
+      { signal: controller.signal },
+    )).rejects.toBe("cancelled");
+    expect(store.getState().invocations[0]).toMatchObject({ outcome: "aborted", code: "ABORTED" });
+    registration.unregister();
+    delete document.modelContext;
+  });
+
+  it("reports a non-retryable undo after a later edit", () => {
+    const store = createWorkflowStore();
+    const first = store.getState().apply(0, [{ type: "updateNode", id: "fetch-orders", patch: { label: "Load Orders" } }]);
+    store.getState().apply(1, [{ type: "updateNode", id: "save-results", patch: { label: "Store Results" } }]);
+    const registered = new Map<string, WebMCPTool>();
+    const modelContext = Object.assign(new EventTarget(), {
+      registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
+    });
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+    const registration = registerWorkflowTools(createToolHandlers(store));
+
+    expect(registered.get("undo_workflow_edit")!.execute({ operationId: first.operationId })).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNDO_REVISION_CONFLICT",
+        recovery: { action: "not-retryable", reason: expect.stringContaining("later workflow edit") },
+      },
+    });
+    expect(registered.get("undo_workflow_edit")!.execute({ operationId: "missing" })).toMatchObject({
+      ok: false,
+      error: {
+        code: "UNDO_NOT_AVAILABLE",
+        recovery: { tool: "get_edit_result", reason: expect.stringContaining("no longer") },
       },
     });
     registration.unregister();
+    delete document.modelContext;
+  });
+
+  it("cancels an in-flight DOM wait and does not expose unexpected exception text", async () => {
+    const registered = new Map<string, WebMCPTool>();
+    const modelContext = Object.assign(new EventTarget(), {
+      registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
+    });
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+    const registration = registerWorkflowTools(createToolHandlers(createWorkflowStore()));
+    const controller = new AbortController();
+    const pending = registered.get("focus_page_element")!.execute(
+      { selector: "#never-rendered" },
+      { signal: controller.signal },
+    );
+    controller.abort();
+    await expect(pending).rejects.toHaveProperty("name", "AbortError");
+
+    registration.unregister();
+    delete document.modelContext;
+
+    const failingTools = new Map<string, WebMCPTool>();
+    const failingContext = Object.assign(new EventTarget(), {
+      registerTool(tool: WebMCPTool) { failingTools.set(tool.name, tool); },
+    });
+    Object.defineProperty(document, "modelContext", { configurable: true, value: failingContext });
+    const failingRegistration = registerWorkflowTools(createToolHandlers(createWorkflowStore(), {
+      focusChangeEntry: async (operationId) => ({ operationId, focusedIn: "change-history", visible: true }),
+      focusWorkflowNode: async () => ({ focused: true, visible: true }),
+      focusDomNode: async () => { throw new Error("internal selector engine detail"); },
+    }));
+
+    await expect(failingTools.get("focus_page_element")!.execute({ targetId: "canvas.zoom-in" })).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: "TOOL_EXECUTION_FAILED",
+        message: "The tool could not complete the request.",
+        recovery: { tool: "focus_page_element" },
+      },
+    });
+    failingRegistration.unregister();
     delete document.modelContext;
   });
 });

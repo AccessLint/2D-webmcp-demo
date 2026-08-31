@@ -4,15 +4,23 @@ import { nodeKinds } from "../graph/model";
 import { uiTargetIds } from "./uiTargets";
 import { toolNames } from "./toolNames";
 
-const idSchema = z.string().min(1).describe("Stable application ID copied from discovery output or supplied for a new object.");
+const identifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
+const printableTextPattern = /^[^\p{Cc}]*$/u;
+const idSchema = z.string().min(1).max(64).regex(identifierPattern).describe("Stable application ID copied from discovery output or supplied for a new object.");
+const labelSchema = z.string().min(1).max(120).regex(printableTextPattern);
+const portSchema = z.string().min(1).max(40).regex(identifierPattern);
+const propertyValueSchema = z.union([z.string().max(120).regex(printableTextPattern), z.number().finite(), z.boolean()]);
+const propertiesSchema = z.record(z.string().min(1).max(40).regex(identifierPattern), propertyValueSchema)
+  .refine((properties) => Object.keys(properties).length <= 4, "A node can have at most 4 properties.")
+  .meta({ maxProperties: 4 });
 const positionSchema = z.object({
   x: z.number().describe("Horizontal canvas coordinate."),
   y: z.number().describe("Vertical canvas coordinate."),
 }).strict().describe("Canvas position in pixels.");
 const editableLabelSchema = z.union([
-  z.string().min(1),
+  labelSchema,
   z.object({
-    value: z.string().min(1),
+    value: labelSchema,
     source: z.enum(["native", "author", "derived"]).optional(),
   }).strict(),
 ]).describe("Human-readable node label. Accepts either a string or the label object copied from a SurfaceSnapshot item.");
@@ -21,15 +29,15 @@ const nodeSchema = z.object({
   type: z.enum(nodeKinds).describe(`Workflow node type. Consult ${toolNames.discoverWorkflow} for its valid ports.`),
   label: editableLabelSchema,
   position: positionSchema,
-  properties: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).describe("Node-type-specific scalar properties."),
+  properties: propertiesSchema.describe("Up to 4 node-specific scalar properties; names and string values are length-limited."),
 }).strict().describe("Complete workflow node definition.");
 const edgeSchema = z.object({
   id: idSchema,
   source: idSchema.describe("Existing source node ID."),
-  sourcePort: z.string().min(1).describe(`Valid output port returned for the source node by ${toolNames.discoverWorkflow}.`),
+  sourcePort: portSchema.describe(`Valid output port returned for the source node by ${toolNames.discoverWorkflow}.`),
   target: idSchema.describe("Existing target node ID."),
-  targetPort: z.string().min(1).describe(`Valid input port returned for the target node by ${toolNames.discoverWorkflow}.`),
-  label: z.string().optional().describe("Optional human-readable connection label."),
+  targetPort: portSchema.describe(`Valid input port returned for the target node by ${toolNames.discoverWorkflow}.`),
+  label: z.string().max(120).regex(printableTextPattern).optional().describe("Optional human-readable connection label."),
 }).strict().describe("Complete workflow connection definition.");
 export const commandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("createNode"), node: nodeSchema }).strict().describe("Create one new node."),
@@ -65,14 +73,30 @@ const objectReferenceInputSchema = z.object({
   kind: z.enum(["workflow-node", "workflow-edge"]).describe("Object category."),
   id: idSchema,
 }).strict();
-export const inspectInputSchema = z.object({ objects: z.array(objectReferenceInputSchema).min(1).max(20).describe(`Current item references copied from ${toolNames.discoverWorkflow}.`) }).strict();
+export const inspectInputSchema = z.object({
+  objects: z.array(objectReferenceInputSchema).min(1).max(5).describe(`Up to 5 current item references copied from ${toolNames.discoverWorkflow}.`),
+  detail: z.enum(["summary", "properties", "relationships"]).optional().describe("Detail to return; summary is the compact default."),
+  cursor: z.number().int().nonnegative().optional().describe("Relationship cursor when detail is relationships."),
+  limit: z.number().int().min(1).max(3).optional().describe("Relationships per item, from 1 to 3."),
+}).strict();
 export const revealInputSchema = objectReferenceInputSchema;
 export const focusDomNodeInputSchema = z.union([
   z.object({ targetId: z.enum(uiTargetIds).describe(`Stable page target ID returned by ${toolNames.discoverWorkflow}.`) }).strict(),
   z.object({ selector: z.string().min(1).max(500).describe("Advanced fallback CSS selector for a focusable DOM element.") }).strict(),
 ]);
-export const operationInputSchema = z.object({ operationId: z.string().min(1).describe(`Edit result operation ID returned by ${toolNames.editWorkflow}.`) }).strict();
-export const emptyInputSchema = z.object({}).strict();
+export const operationInputSchema = z.object({ operationId: z.string().min(1).max(100).regex(identifierPattern).describe(`Edit result operation ID returned by ${toolNames.editWorkflow}.`) }).strict();
+export const getEditResultInputSchema = operationInputSchema.extend({
+  changeCursor: z.number().int().nonnegative().optional().describe("Zero-based change cursor; omit for the first page."),
+  changeLimit: z.number().int().min(1).max(5).optional().describe("Changes to return, from 1 to 5."),
+  problemCursor: z.number().int().nonnegative().optional().describe("Zero-based validation problem cursor."),
+  problemLimit: z.number().int().min(1).max(3).optional().describe("Validation problems to return, from 1 to 3."),
+}).strict();
+export const discoveryInputSchema = z.object({
+  cursor: z.number().int().nonnegative().optional().describe("Zero-based item cursor; omit on the first discovery call."),
+  limit: z.number().int().min(1).max(8).optional().describe("Number of compact item references to return, from 1 to 8."),
+  problemCursor: z.number().int().nonnegative().optional().describe("Zero-based validation problem cursor."),
+  problemLimit: z.number().int().min(1).max(3).optional().describe("Validation problems to return, from 1 to 3."),
+}).strict();
 
 const jsonSchemaFor = (schema: z.ZodType) => {
   const jsonSchema = z.toJSONSchema(schema);
@@ -81,10 +105,11 @@ const jsonSchemaFor = (schema: z.ZodType) => {
 };
 
 export const jsonSchemas = {
-  empty: jsonSchemaFor(emptyInputSchema),
+  discovery: jsonSchemaFor(discoveryInputSchema),
   inspect: jsonSchemaFor(inspectInputSchema),
   apply: jsonSchemaFor(applyInputSchema),
   reveal: jsonSchemaFor(revealInputSchema),
   focusDomNode: jsonSchemaFor(focusDomNodeInputSchema),
   operation: jsonSchemaFor(operationInputSchema),
+  getEditResult: jsonSchemaFor(getEditResultInputSchema),
 };

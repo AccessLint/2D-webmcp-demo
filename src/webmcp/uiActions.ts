@@ -1,26 +1,38 @@
 import { changeHeadingId } from "../receipts/dom";
 
-const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+const nextFrame = (signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
+  signal?.throwIfAborted();
+  const frame = requestAnimationFrame(() => {
+    signal?.removeEventListener("abort", onAbort);
+    resolve();
+  });
+  const onAbort = () => {
+    cancelAnimationFrame(frame);
+    reject(signal?.reason ?? new DOMException("The operation was aborted.", "AbortError"));
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
+});
 const intersects = (first: DOMRect, second: DOMRect) => first.bottom > second.top && first.right > second.left && first.top < second.bottom && first.left < second.right;
 const sameBounds = (first: DOMRect, second: DOMRect) => Math.abs(first.x - second.x) < .5 && Math.abs(first.y - second.y) < .5 && Math.abs(first.width - second.width) < .5 && Math.abs(first.height - second.height) < .5;
 export const domFocusWhen = "window-focus-or-accessibility-interaction" as const;
 let cancelPendingDomFocusRequest: (() => void) | null = null;
 let domFocusRequestGeneration = 0;
 
-async function waitForElement<ElementType extends Element>(find: () => ElementType | null, unavailableMessage: string) {
+async function waitForElement<ElementType extends Element>(find: () => ElementType | null, unavailableMessage: string, signal?: AbortSignal) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
+    signal?.throwIfAborted();
     const element = find();
     if (element) return element;
-    await nextFrame();
+    await nextFrame(signal);
   }
   throw new Error(unavailableMessage);
 }
 
-async function waitForStableElement(find: () => HTMLElement | null, unsettledMessage: string) {
+async function waitForStableElement(find: () => HTMLElement | null, unsettledMessage: string, signal?: AbortSignal) {
   let previousBounds: DOMRect | null = null;
   let stableFrames = 0;
   for (let attempt = 0; attempt < 90; attempt += 1) {
-    await nextFrame();
+    await nextFrame(signal);
     const element = find();
     if (!element) { previousBounds = null; stableFrames = 0; continue; }
     const bounds = element.getBoundingClientRect();
@@ -32,33 +44,36 @@ async function waitForStableElement(find: () => HTMLElement | null, unsettledMes
 }
 
 export type UiActions = {
-  focusChangeEntry: (operationId: string) => Promise<{ operationId: string; focusedIn: "change-history"; visible: true }>;
-  focusWorkflowNode: (nodeId: string) => Promise<{ focused: true; visible: true }>;
-  focusDomNode: (selector: string) => Promise<{ selector: string; tagName: string; id: string | null; focusWhen: typeof domFocusWhen; queued: true }>;
+  focusChangeEntry: (operationId: string, signal?: AbortSignal) => Promise<{ operationId: string; focusedIn: "change-history"; visible: true }>;
+  focusWorkflowNode: (nodeId: string, signal?: AbortSignal) => Promise<{ focused: true; visible: true }>;
+  focusDomNode: (selector: string, signal?: AbortSignal) => Promise<{ selector: string; tagName: string; id: string | null; focusWhen: typeof domFocusWhen; queued: true }>;
   cancelPendingDomFocus?: () => void;
 };
 
 export const browserUiActions: UiActions = {
-  async focusChangeEntry(operationId) {
-    const heading = await waitForElement(() => document.getElementById(changeHeadingId(operationId)), `Change entry ${operationId} is not available in the app UI.`);
+  async focusChangeEntry(operationId, signal) {
+    const heading = await waitForElement(() => document.getElementById(changeHeadingId(operationId)), `Change entry ${operationId} is not available in the app UI.`, signal);
+    signal?.throwIfAborted();
     const entry = heading.closest("article") ?? heading;
     entry.scrollIntoView({ behavior: "instant", block: "center" });
     heading.focus({ preventScroll: true });
-    await nextFrame();
+    await nextFrame(signal);
     const bounds = entry.getBoundingClientRect();
     const visible = bounds.bottom > 0 && bounds.right > 0 && bounds.top < window.innerHeight && bounds.left < window.innerWidth;
     if (document.activeElement !== heading || !visible) throw new Error(`Change entry ${operationId} could not be focused in the app UI.`);
     return { operationId, focusedIn: "change-history", visible: true };
   },
-  async focusWorkflowNode(nodeId) {
+  async focusWorkflowNode(nodeId, signal) {
     const selector = `.react-flow__node.selected[data-id="${CSS.escape(nodeId)}"]`;
-    const node = await waitForElement(() => document.querySelector<HTMLElement>(selector), `Selected workflow node ${nodeId} is not available in the app UI.`);
+    const node = await waitForElement(() => document.querySelector<HTMLElement>(selector), `Selected workflow node ${nodeId} is not available in the app UI.`, signal);
+    signal?.throwIfAborted();
     const canvas = node.closest<HTMLElement>(".canvas-shell");
     if (!canvas) throw new Error(`Workflow canvas for node ${nodeId} is not available in the app UI.`);
     canvas.scrollIntoView({ behavior: "instant", block: "center" });
-    const settledNode = await waitForStableElement(() => document.querySelector<HTMLElement>(selector), `Workflow node ${nodeId} did not settle after reveal.`);
+    const settledNode = await waitForStableElement(() => document.querySelector<HTMLElement>(selector), `Workflow node ${nodeId} did not settle after reveal.`, signal);
+    signal?.throwIfAborted();
     settledNode.focus({ preventScroll: true });
-    await nextFrame();
+    await nextFrame(signal);
     const nodeBounds = settledNode.getBoundingClientRect();
     const canvasBounds = canvas.getBoundingClientRect();
     const viewportBounds = new DOMRect(0, 0, window.innerWidth, window.innerHeight);
@@ -69,7 +84,8 @@ export const browserUiActions: UiActions = {
     }
     return { focused: true, visible: true };
   },
-  async focusDomNode(selector) {
+  async focusDomNode(selector, signal) {
+    signal?.throwIfAborted();
     const requestGeneration = ++domFocusRequestGeneration;
     cancelPendingDomFocusRequest?.();
     const find = () => {
@@ -79,7 +95,8 @@ export const browserUiActions: UiActions = {
         throw new Error(`DOM selector ${selector} is invalid.`);
       }
     };
-    const element = await waitForElement(find, `DOM node matching ${selector} is not available in the app UI.`);
+    const element = await waitForElement(find, `DOM node matching ${selector} is not available in the app UI.`, signal);
+    signal?.throwIfAborted();
     if (requestGeneration !== domFocusRequestGeneration) throw new Error(`DOM focus request for ${selector} was superseded.`);
     const focus = Reflect.get(element, "focus");
     if (typeof focus !== "function") throw new Error(`DOM node matching ${selector} cannot receive focus.`);
@@ -134,6 +151,7 @@ export const browserUiActions: UiActions = {
       document.removeEventListener("focusin", onFocusIn, true);
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("click", onAssistiveClick, true);
+      signal?.removeEventListener("abort", cleanup);
       if (cancelPendingDomFocusRequest === cleanup) cancelPendingDomFocusRequest = null;
     };
     window.addEventListener("focus", onWindowFocus, true);
@@ -142,6 +160,7 @@ export const browserUiActions: UiActions = {
     document.addEventListener("focusin", onFocusIn, true);
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("click", onAssistiveClick, true);
+    signal?.addEventListener("abort", cleanup, { once: true });
     cancelPendingDomFocusRequest = cleanup;
     return { selector, tagName: element.tagName.toLowerCase(), id: element.id || null, focusWhen: domFocusWhen, queued: true };
   },
