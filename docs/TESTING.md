@@ -20,7 +20,7 @@ You should encounter five clearly named workflow nodes:
 - **Action node: Alert Team**
 - **End node: Complete**
 
-The **Zoom In**, **Zoom Out**, and **Fit View** controls are also keyboard accessible. With a screen reader, the page exposes a **Workflow editor** heading, a **Workflow canvas**, and a **Change history** heading.
+The **Zoom In**, **Zoom Out**, and **Fit View** controls are also keyboard accessible. With a screen reader, the page exposes a **Workflow editor** heading, a **Workflow canvas**, and a **Most recent change** heading.
 
 ## 2. Ask the agent to edit the workflow (60 seconds)
 
@@ -28,7 +28,7 @@ Give the connected agent this exact request:
 
 > Inspect the workflow. Add a Retry node with three attempts after Fetch Orders, route Retry success to Save Results and Retry failure to Alert Team, and then show me the edit result.
 
-The agent should discover the current revision, make one atomic edit, and focus the application-authored receipt in **Change history**.
+The agent should discover the current revision, make one atomic edit, and focus the application-authored receipt in **Most recent change**.
 
 Look or listen for:
 
@@ -64,9 +64,9 @@ Return to the receipt, then use `Tab`, `Enter`, or `Space` to:
 After Undo:
 
 - A screen reader announces **Undid the previous workflow change and restored 4 connections. Workflow validation passed.**
-- Focus returns to the original receipt heading.
+- Focus moves to the new undo receipt heading.
 - Retry disappears and the original Fetch Orders-to-Save Results connection returns.
-- A new receipt records the undo, and the original Undo action is no longer available.
+- A new receipt replaces the original receipt in the UI and records the undo.
 
 ## Pass criteria
 

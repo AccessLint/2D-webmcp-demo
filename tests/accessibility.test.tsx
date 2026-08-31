@@ -10,13 +10,16 @@ import { workflowStore } from "../src/state/workflowStore";
 describe("accessible workflow review", () => {
   beforeEach(() => workflowStore.getState().reset());
 
-  it("renders only the workflow canvas and change history surfaces", () => {
+  it("renders the workflow canvas, connection controls, and change history surfaces", () => {
     render(<App />);
-    expect(screen.getByRole("heading", { name: "Workflow editor" })).toBeInTheDocument();
-    expect(screen.queryByText("A node editor with receipts you can verify.")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Verifiable workflow editing with WebMCP" })).toBeInTheDocument();
+    expect(screen.getByText(/This demo shows an agent editing the same workflow/)).toBeInTheDocument();
+    expect(screen.getByText(/Add a Retry node with three attempts after Fetch Orders/)).toBeInTheDocument();
     expect(screen.getByRole("application", { name: /Workflow canvas/ })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Workflow outline" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Connections" })).not.toBeInTheDocument();
+    const connections = screen.getByRole("region", { name: "Workflow connections" });
+    expect(within(connections).getByRole("heading", { name: "Workflow connections" })).toBeInTheDocument();
+    expect(within(connections).getAllByRole("button")).toHaveLength(3);
   });
 
   it("exposes every workflow node in the keyboard tab order with an accessible name", async () => {
@@ -42,7 +45,7 @@ describe("accessible workflow review", () => {
     ], "Add Retry");
     render(<App />);
     expect(screen.getByRole("status")).toHaveTextContent("Created Retry and changed 4 connections");
-    expect(screen.getByRole("heading", { name: "Change history" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Most recent change" })).toBeInTheDocument();
     const receiptHeading = screen.getByRole("heading", { name: "Created Retry and changed 4 connections. Workflow validation passed." });
     expect(receiptHeading).toBeInTheDocument();
     const receipt = within(receiptHeading.closest("article")!);
@@ -73,7 +76,7 @@ describe("accessible workflow review", () => {
     expect(screen.queryByRole("button", { name: "Review latest change" })).not.toBeInTheDocument();
   });
 
-  it("does not attribute a later deletion to an earlier receipt", () => {
+  it("shows only the most recent receipt", () => {
     const before = workflowStore.getState().workflow;
     const withTemporary = {
       ...before,
@@ -85,9 +88,8 @@ describe("accessible workflow review", () => {
     const deleted = createReceipt({ before: withTemporary, after, validation: validateWorkflow(after) });
     workflowStore.setState({ workflow: after, history: [deleted, created] });
     render(<App />);
-    const createdHeading = screen.getByRole("heading", { name: "Created Temporary. Workflow validation passed." });
-    const createdReceipt = within(createdHeading.closest("article")!);
-    expect(createdReceipt.getByText("Unavailable Temporary")).toBeInTheDocument();
-    expect(createdReceipt.queryByText("Deleted Temporary")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Created Temporary. Workflow validation passed." })).not.toBeInTheDocument();
+    const deletedHeading = screen.getByRole("heading", { name: "Changed 1 node. Workflow validation passed." });
+    expect(within(deletedHeading.closest("article")!).getByText("Deleted Temporary")).toBeInTheDocument();
   });
 });

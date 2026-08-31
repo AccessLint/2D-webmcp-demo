@@ -120,36 +120,34 @@ export function ChangeHistory() {
 
   const runUndo = (operationId: string) => {
     try {
-      undo(operationId);
-      queueMicrotask(() => document.getElementById(changeHeadingId(operationId))?.focus());
+      const receipt = undo(operationId);
+      queueMicrotask(() => document.getElementById(changeHeadingId(receipt.operationId))?.focus());
     } catch (error) {
       reportError(error instanceof Error ? error.message : "Undo failed.");
     }
   };
 
+  const latestReceipt = history[0];
+
   return (
     <section className="history" aria-labelledby="change-history-heading">
       <div className="history-heading">
-        <h2 id="change-history-heading">Change history</h2>
+        <h2 id="change-history-heading">Most recent change</h2>
       </div>
 
-      {history.length === 0 ? (
+      {!latestReceipt ? (
         <div className="empty-history"><p>No changes yet.</p></div>
       ) : (
-        <ol className="history-list">
-          {history.map((receipt) => (
-            <li key={receipt.operationId}>
-              <ChangeCard
-                receipt={receipt}
-                workflow={workflow}
-                reviewed={reviewed.includes(receipt.operationId)}
-                onMarkReviewed={() => markReviewed(receipt.operationId)}
-                onReveal={reveal}
-                onUndo={() => runUndo(receipt.operationId)}
-              />
-            </li>
-          ))}
-        </ol>
+        <div className="latest-change">
+          <ChangeCard
+            receipt={latestReceipt}
+            workflow={workflow}
+            reviewed={reviewed.includes(latestReceipt.operationId)}
+            onMarkReviewed={() => markReviewed(latestReceipt.operationId)}
+            onReveal={reveal}
+            onUndo={() => runUndo(latestReceipt.operationId)}
+          />
+        </div>
       )}
     </section>
   );

@@ -29,8 +29,22 @@ export default function App() {
   return (
     <div className="app-shell">
       <LiveStatus />
-      <main id="workspace">
-        <h1 className="sr-only">Workflow editor</h1>
+      <main id="workspace" tabIndex={-1}>
+        <header className="demo-intro">
+          <h1>Verifiable workflow editing with WebMCP</h1>
+          <p>
+            This demo shows an agent editing the same workflow as the human interface while the
+            application records an inspectable change receipt.
+          </p>
+          <div className="demo-prompt">
+            <h2>Try this prompt</h2>
+            <blockquote>
+              Inspect the workflow. Add a Retry node with three attempts after Fetch Orders, route
+              Retry success to Save Results and Retry failure to Alert Team, and then show me the
+              edit result.
+            </blockquote>
+          </div>
+        </header>
         <div className="workbench">
           <WorkflowCanvas />
         </div>

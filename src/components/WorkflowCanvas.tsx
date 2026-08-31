@@ -68,14 +68,16 @@ const ariaLabelConfig = {
 } satisfies Partial<AriaLabelConfig>;
 
 function toFlowNode(node: WorkflowNode, selected: WorkflowSelection | null): WorkflowFlowNode {
+  const isSelected = selected?.kind === "node" && selected.id === node.id;
   return {
     id: node.id,
     type: "workflow",
     position: node.position,
     data: { label: node.label, kind: node.type, properties: node.properties },
-    selected: selected?.kind === "node" && selected.id === node.id,
+    selected: isSelected,
     focusable: true,
     ariaLabel: `${nodeDefinitions[node.type].title} node: ${node.label}`,
+    domAttributes: { "aria-current": isSelected ? "true" : undefined },
   };
 }
 
@@ -200,48 +202,112 @@ export function WorkflowCanvas() {
     }], "Canvas connection");
   });
 
+  const nodeLabels = new Map(workflow.nodes.map((node) => [node.id, node.label]));
+
   return (
-    <div ref={shell} className="canvas-shell" aria-label="Visual workflow canvas">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        nodesFocusable
-        fitView
-        minZoom={0.25}
-        maxZoom={1.5}
-        proOptions={{ hideAttribution: true }}
-        onNodeClick={(_, node) => select({ kind: "node", id: node.id })}
-        onEdgeClick={(_, edge) => select({ kind: "edge", id: edge.id })}
-        onNodesChange={onNodesChange}
-        onConnect={onConnect}
-        onInit={(instance) => {
-          flow.current = instance;
-          fitCanvas();
-        }}
-        onNodesDelete={(items) => runCanvasChange(() => apply(
-          workflow.revision,
-          items.map((node) => ({ type: "deleteNode" as const, id: node.id })),
-          "Delete nodes",
-        ))}
-        onEdgesDelete={(items) => runCanvasChange(() => apply(
-          workflow.revision,
-          items.map((edge) => ({ type: "disconnect" as const, edgeId: edge.id })),
-          "Disconnect edges",
-        ))}
-        ariaLabelConfig={ariaLabelConfig}
-        aria-label="Workflow canvas"
-      >
-        <Background color="#2d4254" gap={24} size={1} />
-        <MiniMap
-          pannable
-          zoomable
-          nodeColor="#c8ff80"
-          bgColor="#0b151d"
-          maskColor="rgba(6, 13, 20, .72)"
-        />
-        <Controls showInteractive={false} />
-      </ReactFlow>
-    </div>
+    <>
+      <div ref={shell} className="canvas-shell" aria-label="Visual workflow canvas">
+        <p id="workflow-canvas-instructions" className="sr-only">
+          Tab to a node. Press Enter or Space to select it. Use the Arrow keys to move it.
+          Hold Shift with an Arrow key to move farther. Press Backspace to delete it.
+          Press Escape to clear selection. Use the Workflow connections region to review and
+          select connections.
+        </p>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          nodesFocusable
+          edgesFocusable={false}
+          fitView
+          minZoom={0.25}
+          maxZoom={1.5}
+          proOptions={{ hideAttribution: true }}
+          onNodeClick={(_, node) => select({ kind: "node", id: node.id })}
+          onEdgeClick={(_, edge) => select({ kind: "edge", id: edge.id })}
+          onNodesChange={onNodesChange}
+          onConnect={onConnect}
+          onInit={(instance) => {
+            flow.current = instance;
+            fitCanvas();
+          }}
+          onNodesDelete={(items) => runCanvasChange(() => apply(
+            workflow.revision,
+            items.map((node) => ({ type: "deleteNode" as const, id: node.id })),
+            "Delete nodes",
+          ))}
+          onEdgesDelete={(items) => runCanvasChange(() => apply(
+            workflow.revision,
+            items.map((edge) => ({ type: "disconnect" as const, edgeId: edge.id })),
+            "Disconnect edges",
+          ))}
+          ariaLabelConfig={ariaLabelConfig}
+          aria-label="Workflow canvas"
+          aria-describedby="workflow-canvas-instructions"
+        >
+          <Background color="#2d4254" gap={24} size={1} />
+          <MiniMap
+            pannable
+            zoomable
+            nodeColor="#c8ff80"
+            bgColor="#0b151d"
+            maskColor="rgba(6, 13, 20, .72)"
+          />
+          <Controls showInteractive={false} />
+        </ReactFlow>
+      </div>
+
+      <section className="connection-panel" aria-labelledby="workflow-connections-heading">
+        <div className="connection-panel__heading">
+          <h2 id="workflow-connections-heading" tabIndex={-1}>Workflow connections</h2>
+          <span>{workflow.edges.length}</span>
+        </div>
+        <p id="workflow-connections-instructions" className="sr-only">
+          Press Enter or Space to select a connection. Press Delete or Backspace to disconnect it.
+          Press Escape to clear selection.
+        </p>
+        <ul>
+          {workflow.edges.map((edge) => {
+            const sourceLabel = nodeLabels.get(edge.source) ?? edge.source;
+            const targetLabel = nodeLabels.get(edge.target) ?? edge.target;
+            const connectionLabel = edge.label ?? edge.sourcePort;
+            const isSelected = selected?.kind === "edge" && selected.id === edge.id;
+            return (
+              <li key={edge.id}>
+                <button
+                  type="button"
+                  aria-pressed={isSelected}
+                  aria-describedby="workflow-connections-instructions"
+                  onClick={() => select({ kind: "edge", id: edge.id })}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      select(null);
+                    } else if (event.key === "Delete" || event.key === "Backspace") {
+                      event.preventDefault();
+                      runCanvasChange(() => apply(
+                        workflow.revision,
+                        [{ type: "disconnect", edgeId: edge.id }],
+                        "Disconnect edge",
+                      ));
+                      select(null);
+                      queueMicrotask(() => {
+                        document.getElementById("workflow-connections-heading")?.focus();
+                      });
+                    }
+                  }}
+                >
+                  <span>{sourceLabel}</span>
+                  <span className="sr-only">to</span>
+                  <span aria-hidden="true">→</span>
+                  <span>{targetLabel}</span>
+                  <span className="connection-panel__port">{connectionLabel} connection</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </>
   );
 }

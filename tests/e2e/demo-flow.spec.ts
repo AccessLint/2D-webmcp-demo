@@ -34,7 +34,7 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
   await expect(page.getByTestId("rf__node-fetch-orders")).toBeVisible();
   await page.locator(".canvas-shell").evaluate((element) => { (element as HTMLElement).style.height = "1200px"; });
   const viewport = page.viewportSize()!;
-  const historyBox = await page.getByRole("heading", { name: "Change history" }).evaluate((element) => element.getBoundingClientRect().toJSON());
+  const historyBox = await page.getByRole("heading", { name: "Most recent change" }).evaluate((element) => element.getBoundingClientRect().toJSON());
   expect(historyBox.top).toBeGreaterThan(viewport.height);
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
@@ -115,6 +115,7 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
   await expect(receipt).not.toContainText("Revision 0");
   await receipt.getByRole("button", { name: "Undo" }).click();
   await expect(page.getByRole("status")).toContainText("Undid the previous workflow change");
-  await expect(receiptHeading).toBeFocused();
+  await expect(page.getByRole("heading", { name: /Undid the previous workflow change/ })).toBeFocused();
+  await expect(receiptHeading).toHaveCount(0);
   await expect(page.getByTestId("rf__node-retry")).toHaveCount(0);
 });
