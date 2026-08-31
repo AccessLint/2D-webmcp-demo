@@ -67,6 +67,11 @@ test("node selection is exposed as accessibility state", async ({ page }) => {
 
   await startNode.press("Escape");
   await expect(startNode).toHaveAttribute("aria-pressed", "false");
+
+  const alertNode = page.getByRole("button", { name: "Action node: Alert Team" });
+  await alertNode.press("Enter");
+  await alertNode.press("Delete");
+  await expect(alertNode).toHaveCount(0);
 });
 
 test("the canvas application exposes its complete keyboard contract", async ({ page }) => {

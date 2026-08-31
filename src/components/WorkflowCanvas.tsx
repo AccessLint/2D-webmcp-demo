@@ -238,6 +238,7 @@ export function WorkflowCanvas() {
           nodeTypes={nodeTypes}
           nodesFocusable
           edgesFocusable={false}
+          deleteKeyCode={["Backspace", "Delete"]}
           fitView
           minZoom={0.25}
           maxZoom={1.5}
