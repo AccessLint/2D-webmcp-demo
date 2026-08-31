@@ -28,7 +28,7 @@ The **Zoom In**, **Zoom Out**, and **Fit View** controls are also keyboard acces
 
 Give the connected agent this exact request:
 
-> Inspect the workflow. Add a Retry node with three attempts after Enrich company, route Retry success to Qualified lead? and Retry failure to Manual review, and then show me the edit result.
+> Inspect the lead qualification workflow. Add a Retry node with three attempts after Enrich company. Route Retry success to the condition labeled “Qualified lead?” and Retry failure to Manual review, then show me the edit result.
 
 The agent should discover the current revision, make one atomic edit, and focus the application-authored receipt in **Most recent change**.
 

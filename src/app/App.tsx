@@ -8,7 +8,7 @@ import { registerWorkflowTools } from "../webmcp/registerTools";
 import { createToolHandlers } from "../webmcp/toolHandlers";
 import { parseWorkflowHash } from "./routes";
 
-const demoPrompt = "Inspect the workflow. Add a Retry node with three attempts after Enrich company, route Retry success to Qualified lead? and Retry failure to Manual review, and then show me the edit result.";
+const demoPrompt = "Inspect the lead qualification workflow. Add a Retry node with three attempts after Enrich company. Route Retry success to the condition labeled \"Qualified lead?\" and Retry failure to Manual review, then show me the edit result.";
 
 function WorkflowDemo() {
   const select = useWorkflowStore((state) => state.select);
