@@ -101,7 +101,7 @@ export const evalRuns: EvalRun[] = [
     strictSteps: { passed: 69, total: 173 },
     scoreBreakdown: {
       taskCompletion: { passed: 47, total: 50 },
-      firstAttemptEditValidity: { passed: 4, total: 10 },
+      firstAttemptEditValidity: { passed: 6, total: 10 },
       visibleEditEvidence: { passed: 10, total: 10 },
     },
     journeys: {

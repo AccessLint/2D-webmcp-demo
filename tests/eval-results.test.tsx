@@ -10,7 +10,7 @@ describe("evaluation results", () => {
     expect(within(breakdown).getByText("Task completion")).toBeInTheDocument();
     expect(within(breakdown).getByText("47/50")).toBeInTheDocument();
     expect(within(breakdown).getByText("First-attempt edit validity")).toBeInTheDocument();
-    expect(within(breakdown).getByText("4/10")).toBeInTheDocument();
+    expect(within(breakdown).getByText("6/10")).toBeInTheDocument();
     expect(within(breakdown).getByText("Visible edit evidence")).toBeInTheDocument();
     expect(within(breakdown).getByText("10/10")).toBeInTheDocument();
     expect(within(breakdown).getByText("69/173")).toBeInTheDocument();

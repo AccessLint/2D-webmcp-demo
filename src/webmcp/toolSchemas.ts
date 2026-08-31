@@ -71,7 +71,7 @@ export function normalizeCommands(commands: z.infer<typeof commandSchema>[]): Wo
   return commands.map((command) => {
     switch (command.type) {
       case "createNode":
-        return { ...command, node: { ...command.node, label: labelValue(command.node.label), properties: command.node.properties ?? {} } };
+        return { ...command, node: { ...command.node, label: labelValue(command.node.label) } };
       case "updateNode": {
         const { label, ...patch } = command.patch;
         return { ...command, patch: label === undefined ? patch : { ...patch, label: labelValue(label) } };
