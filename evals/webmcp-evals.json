@@ -1,0 +1,169 @@
+[
+  {
+    "name": "Discover the current workflow before answering",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Inspect the workflow and tell me what is currently on the canvas."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "discover_workflow",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "Inspect Fetch Orders relationships",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "What is connected immediately after Fetch Orders? Inspect the workflow rather than guessing."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "discover_workflow",
+        "arguments": {}
+      },
+      {
+        "functionName": "inspect_workflow_items",
+        "arguments": {
+          "objects": [
+            {
+              "kind": "workflow-node",
+              "id": "fetch-orders"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "Add a Retry branch and surface the edit evidence",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Inspect the workflow. Add a Retry node with three attempts after Fetch Orders, route Retry success to Save Results and Retry failure to Alert Team, and then show me the edit result."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "discover_workflow",
+        "arguments": {}
+      },
+      {
+        "functionName": "edit_workflow",
+        "arguments": {
+          "baseRevision": 0,
+          "commands": [
+            {
+              "type": "createNode",
+              "node": {
+                "id": "retry",
+                "type": "retry",
+                "label": "Retry",
+                "position": {
+                  "x": {
+                    "$type": "number"
+                  },
+                  "y": {
+                    "$type": "number"
+                  }
+                },
+                "properties": {
+                  "attempts": 3
+                }
+              }
+            },
+            {
+              "type": "replaceConnection",
+              "edgeId": "edge-fetch-save",
+              "replacement": [
+                {
+                  "id": "edge-fetch-retry",
+                  "source": "fetch-orders",
+                  "sourcePort": "success",
+                  "target": "retry",
+                  "targetPort": "input"
+                },
+                {
+                  "id": "edge-retry-save",
+                  "source": "retry",
+                  "sourcePort": "success",
+                  "target": "save-results",
+                  "targetPort": "input"
+                },
+                {
+                  "id": "edge-retry-alert",
+                  "source": "retry",
+                  "sourcePort": "failure",
+                  "target": "alert-team",
+                  "targetPort": "input"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "functionName": "show_edit_result",
+        "arguments": {
+          "operationId": {
+            "$type": "string"
+          }
+        },
+        "optional": true
+      }
+    ]
+  },
+  {
+    "name": "Focus the named Zoom In target",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Put keyboard focus on the Zoom In control."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "discover_workflow",
+        "arguments": {}
+      },
+      {
+        "functionName": "focus_page_element",
+        "arguments": {
+          "targetId": "canvas.zoom-in"
+        }
+      }
+    ]
+  },
+  {
+    "name": "Reveal an existing workflow node",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Show me the Fetch Orders workflow node."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "discover_workflow",
+        "arguments": {}
+      },
+      {
+        "functionName": "show_workflow_item",
+        "arguments": {
+          "kind": "workflow-node",
+          "id": "fetch-orders"
+        }
+      }
+    ]
+  }
+]
