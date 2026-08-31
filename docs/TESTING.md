@@ -12,7 +12,7 @@ Use this three-minute walkthrough to see the core WebMCP and accessibility featu
 
 Press `Tab` once. Focus should land on **Skip to workflow workspace** with a visible outline. Activate it, then continue tabbing through the canvas.
 
-You should encounter five clearly named workflow nodes:
+You should encounter seven clearly named workflow nodes:
 
 - **Start node: New lead submitted**
 - **Action node: Enrich company**
