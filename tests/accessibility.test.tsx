@@ -14,7 +14,9 @@ describe("accessible workflow review", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: "Verifiable workflow editing with WebMCP" })).toBeInTheDocument();
     expect(screen.getByText(/This demo shows an agent editing the same workflow/)).toBeInTheDocument();
+    expect(screen.getByText(/accessibility for screen reader users is a primary design goal/)).toBeInTheDocument();
     expect(screen.getByText(/Add a Retry node with three attempts after Fetch Orders/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy prompt" })).toBeInTheDocument();
     expect(screen.getByRole("application", { name: /Workflow canvas/ })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Workflow outline" })).not.toBeInTheDocument();
     const connections = screen.getByRole("region", { name: "Workflow connections" });

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ChangeHistory } from "../components/ChangeHistory";
 import { LiveStatus } from "../components/LiveStatus";
 import { WorkflowCanvas } from "../components/WorkflowCanvas";
@@ -7,8 +7,19 @@ import { registerWorkflowTools } from "../webmcp/registerTools";
 import { createToolHandlers } from "../webmcp/toolHandlers";
 import { parseWorkflowHash } from "./routes";
 
+const demoPrompt = "Inspect the workflow. Add a Retry node with three attempts after Fetch Orders, route Retry success to Save Results and Retry failure to Alert Team, and then show me the edit result.";
+
 export default function App() {
   const select = useWorkflowStore((state) => state.select);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const copyDemoPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(demoPrompt);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+  };
   useEffect(() => {
     const registration = registerWorkflowTools(createToolHandlers(workflowStore));
     void registration.ready.catch(() => {
@@ -34,15 +45,20 @@ export default function App() {
           <h1>Verifiable workflow editing with WebMCP</h1>
           <p>
             This demo shows an agent editing the same workflow as the human interface while the
-            application records an inspectable change receipt.
+            application records an inspectable change receipt. The complete review flow is keyboard
+            accessible, and accessibility for screen reader users is a primary design goal.
           </p>
           <div className="demo-prompt">
-            <h2>Try this prompt</h2>
-            <blockquote>
-              Inspect the workflow. Add a Retry node with three attempts after Fetch Orders, route
-              Retry success to Save Results and Retry failure to Alert Team, and then show me the
-              edit result.
-            </blockquote>
+            <div className="demo-prompt__heading">
+              <h2>Try this prompt</h2>
+              <button
+                type="button"
+                onClick={() => void copyDemoPrompt()}
+              >
+                {copyStatus === "copied" ? "Copied" : copyStatus === "failed" ? "Copy failed" : "Copy prompt"}
+              </button>
+            </div>
+            <blockquote>{demoPrompt}</blockquote>
           </div>
         </header>
         <div className="workbench">
