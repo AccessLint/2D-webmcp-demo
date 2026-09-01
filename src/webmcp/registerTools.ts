@@ -171,7 +171,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.discoverWorkflow,
       title: "Discover workflow",
-      description: "Call this first, once per task, and again only after conflicts or when following nextCursor. Returns a compact page of item IDs, labels, revision, valid ports, page targets, and next steps. If it answers a request to list what is on the canvas, do not call this tool again or inspect every item.",
+      description: "Call this first, once per task. Call it again only when following an itemPage or problemPage nextCursor, after a conflict, or when recovery directs you to refresh current IDs and revision. Returns a compact page of item IDs, labels, revision, valid ports, page targets, and next steps. If it answers a request to list what is on the canvas, do not call this tool again or inspect every item.",
       inputSchema: jsonSchemas.discovery,
       annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: handlers[toolNames.discoverWorkflow],
@@ -187,7 +187,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.editWorkflow,
       title: "Edit workflow",
-      description: `Call after ${toolNames.discoverWorkflow}. Reuse existing IDs from its itemPage; never create a node already listed there. Set baseRevision to its exact revision, or Number(surface.documentVersion) for a SurfaceSnapshot. Do not increment it. Every command object needs a top-level type, for example {type:"createNode",node:{...}}. Never wrap a command as {createNode:{...}}. Node properties may be omitted when empty. Edge endpoints are source and target, not sourceId and targetId. Atomically applies up to 20 commands; updateNode patch.label accepts a string or a copied Snapshot label object. On conflict, follow recovery.`,
+      description: `Call after ${toolNames.discoverWorkflow}. Reuse existing IDs returned in itemPage. Before deciding an ID is absent, follow itemPage.nextCursor until it is null; one page is not proof of absence. Never create a node with an existing ID. Set baseRevision to discovery's exact revision, or Number(surface.documentVersion) for a SurfaceSnapshot. Do not increment it. Every command object needs a top-level type, for example {type:"createNode",node:{...}}. Never wrap a command as {createNode:{...}}. Node properties may be omitted when empty. Edge endpoints are source and target, not sourceId and targetId. Atomically applies up to 20 commands. Both createNode node.label and updateNode patch.label accept a string or copied Snapshot label object. On conflict or when recovery directs you, rediscover before retrying.`,
       inputSchema: jsonSchemas.apply,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.editWorkflow],
@@ -203,7 +203,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.focusPageElement,
       title: "Focus page element",
-      description: `Always call ${toolNames.discoverWorkflow} first in the current task, then focus one named page target. Pass exactly one targetId value returned by discovery.`,
+      description: `Always call ${toolNames.discoverWorkflow} first in the current task. Queue keyboard focus for one named page target by passing exactly one targetId value returned by discovery. The browser applies focus when the window receives focus or an accessibility interaction occurs.`,
       inputSchema: jsonSchemas.focusDomNode,
       annotations: { readOnlyHint: false },
       execute: handlers[toolNames.focusPageElement],
@@ -219,7 +219,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.showEditResult,
       title: "Show edit result",
-      description: `Use this as the final proof step after ${toolNames.editWorkflow}. Pass its operationId to bring that history entry into view and move keyboard focus to it as visible evidence for the user.`,
+      description: `Use this as the final proof step after ${toolNames.editWorkflow} or ${toolNames.undoWorkflowEdit}. Pass the result's operationId to bring that history entry into view and move keyboard focus to it as visible evidence. After it succeeds, briefly tell the user what the operation accomplished and its outcome or implication, not only the changed-object details.`,
       inputSchema: jsonSchemas.operation,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.showEditResult],

@@ -121,7 +121,7 @@ function compactReceipt(result: UnknownRecord, input: unknown) {
       nextCall: {
         tool: "show_edit_result",
         input: { operationId: result.operationId },
-        purpose: "Bring the receipt into view as visible evidence for the user.",
+        purpose: "Show visible evidence, then briefly state the operation's outcome or implication.",
       },
     } : {}),
     ...(result.failure ? { failure: result.failure } : {}),
