@@ -41,6 +41,7 @@ main { padding: 24px; }
 .react-flow__node:focus-visible { outline: none; }
 .react-flow__node:focus-visible .flow-node { outline: 3px solid var(--lime); outline-offset: 4px; }
 .flow-node.is-selected { border-color: var(--lime); box-shadow: 0 0 0 2px rgba(201,255,115,.15), 0 12px 30px rgba(0,0,0,.3); }
+.flow-node.is-connecting { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,184,107,.22), 0 12px 30px rgba(0,0,0,.3); }
 .flow-node--node { background: #213020; border-color: #789050; }
 .flow-node--condition { background: #202037; border-color: #716da5; }
 .flow-node--action { background: #122630; border-color: #3e7181; }
