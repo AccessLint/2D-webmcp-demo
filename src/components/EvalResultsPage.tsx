@@ -172,7 +172,7 @@ export function EvalResultsPage() {
           </div>
           <p className="eval-note">
             These recorded comparisons used the fixture version current at the time. The active fixture at
-            <code>{latest.fixture}</code> now reflects the simplified Node, Action, and Condition model and needs a fresh run.
+            <code>{latest.fixture}</code> now reflects the current node catalog and needs a fresh run.
           </p>
         </section>
 

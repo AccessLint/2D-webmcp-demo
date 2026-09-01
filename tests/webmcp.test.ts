@@ -1,12 +1,39 @@
 import { describe, expect, it } from "vitest";
 import { createWorkflowStore } from "../src/state/workflowStore";
+import { workflowSummary } from "../src/webmcp/discovery";
 import { registerWorkflowTools } from "../src/webmcp/registerTools";
 import { createToolHandlers } from "../src/webmcp/toolHandlers";
+import { fitToolOutput } from "../src/webmcp/toolOutputs";
 import { createSalesWorkflow } from "./fixtures/salesWorkflow";
 
 const createSalesWorkflowStore = () => createWorkflowStore(createSalesWorkflow());
 
 describe("WebMCP tool boundary", () => {
+  it("preserves a requested validation problem when compacting discovery", () => {
+    const workflow = createSalesWorkflow();
+    workflow.edges = workflow.edges.filter((edge) => edge.id !== "edge-qualified-nurture");
+
+    const compact = fitToolOutput(
+      "discover_workflow",
+      {},
+      workflowSummary(workflow),
+    ) as {
+      validation: {
+        problemCount: number;
+        problemPage: { nextCursor: number | null; items: Array<{ code: string }> };
+      };
+    };
+
+    expect(compact.validation).toMatchObject({
+      problemCount: 1,
+      problemPage: {
+        nextCursor: null,
+        items: [{ code: "UNCONNECTED_REQUIRED_OUTPUT" }],
+      },
+    });
+    expect(JSON.stringify(compact).length).toBeLessThanOrEqual(1_500);
+  });
+
   it("reads, edits, retrieves, focuses, reveals, and undoes through application state", async () => {
     const store = createSalesWorkflowStore();
     let focusedOperationId: string | null = null;
@@ -337,10 +364,15 @@ describe("WebMCP tool boundary", () => {
     });
     expect(JSON.stringify(applied).length).toBeLessThanOrEqual(1_500);
     const compactDiscovery = registered.get("discover_workflow")!.execute({}) as {
-      itemPage: { items: unknown[] };
+      itemPage: { items: unknown[]; nextCursor: number | null };
     };
     expect(compactDiscovery).toMatchObject({
       revision: 1,
+      nodeTypes: expect.arrayContaining([
+        { type: "start", inputs: [], outputs: ["next"] },
+        { type: "end", inputs: ["input"], outputs: [] },
+        { type: "parallel-gateway", inputs: ["input"], outputs: ["next"] },
+      ]),
       itemPage: {
         cursor: 0,
         items: expect.arrayContaining([
@@ -356,7 +388,8 @@ describe("WebMCP tool boundary", () => {
         problemPage: { cursor: 0, nextCursor: null, items: [] },
       },
     });
-    expect(compactDiscovery.itemPage.items).toHaveLength(6);
+    expect(compactDiscovery.itemPage.items).toHaveLength(3);
+    expect(compactDiscovery.itemPage.nextCursor).toBe(3);
     expect(JSON.stringify(compactDiscovery).length).toBeLessThanOrEqual(1_500);
     const discoveryPage = registered.get("discover_workflow")!.execute({ limit: 1, problemLimit: 1 });
     expect(discoveryPage).toMatchObject({

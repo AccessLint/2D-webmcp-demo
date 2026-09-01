@@ -1,5 +1,7 @@
-export const nodeKinds = ["node", "action", "condition"] as const;
-export type NodeKind = (typeof nodeKinds)[number];
+import type { NodeKind } from "./nodeTypes";
+
+export { nodeKinds } from "./nodeTypes";
+export type { NodeKind } from "./nodeTypes";
 
 export type WorkflowNode = {
   id: string;

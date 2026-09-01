@@ -44,6 +44,13 @@ main { padding: 24px; }
 .flow-node--node { background: #213020; border-color: #789050; }
 .flow-node--condition { background: #202037; border-color: #716da5; }
 .flow-node--action { background: #122630; border-color: #3e7181; }
+.flow-node--start, .flow-node--end { width: 150px; min-height: 64px; border-radius: 999px; text-align: center; }
+.flow-node--start { background: #173127; border-color: #5da887; }
+.flow-node--end { background: #332022; border-color: #aa6f76; }
+.flow-node--input, .flow-node--output { border-width: 1px 7px; border-radius: 4px 18px; background: #30291b; border-color: #a88b4c; }
+.flow-node--subprocess { background: #18293a; border-color: #557fa5; box-shadow: inset 5px 0 #557fa5, inset -5px 0 #557fa5, 0 8px 28px rgba(0,0,0,.2); }
+.flow-node--parallel-gateway { width: 170px; min-height: 92px; border-radius: 28px; background: #30213a; border-color: #9567a8; text-align: center; }
+.flow-node--data-store { border-width: 4px 1px; border-radius: 50% / 14%; background: #1c2c32; border-color: #588491; }
 .flow-node__type { color: var(--lime); text-transform: uppercase; letter-spacing: .12em; font: 500 .55rem DM Mono, monospace; }
 .flow-node__meta { color: var(--muted); font-size: .66rem; }
 .react-flow__handle { width: 9px; height: 9px; background: var(--lime); border: 2px solid #14212b; }

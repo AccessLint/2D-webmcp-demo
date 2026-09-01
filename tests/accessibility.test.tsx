@@ -106,6 +106,40 @@ describe("accessible workflow review", () => {
     });
   });
 
+  it("offers and creates the priority workflow node types", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const typePicker = screen.getByRole("combobox", { name: "Node type" });
+    expect(within(typePicker).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Node",
+      "Action",
+      "Condition",
+      "Start",
+      "End",
+      "Input",
+      "Output",
+      "Subprocess",
+      "Parallel Gateway",
+      "Data Store",
+    ]);
+
+    await user.selectOptions(typePicker, "parallel-gateway");
+    await user.type(screen.getByRole("textbox", { name: "New node name" }), "Run checks");
+    await user.click(screen.getByRole("button", { name: "Add node" }));
+
+    const created = workflowStore.getState().workflow.nodes.find(
+      (node) => node.label === "Run checks",
+    );
+    expect(created).toMatchObject({ type: "parallel-gateway", properties: {} });
+    await waitFor(() => {
+      expect(screen.getByTestId(`rf__node-${created?.id}`)).toHaveAttribute(
+        "aria-label",
+        "Parallel Gateway node: Run checks",
+      );
+    });
+  });
+
   it("renames the selected node without changing its identity or connections", async () => {
     const user = userEvent.setup();
     render(<App />);
