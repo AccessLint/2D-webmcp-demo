@@ -2,7 +2,6 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
 import { executeBatch, type WorkflowCommand } from "../graph/commands";
 import type { WorkflowState } from "../graph/model";
-import { createSeedWorkflow } from "../graph/seedWorkflow";
 import { validateWorkflow } from "../graph/validation";
 import { createReceipt } from "../receipts/createReceipt";
 import type { ChangeReceipt } from "../receipts/schema";
@@ -232,7 +231,7 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
   }));
 }
 
-export const workflowStore = createWorkflowStore(createSeedWorkflow());
+export const workflowStore = createWorkflowStore();
 installSessionPersistence(workflowStore);
 
 export function useWorkflowStore<T>(selector: (state: WorkflowStore) => T): T {
