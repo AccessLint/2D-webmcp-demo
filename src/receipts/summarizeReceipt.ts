@@ -25,7 +25,10 @@ export function summarizeChanges(changes: WorkflowChange[], valid: boolean, undo
     parts.push(`Renamed ${renamedNode.before.label} to ${renamedNode.after.label}`);
   }
   else if (nodes.length) parts.push(`Changed ${nodes.length} ${nodes.length === 1 ? "node" : "nodes"}`);
-  if (connections.length) parts.push(`${undo || parts.length === 0 ? "restored" : "changed"} ${connections.length} ${connections.length === 1 ? "connection" : "connections"}`);
+  if (connections.length) {
+    const verb = undo ? "restored" : parts.length === 0 ? "Changed" : "changed";
+    parts.push(`${verb} ${connections.length} ${connections.length === 1 ? "connection" : "connections"}`);
+  }
   const lead = parts.length ? parts.join(" and ") : "Updated workflow";
   return `${lead}. Workflow validation ${valid ? "passed" : "has errors"}.`;
 }

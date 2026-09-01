@@ -8,7 +8,7 @@ import { registerWorkflowTools } from "../webmcp/registerTools";
 import { createToolHandlers } from "../webmcp/toolHandlers";
 import { parseWorkflowHash } from "./routes";
 
-const demoPrompt = "Inspect the lead qualification workflow. Add an Action named Notify sales after Create CRM opportunity, reconnect it to Complete, then show me the edit result.";
+const demoPrompt = "We’ve had leads disappear whenever company enrichment is unavailable. Update the workflow so those leads are not lost and can be handled by the sales operations team. Show me what changed.";
 
 function WorkflowDemo() {
   const select = useWorkflowStore((state) => state.select);

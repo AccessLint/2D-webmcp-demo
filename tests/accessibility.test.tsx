@@ -15,7 +15,7 @@ describe("accessible workflow review", () => {
     expect(screen.getByRole("heading", { name: "Verifiable workflow editing with WebMCP" })).toBeInTheDocument();
     expect(screen.getByText(/This demo shows an agent editing the same workflow/)).toBeInTheDocument();
     expect(screen.getByText(/accessibility for screen reader users is a primary design goal/)).toBeInTheDocument();
-    expect(screen.getByText(/Add an Action named Notify sales after Create CRM opportunity/)).toBeInTheDocument();
+    expect(screen.getByText(/leads disappear whenever company enrichment is unavailable/)).toBeInTheDocument();
     expect(screen.getByText(/just three types—Node, Action, and Condition/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy prompt" })).toBeInTheDocument();
     expect(screen.getByRole("application", { name: /Workflow canvas/ })).toBeInTheDocument();

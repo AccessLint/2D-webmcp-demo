@@ -61,9 +61,9 @@ Codex helped inspect and refine the WebMCP boundary, create deterministic and pr
 
 1. Open the public demo in Chrome with WebMCP enabled or ChatGPT's in-app browser.
 2. Start from a fresh tab at workflow revision 0.
-3. Ask: “Inspect the lead qualification workflow. Add an Action named Notify sales after Create CRM opportunity, reconnect it to Complete, then show me the edit result.”
-4. Verify the application-authored receipt reads: “Created Notify sales and changed 3 connections. Workflow validation passed.”
-5. Ask the agent to show Notify sales, then to focus the Zoom In control.
+3. Ask: “We’ve had leads disappear whenever company enrichment is unavailable. Update the workflow so those leads are not lost and can be handled by the sales operations team. Show me what changed.”
+4. Verify the application-authored receipt reads: “Changed 1 connection. Workflow validation passed.”
+5. Ask the agent to show where failed enrichment is handled, then to focus the Zoom In control.
 6. Use only the keyboard to reveal, mark reviewed, and undo the change.
 
 ### Automated checks
@@ -99,9 +99,9 @@ TODO: Confirm the video is public, under three minutes, includes audio, and show
 ## Screenshot Shot List
 
 1. Initial workflow canvas with the seven named nodes.
-2. Completed Action insertion with the new route visible.
+2. Completed recovery edit with the new failure route visible.
 3. Change History receipt showing the deterministic summary, validation status, reveal, review, and undo controls.
-4. Keyboard focus visible on the Notify sales node or Zoom In control.
+4. Keyboard focus visible on the Manual review node or Zoom In control.
 5. Evaluation evidence page showing the deterministic 9/9 smoke result and the model-baseline methodology.
 
 The existing `retry-node-proof.png` asset shows the retired flow model and should be replaced before submission.

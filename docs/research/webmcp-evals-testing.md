@@ -15,10 +15,10 @@ This split follows Chrome's guidance: ordinary application behavior should retai
 The repository already covers most deterministic behavior:
 
 - `tests/webmcp.test.ts` tests discovery, inspection, editing, evidence retrieval, focus, reveal, undo, schemas, and structured recovery errors.
-- `tests/e2e/demo-flow.spec.ts` exercises the Action insertion, receipt focus, UI state, and undo in Chromium.
+- `tests/e2e/demo-flow.spec.ts` exercises the inferred recovery route, receipt focus, UI state, and undo in Chromium.
 - `evals/surfaceBridge.ts` provides an isolated two-tool adapter for comparing the generic, workflow-specific, and draft Surface Snapshot/Receipt representations.
 
-The missing layer is a model runner with natural-language prompts and expected tool-call trajectories.
+The missing layer is wiring the model runner’s resulting workflow state and evidence outcome into the semantic evaluator; the deterministic acceptance logic is already covered by Vitest.
 
 ## Suggested evaluation cases
 
@@ -26,10 +26,11 @@ Create `evals/webmcp-evals.json` with realistic prompt variations for these beha
 
 - Discovery: a request to inspect or summarize the workflow should begin with `discover_workflow`.
 - Inspection: a relationship question should call `discover_workflow`, then `inspect_workflow_items` with copied stable IDs.
-- Main edit journey: the Action-insertion prompt from `docs/TESTING.md` should call `discover_workflow`, `edit_workflow`, and `show_edit_result` in order.
-- Argument accuracy: the edit must use revision `0`, create the Notify sales Action, replace `edge-opportunity-end`, and reconnect the path to Complete. Coordinates and generated operation IDs should use matcher constraints rather than exact values.
+- Main edit journey: the outcome-oriented prompt from `docs/TESTING.md` should lead the agent to discover the workflow, inspect when useful, edit it, and surface the result.
+- Semantic accuracy: use `evals/recoveryIntent.ts` to grade the resulting graph, not one exact call sequence. The enrichment failure port must reach an Action owned by Sales operations, existing nodes and routes must remain intact, any new node must be that recovery destination, no unrelated connections may be added, and the edit receipt must be shown. The evaluator accepts generated IDs, optional labels, and either the existing Manual review Action or an equivalent newly created sales-operations Action.
+- Trajectory accuracy: treat the JSON `expectedCall` sequence as a tool-routing diagnostic, not the authoritative intent score. Reasonable inspection calls should be allowed by the model runner even when they lower strict exact-call matching.
 - Page focus: “Put keyboard focus on Zoom In” should discover targets and call `focus_page_element` with `targetId: "canvas.zoom-in"`.
-- Reveal: after creating Notify sales, “Show the Notify sales workflow node” should call `show_workflow_item` with the new node ID.
+- Reveal: the standalone intent prompt “Show me the step owned by sales operations” should resolve to Manual review from its properties and call `show_workflow_item` with that node ID. In the walkthrough, the contextual follow-up “Show me where failed enrichment is handled” tests the same inference after the recovery edit.
 - Undo: after an edit, the model should pass the returned operation ID to `undo_workflow_edit`.
 - Recovery: stale revisions, unknown IDs, and invalid arguments should lead back to `discover_workflow` rather than guessing.
 - Negative selection: unrelated prompts should not call mutating workflow tools.

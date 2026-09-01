@@ -29,4 +29,20 @@ describe("application-authored receipts", () => {
     store.getState().apply(1, [{ type: "updateNode", id: "create-opportunity", patch: { label: "Create opportunity" } }]);
     expect(() => store.getState().undo(first.operationId)).toThrow("cannot be undone after a later workflow edit");
   });
+
+  it("describes a new connection as changed rather than restored", () => {
+    const store = createWorkflowStore();
+    const receipt = store.getState().apply(0, [{
+      type: "connect",
+      edge: {
+        id: "edge-enrich-review",
+        source: "enrich-company",
+        sourcePort: "failure",
+        target: "manual-review",
+        targetPort: "input",
+      },
+    }]);
+
+    expect(receipt.summary).toBe("Changed 1 connection. Workflow validation passed.");
+  });
 });

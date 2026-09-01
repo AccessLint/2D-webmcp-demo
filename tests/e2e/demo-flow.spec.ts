@@ -47,7 +47,7 @@ test("nodes can be added and renamed from the editing panel", async ({ page }) =
   );
 });
 
-test("Action receipt can be focused, spot checked, and undone", async ({ page }) => {
+test("inferred recovery-route receipt can be focused, spot checked, and undone", async ({ page }) => {
   await page.addInitScript(() => {
     const tools: Record<string, { execute: (input: unknown) => unknown }> = {};
     Object.defineProperty(document, "modelContext", { configurable: true, value: { registerTool(tool: { name: string; execute: (input: unknown) => unknown }) { tools[tool.name] = tool; } } });
@@ -63,40 +63,42 @@ test("Action receipt can be focused, spot checked, and undone", async ({ page })
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
     const receipt = tools.edit_workflow.execute({
       baseRevision: 0,
-      intent: "Add Notify sales",
+      intent: "Keep leads from disappearing when enrichment is unavailable",
       commands: [
-        { type: "createNode", node: { id: "notify-sales", type: "action", label: "Notify sales", position: { x: 900, y: 100 }, properties: {} } },
-        { type: "replaceConnection", edgeId: "edge-opportunity-end", replacement: [
-          { id: "edge-opportunity-notify", source: "create-opportunity", sourcePort: "success", target: "notify-sales", targetPort: "input" },
-          { id: "edge-notify-complete", source: "notify-sales", sourcePort: "success", target: "complete", targetPort: "input" },
-        ] },
+        { type: "connect", edge: { id: "edge-enrich-review", source: "enrich-company", sourcePort: "failure", target: "manual-review", targetPort: "input", label: "Enrichment unavailable" } },
       ],
     }) as { operationId: string };
     const focusResult = await tools.show_edit_result.execute({ operationId: receipt.operationId }) as { visible: boolean };
     if (!focusResult.visible) throw new Error("Change entry was not visible after focus.");
     return receipt.operationId;
   });
-  await expect(page.getByRole("status")).toContainText("Created Notify sales and changed 3 connections");
-  const receiptHeading = page.getByRole("heading", { name: "Created Notify sales and changed 3 connections. Workflow validation passed." });
+  await expect(page.getByRole("status")).toContainText("Changed 1 connection");
+  const receiptHeading = page.getByRole("heading", { name: "Changed 1 connection. Workflow validation passed." });
   await expect(receiptHeading).toBeVisible();
   await expect(receiptHeading).toBeFocused();
+  const connections = page.getByRole("region", { name: "Workflow connections" });
+  await expect(connections.getByRole("button")).toHaveCount(7);
+  await expect(connections.getByRole("button", { name: /Enrich company to Manual review Enrichment unavailable connection/ })).toBeVisible();
+  await expect(connections.getByRole("button", { name: /Qualified lead\? to Create CRM opportunity Qualified connection/ })).toBeVisible();
+  await expect(connections.getByRole("button", { name: /Qualified lead\? to Add to nurture campaign Nurture connection/ })).toBeVisible();
+  await expect(page.getByText("7 nodes", { exact: true })).toBeVisible();
   const receiptBox = await receiptHeading.locator("..").evaluate((element) => element.getBoundingClientRect().toJSON());
   expect(receiptBox.bottom).toBeGreaterThan(0);
   expect(receiptBox.top).toBeLessThan(viewport.height);
   const receipt = receiptHeading.locator("..");
-  const notifyNode = page.getByTestId("rf__node-notify-sales");
-  await expect(notifyNode).not.toHaveClass(/selected/);
+  const reviewNode = page.getByTestId("rf__node-manual-review");
+  await expect(reviewNode).not.toHaveClass(/selected/);
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    const focusResult = await tools.focus_page_element.execute({ selector: "[data-id='notify-sales']" }) as { queued: boolean; focusWhen: string };
-    if (!focusResult.queued || focusResult.focusWhen !== "window-focus-or-accessibility-interaction") throw new Error("Notify sales focus was not queued.");
+    const focusResult = await tools.focus_page_element.execute({ selector: "[data-id='manual-review']" }) as { queued: boolean; focusWhen: string };
+    if (!focusResult.queued || focusResult.focusWhen !== "window-focus-or-accessibility-interaction") throw new Error("Manual review focus was not queued.");
   });
-  await expect(notifyNode).not.toHaveClass(/selected/);
-  await expect(notifyNode).not.toBeFocused();
+  await expect(reviewNode).not.toHaveClass(/selected/);
+  await expect(reviewNode).not.toBeFocused();
   await page.keyboard.press("ArrowDown");
-  await expect(notifyNode).toBeFocused();
+  await expect(reviewNode).toBeFocused();
   await page.waitForTimeout(400);
-  await expect(notifyNode).toBeFocused();
+  await expect(reviewNode).toBeFocused();
   await page.evaluate(() => {
     window.dispatchEvent(new FocusEvent("blur"));
     (document.activeElement as HTMLElement | null)?.blur();
@@ -104,13 +106,13 @@ test("Action receipt can be focused, spot checked, and undone", async ({ page })
     document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     queueMicrotask(() => document.querySelector<HTMLElement>("a[href='#workspace']")?.focus());
   });
-  await expect(notifyNode).toBeFocused();
+  await expect(reviewNode).toBeFocused();
   await page.evaluate(() => {
     window.dispatchEvent(new FocusEvent("blur"));
     (document.activeElement as HTMLElement | null)?.blur();
     window.dispatchEvent(new FocusEvent("focus"));
   });
-  await expect(notifyNode).not.toBeFocused();
+  await expect(reviewNode).not.toBeFocused();
   const qualifiedNode = page.getByTestId("rf__node-qualified-lead");
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
@@ -131,7 +133,7 @@ test("Action receipt can be focused, spot checked, and undone", async ({ page })
   });
   await page.keyboard.press("ArrowRight");
   await expect(qualifiedNode).toBeFocused();
-  await expect(notifyNode).not.toBeFocused();
+  await expect(reviewNode).not.toBeFocused();
   await expect(receipt).not.toContainText("Agent intent");
   await expect(receipt).not.toContainText("Exact changes");
   await expect(receipt).not.toContainText("Revision 0");
@@ -139,5 +141,5 @@ test("Action receipt can be focused, spot checked, and undone", async ({ page })
   await expect(page.getByRole("status")).toContainText("Undid the previous workflow change");
   await expect(page.getByRole("heading", { name: /Undid the previous workflow change/ })).toBeFocused();
   await expect(receiptHeading).toHaveCount(0);
-  await expect(page.getByTestId("rf__node-notify-sales")).toHaveCount(0);
+  await expect(page.locator(".react-flow__edge[data-id='edge-enrich-review']")).toHaveCount(0);
 });

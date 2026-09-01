@@ -43,12 +43,12 @@
     ]
   },
   {
-    "name": "Insert an Action and surface the edit evidence",
+    "name": "Recover leads from an unavailable enrichment service",
     "messages": [
       {
         "role": "user",
         "type": "message",
-        "content": "Inspect the lead qualification workflow. Add an Action named Notify sales after Create CRM opportunity, reconnect it to Complete, then show me the edit result."
+        "content": "We’ve had leads disappear whenever company enrichment is unavailable. Update the workflow so those leads are not lost and can be handled by the sales operations team. Show me what changed."
       }
     ],
     "expectedCall": [
@@ -60,45 +60,9 @@
         "functionName": "edit_workflow",
         "arguments": {
           "baseRevision": 0,
-          "commands": [
-            {
-              "type": "createNode",
-              "node": {
-                "id": "notify-sales",
-                "type": "action",
-                "label": "Notify sales",
-                "position": {
-                  "x": {
-                    "$type": "number"
-                  },
-                  "y": {
-                    "$type": "number"
-                  }
-                },
-                "properties": {}
-              }
-            },
-            {
-              "type": "replaceConnection",
-              "edgeId": "edge-opportunity-end",
-              "replacement": [
-                {
-                  "id": "edge-opportunity-notify",
-                  "source": "create-opportunity",
-                  "sourcePort": "success",
-                  "target": "notify-sales",
-                  "targetPort": "input"
-                },
-                {
-                  "id": "edge-notify-complete",
-                  "source": "notify-sales",
-                  "sourcePort": "success",
-                  "target": "complete",
-                  "targetPort": "input"
-                }
-              ]
-            }
-          ]
+          "commands": {
+            "$type": "array"
+          }
         }
       },
       {
@@ -108,7 +72,7 @@
             "$type": "string"
           }
         },
-        "optional": true
+        "optional": false
       }
     ]
   },
@@ -135,12 +99,12 @@
     ]
   },
   {
-    "name": "Reveal an existing workflow node",
+    "name": "Infer which step belongs to sales operations",
     "messages": [
       {
         "role": "user",
         "type": "message",
-        "content": "Show me the Enrich company workflow node."
+        "content": "Show me the step owned by sales operations."
       }
     ],
     "expectedCall": [
@@ -152,7 +116,7 @@
         "functionName": "show_workflow_item",
         "arguments": {
           "kind": "workflow-node",
-          "id": "enrich-company"
+          "id": "manual-review"
         }
       }
     ]

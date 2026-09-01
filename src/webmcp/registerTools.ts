@@ -32,7 +32,7 @@ function isAbortError(error: unknown): boolean {
 const editCommandExamples = {
   createNode: {
     type: "createNode",
-    node: { id: "notify-sales", type: "action", label: "Notify sales", position: { x: 900, y: 100 }, properties: {} },
+    node: { id: "new-action", type: "action", label: "New action", position: { x: 700, y: 300 }, properties: {} },
   },
   connect: {
     type: "connect",
