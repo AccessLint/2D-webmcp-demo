@@ -14,7 +14,7 @@ describe("evaluation results", () => {
     expect(within(breakdown).getByText("Visible edit evidence")).toBeInTheDocument();
     expect(within(breakdown).getByText("10/10")).toBeInTheDocument();
     expect(within(breakdown).getByText("69/173")).toBeInTheDocument();
-    expect(within(breakdown).getByText(/same unchanged fixture/i)).toBeInTheDocument();
+    expect(within(breakdown).getByText(/needs a fresh run/i)).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("edit evidence reached 10/10");
   });
 });

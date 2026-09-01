@@ -15,7 +15,7 @@ This split follows Chrome's guidance: ordinary application behavior should retai
 The repository already covers most deterministic behavior:
 
 - `tests/webmcp.test.ts` tests discovery, inspection, editing, evidence retrieval, focus, reveal, undo, schemas, and structured recovery errors.
-- `tests/e2e/demo-flow.spec.ts` exercises the Retry edit, receipt focus, UI state, and undo in Chromium.
+- `tests/e2e/demo-flow.spec.ts` exercises the Action insertion, receipt focus, UI state, and undo in Chromium.
 - `evals/surfaceBridge.ts` provides an isolated two-tool adapter for comparing the generic, workflow-specific, and draft Surface Snapshot/Receipt representations.
 
 The missing layer is a model runner with natural-language prompts and expected tool-call trajectories.
@@ -26,10 +26,10 @@ Create `evals/webmcp-evals.json` with realistic prompt variations for these beha
 
 - Discovery: a request to inspect or summarize the workflow should begin with `discover_workflow`.
 - Inspection: a relationship question should call `discover_workflow`, then `inspect_workflow_items` with copied stable IDs.
-- Main edit journey: the Retry prompt from `docs/TESTING.md` should call `discover_workflow`, `edit_workflow`, and `show_edit_result` in order.
-- Argument accuracy: the edit must use revision `0`, create a Retry node with `attempts: 3`, replace `edge-enrich-qualified`, and route success/failure correctly. Coordinates and generated operation IDs should use matcher constraints rather than exact values.
+- Main edit journey: the Action-insertion prompt from `docs/TESTING.md` should call `discover_workflow`, `edit_workflow`, and `show_edit_result` in order.
+- Argument accuracy: the edit must use revision `0`, create the Notify sales Action, replace `edge-opportunity-end`, and reconnect the path to Complete. Coordinates and generated operation IDs should use matcher constraints rather than exact values.
 - Page focus: “Put keyboard focus on Zoom In” should discover targets and call `focus_page_element` with `targetId: "canvas.zoom-in"`.
-- Reveal: after creating Retry, “Show the Retry workflow node” should call `show_workflow_item` with the new node ID.
+- Reveal: after creating Notify sales, “Show the Notify sales workflow node” should call `show_workflow_item` with the new node ID.
 - Undo: after an edit, the model should pass the returned operation ID to `undo_workflow_edit`.
 - Recovery: stale revisions, unknown IDs, and invalid arguments should lead back to `discover_workflow` rather than guessing.
 - Negative selection: unrelated prompts should not call mutating workflow tools.

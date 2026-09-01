@@ -7,17 +7,16 @@ describe("application-authored receipts", () => {
     const store = createWorkflowStore();
     const before = structuredClone(store.getState().workflow);
     const receipt = store.getState().apply(0, [
-      { type: "createNode", node: { id: "retry", type: "retry", label: "Retry", position: { x: 500, y: 200 }, properties: { attempts: 3 } } },
-      { type: "replaceConnection", edgeId: "edge-enrich-qualified", replacement: [
-        { id: "edge-enrich-retry", source: "enrich-company", sourcePort: "success", target: "retry", targetPort: "input" },
-        { id: "edge-retry-qualified", source: "retry", sourcePort: "success", target: "qualified-lead", targetPort: "input" },
-        { id: "edge-retry-review", source: "retry", sourcePort: "failure", target: "manual-review", targetPort: "input" },
+      { type: "createNode", node: { id: "notify-sales", type: "action", label: "Notify sales", position: { x: 900, y: 100 }, properties: {} } },
+      { type: "replaceConnection", edgeId: "edge-opportunity-end", replacement: [
+        { id: "edge-opportunity-notify", source: "create-opportunity", sourcePort: "success", target: "notify-sales", targetPort: "input" },
+        { id: "edge-notify-complete", source: "notify-sales", sourcePort: "success", target: "complete", targetPort: "input" },
       ] },
-    ], "Add retry after Enrich company");
+    ], "Add Notify sales after Create CRM opportunity");
 
     expect(changeReceiptSchema.parse(receipt)).toEqual(receipt);
-    expect(receipt.summary).toBe("Created Retry and changed 4 connections. Workflow validation passed.");
-    expect(receipt.changes.map((change) => change.action)).toEqual(["created", "connected", "connected", "connected", "disconnected"]);
+    expect(receipt.summary).toBe("Created Notify sales and changed 3 connections. Workflow validation passed.");
+    expect(receipt.changes.map((change) => change.action)).toEqual(["created", "connected", "connected", "disconnected"]);
 
     const undoReceipt = store.getState().undo(receipt.operationId);
     expect(store.getState().workflow).toMatchObject({ nodes: before.nodes, edges: before.edges, revision: 2 });

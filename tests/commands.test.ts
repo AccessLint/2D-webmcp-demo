@@ -2,33 +2,32 @@ import { describe, expect, it } from "vitest";
 import { executeBatch, type WorkflowCommand } from "../src/graph/commands";
 import { createSeedWorkflow } from "../src/graph/seedWorkflow";
 
-const retryCommands: WorkflowCommand[] = [
-  { type: "createNode", node: { id: "retry", type: "retry", label: "Retry", position: { x: 530, y: 200 }, properties: { attempts: 3 } } },
-  { type: "disconnect", edgeId: "edge-enrich-qualified" },
-  { type: "connect", edge: { id: "edge-enrich-retry", source: "enrich-company", sourcePort: "success", target: "retry", targetPort: "input" } },
-  { type: "connect", edge: { id: "edge-retry-qualified", source: "retry", sourcePort: "success", target: "qualified-lead", targetPort: "input" } },
-  { type: "connect", edge: { id: "edge-retry-review", source: "retry", sourcePort: "failure", target: "manual-review", targetPort: "input" } },
+const actionCommands: WorkflowCommand[] = [
+  { type: "createNode", node: { id: "notify-sales", type: "action", label: "Notify sales", position: { x: 900, y: 100 }, properties: {} } },
+  { type: "disconnect", edgeId: "edge-opportunity-end" },
+  { type: "connect", edge: { id: "edge-opportunity-notify", source: "create-opportunity", sourcePort: "success", target: "notify-sales", targetPort: "input" } },
+  { type: "connect", edge: { id: "edge-notify-complete", source: "notify-sales", sourcePort: "success", target: "complete", targetPort: "input" } },
 ];
 
 describe("workflow transactions", () => {
-  it("atomically inserts Retry with three attempts and both outcomes", () => {
+  it("atomically inserts an Action into an existing path", () => {
     const before = createSeedWorkflow();
-    const result = executeBatch(before, { baseRevision: 0, commands: retryCommands });
+    const result = executeBatch(before, { baseRevision: 0, commands: actionCommands });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.revision).toBe(1);
-    expect(result.state.nodes.find((node) => node.id === "retry")?.properties.attempts).toBe(3);
+    expect(result.state.nodes.find((node) => node.id === "notify-sales")?.type).toBe("action");
     expect(result.state.edges).toEqual(expect.arrayContaining([
-      expect.objectContaining({ source: "retry", sourcePort: "success", target: "qualified-lead" }),
-      expect.objectContaining({ source: "retry", sourcePort: "failure", target: "manual-review" }),
+      expect.objectContaining({ source: "create-opportunity", sourcePort: "success", target: "notify-sales" }),
+      expect.objectContaining({ source: "notify-sales", sourcePort: "success", target: "complete" }),
     ]));
-    expect(result.state.edges.some((edge) => edge.id === "edge-enrich-qualified")).toBe(false);
+    expect(result.state.edges.some((edge) => edge.id === "edge-opportunity-end")).toBe(false);
   });
 
   it("rejects a stale or invalid batch without changing the supplied state", () => {
     const before = createSeedWorkflow();
-    const stale = executeBatch(before, { baseRevision: 9, commands: retryCommands });
+    const stale = executeBatch(before, { baseRevision: 9, commands: actionCommands });
     const invalid = executeBatch(before, { baseRevision: 0, commands: [
       { type: "connect", edge: { id: "bad", source: "missing", sourcePort: "success", target: "complete", targetPort: "input" } },
     ] });

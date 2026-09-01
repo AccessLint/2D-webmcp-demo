@@ -71,7 +71,9 @@ describe("WebMCP tool boundary", () => {
       },
       authoring: {
         nodeTypes: expect.arrayContaining([
-          { type: "retry", title: "Retry", inputs: ["input"], outputs: ["success", "failure"] },
+          { type: "node", title: "Node", inputs: ["input"], outputs: ["next"] },
+          { type: "action", title: "Action", inputs: ["input"], outputs: ["success", "failure"] },
+          { type: "condition", title: "Condition", inputs: ["input"], outputs: ["yes", "no"] },
         ]),
         nodes: expect.arrayContaining([
           { id: "enrich-company", type: "action", label: "Enrich company", inputs: ["input"], outputs: ["success", "failure"] },
@@ -95,27 +97,26 @@ describe("WebMCP tool boundary", () => {
 
     const receipt = tools.edit_workflow({
       baseRevision: 0,
-      intent: "Add a Retry step after Enrich company",
+      intent: "Add Notify sales after Create CRM opportunity",
       commands: [
-        { type: "createNode", node: { id: "retry", type: "retry", label: "Retry", position: { x: 500, y: 200 }, properties: { attempts: 3 } } },
-        { type: "replaceConnection", edgeId: "edge-enrich-qualified", replacement: [
-          { id: "edge-enrich-retry", source: "enrich-company", sourcePort: "success", target: "retry", targetPort: "input" },
-          { id: "edge-retry-qualified", source: "retry", sourcePort: "success", target: "qualified-lead", targetPort: "input" },
-          { id: "edge-retry-review", source: "retry", sourcePort: "failure", target: "manual-review", targetPort: "input" },
+        { type: "createNode", node: { id: "notify-sales", type: "action", label: "Notify sales", position: { x: 900, y: 100 }, properties: {} } },
+        { type: "replaceConnection", edgeId: "edge-opportunity-end", replacement: [
+          { id: "edge-opportunity-notify", source: "create-opportunity", sourcePort: "success", target: "notify-sales", targetPort: "input" },
+          { id: "edge-notify-complete", source: "notify-sales", sourcePort: "success", target: "complete", targetPort: "input" },
         ] },
       ],
     });
     expect(tools.get_edit_result({ operationId: receipt.operationId })).toEqual(receipt);
     await expect(tools.show_edit_result({ operationId: receipt.operationId })).resolves.toMatchObject({ operationId: receipt.operationId, summary: receipt.summary, focusedIn: "change-history", visible: true });
     expect(focusedOperationId).toBe(receipt.operationId);
-    expect(tools.inspect_workflow_items({ objects: [{ kind: "workflow-node", id: "retry" }] })[0]).toMatchObject({ label: "Retry", properties: { attempts: 3 } });
-    await expect(tools.focus_page_element({ selector: "[data-id='retry']" })).resolves.toMatchObject({ selector: "[data-id='retry']", tagName: "div", focusWhen: "window-focus-or-accessibility-interaction", queued: true });
-    expect(focusedSelector).toBe("[data-id='retry']");
+    expect(tools.inspect_workflow_items({ objects: [{ kind: "workflow-node", id: "notify-sales" }] })[0]).toMatchObject({ label: "Notify sales", properties: {} });
+    await expect(tools.focus_page_element({ selector: "[data-id='notify-sales']" })).resolves.toMatchObject({ selector: "[data-id='notify-sales']", tagName: "div", focusWhen: "window-focus-or-accessibility-interaction", queued: true });
+    expect(focusedSelector).toBe("[data-id='notify-sales']");
     await expect(tools.focus_page_element({ targetId: "canvas.zoom-in" })).resolves.toMatchObject({ targetId: "canvas.zoom-in", selector: "button[aria-label='Zoom In']", queued: true });
     expect(focusedSelector).toBe("button[aria-label='Zoom In']");
-    await expect(tools.show_workflow_item({ kind: "workflow-node", id: "retry" })).resolves.toMatchObject({ id: "retry", label: "Retry", focused: true, visible: true });
-    expect(focusedNodeId).toBe("retry");
-    expect(store.getState().selected).toEqual({ kind: "node", id: "retry" });
+    await expect(tools.show_workflow_item({ kind: "workflow-node", id: "notify-sales" })).resolves.toMatchObject({ id: "notify-sales", label: "Notify sales", focused: true, visible: true });
+    expect(focusedNodeId).toBe("notify-sales");
+    expect(store.getState().selected).toEqual({ kind: "node", id: "notify-sales" });
     expect(tools.undo_workflow_edit({ operationId: receipt.operationId }).summary).toContain("Undid");
   });
 
@@ -341,16 +342,16 @@ describe("WebMCP tool boundary", () => {
       },
       validation: {
         valid: true,
-        problemCount: 2,
-        problemPage: { cursor: 0, nextCursor: 0, items: [] },
+        problemCount: 0,
+        problemPage: { cursor: 0, nextCursor: null, items: [] },
       },
     });
-    expect(compactDiscovery.itemPage.items).toHaveLength(5);
+    expect(compactDiscovery.itemPage.items).toHaveLength(6);
     expect(JSON.stringify(compactDiscovery).length).toBeLessThanOrEqual(1_500);
     const discoveryPage = registered.get("discover_workflow")!.execute({ limit: 1, problemLimit: 1 });
     expect(discoveryPage).toMatchObject({
       itemPage: { cursor: 0, nextCursor: 1, items: [expect.any(Object)] },
-      validation: { problemPage: { cursor: 0, nextCursor: 1, items: [expect.any(Object)] } },
+      validation: { problemPage: { cursor: 0, nextCursor: null, items: [] } },
     });
     const compactInspection = registered.get("inspect_workflow_items")!.execute({
       objects: [{ kind: "workflow-node", id: "enrich-company" }],
@@ -519,16 +520,25 @@ describe("WebMCP tool boundary", () => {
 
     const edit = registered.get("edit_workflow")!.execute({
       baseRevision: 0,
-      commands: Array.from({ length: 6 }, (_, index) => ({
-        type: "createNode",
-        node: {
-          id: `isolated-${String(index)}`,
-          type: "action",
-          label: `Isolated ${String(index)}`,
-          position: { x: index * 20, y: 500 },
-          properties: {},
-        },
-      })),
+      commands: Array.from({ length: 6 }, (_, index) => [{
+          type: "createNode",
+          node: {
+            id: `isolated-${String(index)}`,
+            type: "condition",
+            label: `Isolated ${String(index)}`,
+            position: { x: index * 20, y: 500 },
+            properties: {},
+          },
+        }, {
+          type: "connect",
+          edge: {
+            id: `edge-isolated-${String(index)}-complete`,
+            source: `isolated-${String(index)}`,
+            sourcePort: "yes",
+            target: "complete",
+            targetPort: "input",
+          },
+        }]).flat(),
     }) as { operationId: string; changePage: { nextCursor: number | null }; validation: { problemPage: { nextCursor: number | null } } };
 
     expect(edit.changePage.nextCursor).toBe(3);
@@ -536,15 +546,16 @@ describe("WebMCP tool boundary", () => {
     const nextPage = registered.get("get_edit_result")!.execute({
       operationId: edit.operationId,
       changeCursor: 3,
-      changeLimit: 3,
+      changeLimit: 5,
       problemCursor: 2,
-      problemLimit: 2,
+      problemLimit: 3,
     });
     expect(nextPage).toMatchObject({
-      changePage: { cursor: 3, nextCursor: null, items: expect.arrayContaining([expect.objectContaining({ id: "isolated-5" })]) },
+      changePage: { cursor: 3, nextCursor: 8, items: expect.arrayContaining([expect.objectContaining({ id: "isolated-5" })]) },
       validation: {
         problemPage: {
           cursor: 2,
+          nextCursor: 5,
           items: expect.arrayContaining([expect.objectContaining({ code: expect.any(String), message: expect.any(String) })]),
         },
       },

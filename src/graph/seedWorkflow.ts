@@ -3,13 +3,13 @@ import type { WorkflowState } from "./model";
 export const createSeedWorkflow = (): WorkflowState => ({
   revision: 0,
   nodes: [
-    { id: "new-lead", type: "start", label: "New lead submitted", position: { x: 40, y: 220 }, properties: { source: "Lead form" } },
+    { id: "new-lead", type: "node", label: "New lead submitted", position: { x: 40, y: 220 }, properties: { source: "Lead form" } },
     { id: "enrich-company", type: "action", label: "Enrich company", position: { x: 280, y: 220 }, properties: { system: "Enrichment API" } },
     { id: "qualified-lead", type: "condition", label: "Qualified lead?", position: { x: 520, y: 220 }, properties: { minimumScore: 70 } },
     { id: "create-opportunity", type: "action", label: "Create CRM opportunity", position: { x: 760, y: 100 }, properties: { destination: "CRM" } },
     { id: "add-to-nurture", type: "action", label: "Add to nurture campaign", position: { x: 760, y: 300 }, properties: { destination: "Email platform" } },
     { id: "manual-review", type: "action", label: "Manual review", position: { x: 760, y: 500 }, properties: { queue: "Sales operations" } },
-    { id: "complete", type: "end", label: "Complete", position: { x: 1020, y: 220 }, properties: {} },
+    { id: "complete", type: "node", label: "Complete", position: { x: 1020, y: 220 }, properties: {} },
   ],
   edges: [
     { id: "edge-lead-enrich", source: "new-lead", sourcePort: "next", target: "enrich-company", targetPort: "input" },

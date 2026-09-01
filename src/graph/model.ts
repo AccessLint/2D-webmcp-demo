@@ -1,4 +1,4 @@
-export const nodeKinds = ["start", "action", "condition", "retry", "end"] as const;
+export const nodeKinds = ["node", "action", "condition"] as const;
 export type NodeKind = (typeof nodeKinds)[number];
 
 export type WorkflowNode = {

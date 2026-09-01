@@ -2,6 +2,8 @@
 
 A browser-based node editor demonstrating verifiable agent actions. Human UI controls and WebMCP tools share one authoritative graph model; every committed transaction produces a deterministic, inspectable change receipt.
 
+The editor has three node types: **Node**, **Action**, and **Condition**. A flow starts at any node with no incoming connection and ends at any node with no outgoing connection, so Start and End do not need to be modeled explicitly.
+
 ## Run locally
 
 ```sh

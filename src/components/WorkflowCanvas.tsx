@@ -44,9 +44,6 @@ function WorkflowCard({ data, selected }: NodeProps<WorkflowFlowNode>) {
       ))}
       <span className="flow-node__type">{definition.title}</span>
       <strong>{data.label}</strong>
-      {data.properties.attempts ? (
-        <span className="flow-node__meta">{String(data.properties.attempts)} attempts</span>
-      ) : null}
       {definition.outputs.map((port, index) => (
         <Handle
           key={port}
@@ -98,7 +95,9 @@ function toFlowNode(node: WorkflowNode, selected: WorkflowSelection | null): Wor
     data: { label: node.label, kind: node.type, properties: node.properties },
     selected: isSelected,
     focusable: true,
-    ariaLabel: `${nodeDefinitions[node.type].title} node: ${node.label}`,
+    ariaLabel: node.type === "node"
+      ? `Node: ${node.label}`
+      : `${nodeDefinitions[node.type].title} node: ${node.label}`,
     ariaRole: "button",
     domAttributes: { "aria-pressed": isSelected },
   };

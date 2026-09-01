@@ -55,44 +55,41 @@ export function validateWorkflow(state: WorkflowState): ValidationResult {
     }
   }
 
-  const starts = state.nodes.filter((node) => node.type === "start");
-  const ends = state.nodes.filter((node) => node.type === "end");
-  if (starts.length === 0) addProblem("MISSING_START", "error", "Workflow must contain a Start node.");
-  if (ends.length === 0) addProblem("MISSING_END", "error", "Workflow must contain an End node.");
+  const entryNodes = state.nodes.filter((node) => !(incomingByNode.get(node.id)?.length));
+  const terminalNodes = state.nodes.filter((node) => !(outgoingByNode.get(node.id)?.length));
+  const entryNodeIds = new Set(entryNodes.map((node) => node.id));
+  const terminalNodeIds = new Set(terminalNodes.map((node) => node.id));
 
   for (const node of state.nodes) {
     const incoming = incomingByNode.get(node.id) ?? [];
     const outgoing = outgoingByNode.get(node.id) ?? [];
-    if (node.type === "start" && incoming.length) {
-      addProblem("START_HAS_INPUT", "error", `${node.label} cannot have incoming connections.`, nodeReference(node));
-    }
-    if (node.type === "end" && outgoing.length) {
-      addProblem("END_HAS_OUTPUT", "error", `${node.label} cannot have outgoing connections.`, nodeReference(node));
-    }
-    for (const port of nodeDefinitions[node.type].requiredInputs) {
-      if (!incoming.some((edge) => edge.targetPort === port)) {
-        addProblem("UNCONNECTED_REQUIRED_INPUT", "warning", `${node.label} has no connection to its ${port} input.`, nodeReference(node));
+    if (!entryNodeIds.has(node.id)) {
+      for (const port of nodeDefinitions[node.type].requiredInputs) {
+        if (!incoming.some((edge) => edge.targetPort === port)) {
+          addProblem("UNCONNECTED_REQUIRED_INPUT", "warning", `${node.label} has no connection to its ${port} input.`, nodeReference(node));
+        }
       }
     }
-    for (const port of nodeDefinitions[node.type].requiredOutputs) {
-      if (!outgoing.some((edge) => edge.sourcePort === port)) {
-        const code = node.type === "retry" && port === "failure" ? "UNCONNECTED_FAILURE_PORT" : "UNCONNECTED_REQUIRED_OUTPUT";
-        addProblem(code, "warning", `${node.label} has no ${port} destination.`, nodeReference(node));
+    if (!terminalNodeIds.has(node.id)) {
+      for (const port of nodeDefinitions[node.type].requiredOutputs) {
+        if (!outgoing.some((edge) => edge.sourcePort === port)) {
+          addProblem("UNCONNECTED_REQUIRED_OUTPUT", "warning", `${node.label} has no ${port} destination.`, nodeReference(node));
+        }
       }
     }
   }
 
-  if (starts.length) {
+  if (entryNodes.length) {
     const reachable = new Set<string>();
     const visit = (id: string) => {
       if (reachable.has(id)) return;
       reachable.add(id);
       for (const edge of outgoingByNode.get(id) ?? []) visit(edge.target);
     };
-    starts.forEach((start) => visit(start.id));
+    entryNodes.forEach((entry) => visit(entry.id));
     for (const node of state.nodes) {
       if (!reachable.has(node.id)) {
-        addProblem("UNREACHABLE_NODE", "warning", `${node.label} is not reachable from Start.`, nodeReference(node));
+        addProblem("UNREACHABLE_NODE", "warning", `${node.label} is not reachable from an entry node.`, nodeReference(node));
       }
     }
   }

@@ -21,9 +21,9 @@ export type EvalRun = {
     inspect: { passed: number; total: number };
     reveal: { passed: number; total: number };
     focus: { passed: number; total: number };
-    retryJourney: { passed: number; total: number };
+    complexEditJourney: { passed: number; total: number };
   };
-  retryEdit: { passed: number; total: number };
+  complexEdit: { passed: number; total: number };
   note: string;
 };
 
@@ -51,9 +51,9 @@ export const evalRuns: EvalRun[] = [
       inspect: { passed: 10, total: 10 },
       reveal: { passed: 10, total: 10 },
       focus: { passed: 10, total: 10 },
-      retryJourney: { passed: 0, total: 10 },
+      complexEditJourney: { passed: 0, total: 10 },
     },
-    retryEdit: { passed: 0, total: 10 },
+    complexEdit: { passed: 0, total: 10 },
     note:
       "The four direct tasks completed consistently. The complex edit failed because the agent sent commands in formats the tool did not accept.",
   },
@@ -80,9 +80,9 @@ export const evalRuns: EvalRun[] = [
       inspect: { passed: 10, total: 10 },
       reveal: { passed: 10, total: 10 },
       focus: { passed: 10, total: 10 },
-      retryJourney: { passed: 6, total: 10 },
+      complexEditJourney: { passed: 6, total: 10 },
     },
-    retryEdit: { passed: 10, total: 10 },
+    complexEdit: { passed: 10, total: 10 },
     note:
       "The complex edit succeeded in all 10 attempts. Six attempts also surfaced the edit evidence, which is the remaining reliability gap.",
   },
@@ -109,9 +109,9 @@ export const evalRuns: EvalRun[] = [
       inspect: { passed: 10, total: 10 },
       reveal: { passed: 7, total: 10 },
       focus: { passed: 10, total: 10 },
-      retryJourney: { passed: 10, total: 10 },
+      complexEditJourney: { passed: 10, total: 10 },
     },
-    retryEdit: { passed: 10, total: 10 },
+    complexEdit: { passed: 10, total: 10 },
     note:
       "All 10 complex edits surfaced visible evidence. Extra discovery and inspection calls lowered exact-call efficiency, and three reveal requests stopped at inspection instead of changing the visible selection.",
   },

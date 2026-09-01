@@ -61,9 +61,9 @@ Codex helped inspect and refine the WebMCP boundary, create deterministic and pr
 
 1. Open the public demo in Chrome with WebMCP enabled or ChatGPT's in-app browser.
 2. Start from a fresh tab at workflow revision 0.
-3. Ask: “Inspect the lead qualification workflow. Add a Retry node with three attempts after Enrich company. Route Retry success to the condition labeled ‘Qualified lead?’ and Retry failure to Manual review, then show me the edit result.”
-4. Verify the application-authored receipt reads: “Created Retry and changed 4 connections. Workflow validation passed.”
-5. Ask the agent to show the Retry node, then to focus the Zoom In control.
+3. Ask: “Inspect the lead qualification workflow. Add an Action named Notify sales after Create CRM opportunity, reconnect it to Complete, then show me the edit result.”
+4. Verify the application-authored receipt reads: “Created Notify sales and changed 3 connections. Workflow validation passed.”
+5. Ask the agent to show Notify sales, then to focus the Zoom In control.
 6. Use only the keyboard to reveal, mark reviewed, and undo the change.
 
 ### Automated checks
@@ -99,12 +99,12 @@ TODO: Confirm the video is public, under three minutes, includes audio, and show
 ## Screenshot Shot List
 
 1. Initial workflow canvas with the seven named nodes.
-2. Completed Retry edit with the new success and failure routes visible.
+2. Completed Action insertion with the new route visible.
 3. Change History receipt showing the deterministic summary, validation status, reveal, review, and undo controls.
-4. Keyboard focus visible on the Retry node or Zoom In control.
+4. Keyboard focus visible on the Notify sales node or Zoom In control.
 5. Evaluation evidence page showing the deterministic 9/9 smoke result and the model-baseline methodology.
 
-Existing local asset received: `retry-node-proof.png`. Confirm it reflects the current build before using it.
+The existing `retry-node-proof.png` asset shows the retired flow model and should be replaced before submission.
 
 ## Submission Readiness Notes
 

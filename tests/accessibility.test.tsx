@@ -15,7 +15,8 @@ describe("accessible workflow review", () => {
     expect(screen.getByRole("heading", { name: "Verifiable workflow editing with WebMCP" })).toBeInTheDocument();
     expect(screen.getByText(/This demo shows an agent editing the same workflow/)).toBeInTheDocument();
     expect(screen.getByText(/accessibility for screen reader users is a primary design goal/)).toBeInTheDocument();
-    expect(screen.getByText(/Add a Retry node with three attempts after Enrich company/)).toBeInTheDocument();
+    expect(screen.getByText(/Add an Action named Notify sales after Create CRM opportunity/)).toBeInTheDocument();
+    expect(screen.getByText(/just three types—Node, Action, and Condition/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy prompt" })).toBeInTheDocument();
     expect(screen.getByRole("application", { name: /Workflow canvas/ })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Workflow outline" })).not.toBeInTheDocument();
@@ -30,7 +31,10 @@ describe("accessible workflow review", () => {
       for (const node of workflowStore.getState().workflow.nodes) {
         const renderedNode = screen.getByTestId(`rf__node-${node.id}`);
         expect(renderedNode).toHaveAttribute("tabindex", "0");
-        expect(renderedNode).toHaveAttribute("aria-label", `${nodeDefinitions[node.type].title} node: ${node.label}`);
+        expect(renderedNode).toHaveAttribute(
+          "aria-label",
+          node.type === "node" ? `Node: ${node.label}` : `${nodeDefinitions[node.type].title} node: ${node.label}`,
+        );
       }
     });
   });
@@ -39,20 +43,20 @@ describe("accessible workflow review", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "Node type" }), "retry");
-    await user.type(screen.getByRole("textbox", { name: "New node name" }), "Retry enrichment");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Node type" }), "node");
+    await user.type(screen.getByRole("textbox", { name: "New node name" }), "Checkpoint");
     await user.click(screen.getByRole("button", { name: "Add node" }));
 
     const created = workflowStore.getState().workflow.nodes.find(
-      (node) => node.label === "Retry enrichment",
+      (node) => node.label === "Checkpoint",
     );
-    expect(created).toMatchObject({ type: "retry", properties: { attempts: 3 } });
+    expect(created).toMatchObject({ type: "node", properties: {} });
     expect(workflowStore.getState().selected).toEqual({ kind: "node", id: created?.id });
     expect(screen.getByRole("textbox", { name: "New node name" })).toHaveValue("");
     await waitFor(() => {
       expect(screen.getByTestId(`rf__node-${created?.id}`)).toHaveAttribute(
         "aria-label",
-        "Retry node: Retry enrichment",
+        "Node: Checkpoint",
       );
     });
   });
@@ -85,25 +89,24 @@ describe("accessible workflow review", () => {
   it("creates one concise receipt for the demo and exposes spot-check controls", async () => {
     const user = userEvent.setup();
     workflowStore.getState().apply(0, [
-      { type: "createNode", node: { id: "retry", type: "retry", label: "Retry", position: { x: 525, y: 245 }, properties: { attempts: 3 } } },
-      { type: "replaceConnection", edgeId: "edge-enrich-qualified", replacement: [
-        { id: "edge-enrich-retry", source: "enrich-company", sourcePort: "success", target: "retry", targetPort: "input" },
-        { id: "edge-retry-qualified", source: "retry", sourcePort: "success", target: "qualified-lead", targetPort: "input" },
-        { id: "edge-retry-review", source: "retry", sourcePort: "failure", target: "manual-review", targetPort: "input" },
+      { type: "createNode", node: { id: "notify-sales", type: "action", label: "Notify sales", position: { x: 900, y: 100 }, properties: {} } },
+      { type: "replaceConnection", edgeId: "edge-opportunity-end", replacement: [
+        { id: "edge-opportunity-notify", source: "create-opportunity", sourcePort: "success", target: "notify-sales", targetPort: "input" },
+        { id: "edge-notify-complete", source: "notify-sales", sourcePort: "success", target: "complete", targetPort: "input" },
       ] },
-    ], "Add Retry");
+    ], "Add Notify sales");
     render(<App />);
-    expect(screen.getByRole("status")).toHaveTextContent("Created Retry and changed 4 connections");
+    expect(screen.getByRole("status")).toHaveTextContent("Created Notify sales and changed 3 connections");
     expect(screen.getByRole("heading", { name: "Most recent change" })).toBeInTheDocument();
-    const receiptHeading = screen.getByRole("heading", { name: "Created Retry and changed 4 connections. Workflow validation passed." });
+    const receiptHeading = screen.getByRole("heading", { name: "Created Notify sales and changed 3 connections. Workflow validation passed." });
     expect(receiptHeading).toBeInTheDocument();
     const receipt = within(receiptHeading.closest("article")!);
     expect(receipt.queryByText("Agent intent", { exact: false })).not.toBeInTheDocument();
     expect(receipt.queryByText("Exact changes")).not.toBeInTheDocument();
     expect(receipt.getByRole("button", { name: "Mark reviewed" })).toBeInTheDocument();
     expect(receipt.getByRole("button", { name: "Undo" })).toBeInTheDocument();
-    await user.click(receipt.getByRole("button", { name: "Reveal Retry" }));
-    expect(workflowStore.getState().selected).toEqual({ kind: "node", id: "retry" });
+    await user.click(receipt.getByRole("button", { name: "Reveal Notify sales" }));
+    expect(workflowStore.getState().selected).toEqual({ kind: "node", id: "notify-sales" });
   });
 
   it("shows validation errors and removed objects without dead reveal controls", () => {
@@ -117,9 +120,8 @@ describe("accessible workflow review", () => {
     const receipt = createReceipt({ before, after, validation: validateWorkflow(after), intent: "Remove completion" });
     workflowStore.setState({ workflow: after, history: [receipt] });
     render(<App />);
-    const receiptHeading = screen.getByRole("heading", { name: "Changed 1 node and changed 2 connections. Workflow validation has errors." });
+    const receiptHeading = screen.getByRole("heading", { name: "Changed 1 node and changed 2 connections. Workflow validation passed." });
     const receiptRegion = within(receiptHeading.closest("article")!);
-    expect(receiptRegion.getByText("Workflow must contain an End node.")).toBeInTheDocument();
     expect(receiptRegion.getByText("Deleted Complete")).toBeInTheDocument();
     expect(receiptRegion.queryByRole("button", { name: "Reveal Complete" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Review latest change" })).not.toBeInTheDocument();

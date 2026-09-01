@@ -8,15 +8,17 @@ import { surfaceSchemaDescriptor, workflowSurfaceSnapshot } from "./surfaceSnaps
 
 export function workflowSummary(state: WorkflowState) {
   const validation = validateWorkflow(state);
-  const exampleNode = state.nodes.find((node) => node.type !== "start") ?? state.nodes[0];
+  const incomingNodeIds = new Set(state.edges.map((edge) => edge.target));
+  const outgoingNodeIds = new Set(state.edges.map((edge) => edge.source));
+  const exampleNode = state.nodes.find((node) => incomingNodeIds.has(node.id)) ?? state.nodes[0];
   const surfaceSnapshot = workflowSurfaceSnapshot(state);
   return {
     schemaVersion: "1" as const,
     revision: state.revision,
     nodes: state.nodes.length,
     edges: state.edges.length,
-    entryPoints: state.nodes.filter((node) => node.type === "start").map(nodeReference),
-    terminalNodes: state.nodes.filter((node) => node.type === "end").map(nodeReference),
+    entryPoints: state.nodes.filter((node) => !incomingNodeIds.has(node.id)).map(nodeReference),
+    terminalNodes: state.nodes.filter((node) => !outgoingNodeIds.has(node.id)).map(nodeReference),
     validation,
     surfaceSchema: surfaceSchemaDescriptor,
     surfaceSnapshot,

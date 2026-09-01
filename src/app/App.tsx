@@ -8,7 +8,7 @@ import { registerWorkflowTools } from "../webmcp/registerTools";
 import { createToolHandlers } from "../webmcp/toolHandlers";
 import { parseWorkflowHash } from "./routes";
 
-const demoPrompt = "Inspect the lead qualification workflow. Add a Retry node with three attempts after Enrich company. Route Retry success to the condition labeled \"Qualified lead?\" and Retry failure to Manual review, then show me the edit result.";
+const demoPrompt = "Inspect the lead qualification workflow. Add an Action named Notify sales after Create CRM opportunity, reconnect it to Complete, then show me the edit result.";
 
 function WorkflowDemo() {
   const select = useWorkflowStore((state) => state.select);
@@ -51,7 +51,9 @@ function WorkflowDemo() {
           <p>
             This demo shows an agent editing the same workflow as the human interface while the
             application records an inspectable change receipt. The complete review flow is keyboard
-            accessible, and accessibility for screen reader users is a primary design goal.
+            accessible, and accessibility for screen reader users is a primary design goal. Flows use
+            just three types—Node, Action, and Condition—with entry and completion points inferred
+            from their connections.
           </p>
           <div className="demo-prompt">
             <div className="demo-prompt__heading">

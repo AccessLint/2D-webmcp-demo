@@ -3,21 +3,21 @@ import { expect, test } from "@playwright/test";
 test("selected nodes move and cancel selection with the documented keyboard commands", async ({ page }) => {
   await page.goto("/");
 
-  const startNode = page.getByRole("button", { name: "Start node: New lead submitted" });
-  await startNode.press("Enter");
-  await expect(startNode).toHaveClass(/selected/);
+  const entryNode = page.getByRole("button", { name: "Node: New lead submitted" });
+  await entryNode.press("Enter");
+  await expect(entryNode).toHaveClass(/selected/);
 
-  await startNode.press("ArrowRight");
+  await entryNode.press("ArrowRight");
 
-  await expect(startNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 45, 220)");
+  await expect(entryNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 45, 220)");
   await expect(page.locator("#react-flow__aria-live-1")).toHaveText("Moved selected node right.");
 
   await page.reload();
-  await expect(startNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 45, 220)");
-  await expect(startNode).toHaveClass(/selected/);
+  await expect(entryNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 45, 220)");
+  await expect(entryNode).toHaveClass(/selected/);
 
-  await startNode.press("Escape");
-  await expect(startNode).not.toHaveClass(/selected/);
+  await entryNode.press("Escape");
+  await expect(entryNode).not.toHaveClass(/selected/);
 });
 
 test("connections use named keyboard controls instead of focusable SVG edges", async ({ page }) => {
@@ -51,22 +51,22 @@ test("connections use named keyboard controls instead of focusable SVG edges", a
 test("node selection is exposed as accessibility state", async ({ page }) => {
   await page.goto("/");
 
-  const startNode = page.getByRole("button", { name: "Start node: New lead submitted" });
-  const descriptionId = await startNode.getAttribute("aria-describedby");
+  const entryNode = page.getByRole("button", { name: "Node: New lead submitted" });
+  const descriptionId = await entryNode.getAttribute("aria-describedby");
   expect(descriptionId).toBeTruthy();
   await expect(page.locator(`#${descriptionId}`)).toContainText("toggle selection");
 
-  await startNode.click();
-  await expect(startNode).toHaveAttribute("aria-pressed", "true");
+  await entryNode.click();
+  await expect(entryNode).toHaveAttribute("aria-pressed", "true");
 
-  await startNode.press("Space");
-  await expect(startNode).toHaveAttribute("aria-pressed", "false");
+  await entryNode.press("Space");
+  await expect(entryNode).toHaveAttribute("aria-pressed", "false");
 
-  await startNode.press("Enter");
-  await expect(startNode).toHaveAttribute("aria-pressed", "true");
+  await entryNode.press("Enter");
+  await expect(entryNode).toHaveAttribute("aria-pressed", "true");
 
-  await startNode.press("Escape");
-  await expect(startNode).toHaveAttribute("aria-pressed", "false");
+  await entryNode.press("Escape");
+  await expect(entryNode).toHaveAttribute("aria-pressed", "false");
 
   const reviewNode = page.getByRole("button", { name: "Action node: Manual review" });
   await reviewNode.press("Enter");

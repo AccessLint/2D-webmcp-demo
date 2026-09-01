@@ -3,19 +3,30 @@ import { createSeedWorkflow } from "../src/graph/seedWorkflow";
 import { validateWorkflow } from "../src/graph/validation";
 
 describe("workflow validation", () => {
-  it("reports the unreachable manual-review path as a warning with a stable reference", () => {
+  it("treats nodes without incoming or outgoing connections as implicit boundaries", () => {
     const validation = validateWorkflow(createSeedWorkflow());
     expect(validation.valid).toBe(true);
-    expect(validation.problems).toContainEqual(expect.objectContaining({
-      code: "UNREACHABLE_NODE", severity: "warning", target: expect.objectContaining({ id: "manual-review", href: "#inspect-node-manual-review" }),
-    }));
+    expect(validation.problems).toEqual([]);
   });
 
-  it("reports a Retry without a failure destination", () => {
+  it("infers entry and terminal nodes from connections", () => {
     const workflow = createSeedWorkflow();
-    workflow.nodes.push({ id: "retry", type: "retry", label: "Retry", position: { x: 0, y: 0 }, properties: { attempts: 3 } });
-    workflow.edges.push({ id: "to-retry", source: "enrich-company", sourcePort: "success", target: "retry", targetPort: "input" });
-    expect(validateWorkflow(workflow).problems).toContainEqual(expect.objectContaining({ code: "UNCONNECTED_FAILURE_PORT", message: "Retry has no failure destination." }));
+    workflow.nodes = workflow.nodes.filter((node) => node.id !== "new-lead" && node.id !== "complete");
+    workflow.edges = workflow.edges.filter((edge) => edge.source !== "new-lead" && edge.target !== "complete");
+    expect(validateWorkflow(workflow)).toMatchObject({ valid: true });
+    expect(validateWorkflow(workflow).problems).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "MISSING_START" }),
+      expect.objectContaining({ code: "MISSING_END" }),
+    ]));
+  });
+
+  it("still reports a missing required branch on a connected condition", () => {
+    const workflow = createSeedWorkflow();
+    workflow.edges = workflow.edges.filter((edge) => edge.id !== "edge-qualified-nurture");
+    expect(validateWorkflow(workflow).problems).toContainEqual(expect.objectContaining({
+      code: "UNCONNECTED_REQUIRED_OUTPUT",
+      message: "Qualified lead? has no no destination.",
+    }));
   });
 
   it("treats missing endpoints and cycles as fatal", () => {

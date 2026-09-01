@@ -27,27 +27,27 @@ test("canvas refits after becoming measurable", async ({ page }) => {
 test("nodes can be added and renamed from the editing panel", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByRole("combobox", { name: "Node type" }).selectOption("retry");
-  await page.getByRole("textbox", { name: "New node name" }).fill("Retry enrichment");
+  await page.getByRole("combobox", { name: "Node type" }).selectOption("node");
+  await page.getByRole("textbox", { name: "New node name" }).fill("Checkpoint");
   await page.getByRole("button", { name: "Add node" }).click();
 
-  const createdNode = page.getByRole("button", { name: "Retry node: Retry enrichment" });
+  const createdNode = page.getByRole("button", { name: "Node: Checkpoint" });
   await expect(createdNode).toBeVisible();
   await expect(createdNode).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("status")).toContainText("Created Retry enrichment");
+  await expect(page.getByRole("status")).toContainText("Created Checkpoint");
 
   const renameInput = page.getByRole("textbox", { name: "Selected node name" });
-  await expect(renameInput).toHaveValue("Retry enrichment");
-  await renameInput.fill("Retry company lookup");
+  await expect(renameInput).toHaveValue("Checkpoint");
+  await renameInput.fill("Approval checkpoint");
   await page.getByRole("button", { name: "Rename node" }).click();
 
-  await expect(page.getByRole("button", { name: "Retry node: Retry company lookup" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Node: Approval checkpoint" })).toBeVisible();
   await expect(page.getByRole("status")).toContainText(
-    "Renamed Retry enrichment to Retry company lookup",
+    "Renamed Checkpoint to Approval checkpoint",
   );
 });
 
-test("Retry receipt can be focused, spot checked, and undone", async ({ page }) => {
+test("Action receipt can be focused, spot checked, and undone", async ({ page }) => {
   await page.addInitScript(() => {
     const tools: Record<string, { execute: (input: unknown) => unknown }> = {};
     Object.defineProperty(document, "modelContext", { configurable: true, value: { registerTool(tool: { name: string; execute: (input: unknown) => unknown }) { tools[tool.name] = tool; } } });
@@ -63,13 +63,12 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
     const receipt = tools.edit_workflow.execute({
       baseRevision: 0,
-      intent: "Add Retry",
+      intent: "Add Notify sales",
       commands: [
-        { type: "createNode", node: { id: "retry", type: "retry", label: "Retry", position: { x: 525, y: 245 }, properties: { attempts: 3 } } },
-        { type: "replaceConnection", edgeId: "edge-enrich-qualified", replacement: [
-          { id: "edge-enrich-retry", source: "enrich-company", sourcePort: "success", target: "retry", targetPort: "input" },
-          { id: "edge-retry-qualified", source: "retry", sourcePort: "success", target: "qualified-lead", targetPort: "input" },
-          { id: "edge-retry-review", source: "retry", sourcePort: "failure", target: "manual-review", targetPort: "input" },
+        { type: "createNode", node: { id: "notify-sales", type: "action", label: "Notify sales", position: { x: 900, y: 100 }, properties: {} } },
+        { type: "replaceConnection", edgeId: "edge-opportunity-end", replacement: [
+          { id: "edge-opportunity-notify", source: "create-opportunity", sourcePort: "success", target: "notify-sales", targetPort: "input" },
+          { id: "edge-notify-complete", source: "notify-sales", sourcePort: "success", target: "complete", targetPort: "input" },
         ] },
       ],
     }) as { operationId: string };
@@ -77,27 +76,27 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
     if (!focusResult.visible) throw new Error("Change entry was not visible after focus.");
     return receipt.operationId;
   });
-  await expect(page.getByRole("status")).toContainText("Created Retry and changed 4 connections");
-  const receiptHeading = page.getByRole("heading", { name: "Created Retry and changed 4 connections. Workflow validation passed." });
+  await expect(page.getByRole("status")).toContainText("Created Notify sales and changed 3 connections");
+  const receiptHeading = page.getByRole("heading", { name: "Created Notify sales and changed 3 connections. Workflow validation passed." });
   await expect(receiptHeading).toBeVisible();
   await expect(receiptHeading).toBeFocused();
   const receiptBox = await receiptHeading.locator("..").evaluate((element) => element.getBoundingClientRect().toJSON());
   expect(receiptBox.bottom).toBeGreaterThan(0);
   expect(receiptBox.top).toBeLessThan(viewport.height);
   const receipt = receiptHeading.locator("..");
-  const retryNode = page.getByTestId("rf__node-retry");
-  await expect(retryNode).not.toHaveClass(/selected/);
+  const notifyNode = page.getByTestId("rf__node-notify-sales");
+  await expect(notifyNode).not.toHaveClass(/selected/);
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    const focusResult = await tools.focus_page_element.execute({ selector: "[data-id='retry']" }) as { queued: boolean; focusWhen: string };
-    if (!focusResult.queued || focusResult.focusWhen !== "window-focus-or-accessibility-interaction") throw new Error("Retry node focus was not queued.");
+    const focusResult = await tools.focus_page_element.execute({ selector: "[data-id='notify-sales']" }) as { queued: boolean; focusWhen: string };
+    if (!focusResult.queued || focusResult.focusWhen !== "window-focus-or-accessibility-interaction") throw new Error("Notify sales focus was not queued.");
   });
-  await expect(retryNode).not.toHaveClass(/selected/);
-  await expect(retryNode).not.toBeFocused();
+  await expect(notifyNode).not.toHaveClass(/selected/);
+  await expect(notifyNode).not.toBeFocused();
   await page.keyboard.press("ArrowDown");
-  await expect(retryNode).toBeFocused();
+  await expect(notifyNode).toBeFocused();
   await page.waitForTimeout(400);
-  await expect(retryNode).toBeFocused();
+  await expect(notifyNode).toBeFocused();
   await page.evaluate(() => {
     window.dispatchEvent(new FocusEvent("blur"));
     (document.activeElement as HTMLElement | null)?.blur();
@@ -105,13 +104,13 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
     document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     queueMicrotask(() => document.querySelector<HTMLElement>("a[href='#workspace']")?.focus());
   });
-  await expect(retryNode).toBeFocused();
+  await expect(notifyNode).toBeFocused();
   await page.evaluate(() => {
     window.dispatchEvent(new FocusEvent("blur"));
     (document.activeElement as HTMLElement | null)?.blur();
     window.dispatchEvent(new FocusEvent("focus"));
   });
-  await expect(retryNode).not.toBeFocused();
+  await expect(notifyNode).not.toBeFocused();
   const qualifiedNode = page.getByTestId("rf__node-qualified-lead");
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
@@ -132,7 +131,7 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
   });
   await page.keyboard.press("ArrowRight");
   await expect(qualifiedNode).toBeFocused();
-  await expect(retryNode).not.toBeFocused();
+  await expect(notifyNode).not.toBeFocused();
   await expect(receipt).not.toContainText("Agent intent");
   await expect(receipt).not.toContainText("Exact changes");
   await expect(receipt).not.toContainText("Revision 0");
@@ -140,5 +139,5 @@ test("Retry receipt can be focused, spot checked, and undone", async ({ page }) 
   await expect(page.getByRole("status")).toContainText("Undid the previous workflow change");
   await expect(page.getByRole("heading", { name: /Undid the previous workflow change/ })).toBeFocused();
   await expect(receiptHeading).toHaveCount(0);
-  await expect(page.getByTestId("rf__node-retry")).toHaveCount(0);
+  await expect(page.getByTestId("rf__node-notify-sales")).toHaveCount(0);
 });

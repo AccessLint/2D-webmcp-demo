@@ -33,8 +33,8 @@ const metrics: Array<{
   },
   {
     label: "Edit and show evidence",
-    description: "The agent completed the Retry edit and surfaced its receipt",
-    getScore: (run) => run.journeys.retryJourney,
+    description: "The agent completed the legacy complex edit and surfaced its receipt",
+    getScore: (run) => run.journeys.complexEditJourney,
   },
 ];
 
@@ -171,8 +171,8 @@ export function EvalResultsPage() {
             })}
           </div>
           <p className="eval-note">
-            All comparisons use the same unchanged fixture, <code>{latest.fixture}</code>. The application and
-            registered tool guidance changed; the evaluation tasks and expected calls did not.
+            These recorded comparisons used the fixture version current at the time. The active fixture at
+            <code>{latest.fixture}</code> now reflects the simplified Node, Action, and Condition model and needs a fresh run.
           </p>
         </section>
 
@@ -188,9 +188,9 @@ export function EvalResultsPage() {
             {metrics.map((metric) => <TrendMetric key={metric.label} {...metric} />)}
           </div>
           <p className="eval-note">
-            <strong>Complex edit detail:</strong> the Retry edit itself rose from {evalRuns[0].retryEdit.passed}/10
-            to {latest.retryEdit.passed}/10 successful attempts, and visible receipt evidence rose from
-            {` ${evalRuns[0].journeys.retryJourney.passed}/10 to ${latest.journeys.retryJourney.passed}/10`}.
+            <strong>Legacy complex-edit detail:</strong> completion rose from {evalRuns[0].complexEdit.passed}/10
+            to {latest.complexEdit.passed}/10 successful attempts, and visible receipt evidence rose from
+            {` ${evalRuns[0].journeys.complexEditJourney.passed}/10 to ${latest.journeys.complexEditJourney.passed}/10`}.
           </p>
           <p className="eval-note">
             <strong>Exact-call score:</strong> {evalRuns[0].strictSteps.passed}/{evalRuns[0].strictSteps.total}

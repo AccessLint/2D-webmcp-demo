@@ -6,11 +6,11 @@ The live application exposed eight WebMCP tools to Chrome. The evaluation suite 
 
 1. Discover the workflow.
 2. Inspect the relationships around **Enrich company**.
-3. Add and wire a three-attempt **Retry** node, then surface the edit evidence.
+3. Complete a complex branch edit using a node type that has since been retired, then surface the edit evidence.
 4. Move keyboard focus to the named **Zoom In** target.
 5. Reveal the **Enrich company** node on the canvas.
 
-The model-backed run used `openai:gpt-5-mini`, the Vercel backend, stable Chrome, 10 runs per case, and the test definitions in `evals/webmcp-evals.json`.
+The model-backed run used `openai:gpt-5-mini`, the Vercel backend, stable Chrome, and 10 runs per case. It predates the simplified Node, Action, and Condition model; the active `evals/webmcp-evals.json` fixture now uses an Action insertion and has not yet been rerun.
 
 ## Results currently available
 
@@ -36,7 +36,7 @@ Per-case report totals:
 | --- | ---: |
 | Discover the workflow | 10/37 |
 | Inspect Enrich company relationships | 13/21 |
-| Add and wire Retry | 10/152 |
+| Legacy complex branch edit | 10/152 |
 | Focus Zoom In | 10/28 |
 | Reveal Enrich company | 18/23 |
 
@@ -48,7 +48,7 @@ The aggregate 23.4% figure should not be presented as an end-to-end task success
 
 - The inspect journey followed the intended `discover_workflow → inspect_workflow_items` chain in 9 of 10 runs.
 - The reveal journey followed the intended `discover_workflow → show_workflow_item` chain in 7 of 10 runs.
-- The complex Retry edit did not complete successfully. The model repeatedly generated unsupported command shapes and received structured `INVALID_INPUT` responses. One run created the Retry node but failed to complete its connections.
+- The legacy complex edit did not complete successfully. The model repeatedly generated unsupported command shapes and received structured `INVALID_INPUT` responses. One run created the node but failed to complete its connections.
 
 This baseline therefore demonstrates two things: the live tools execute reliably with valid inputs, and the current tool contract still needs improvement before a small model can reliably author the complex edit.
 

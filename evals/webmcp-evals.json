@@ -43,12 +43,12 @@
     ]
   },
   {
-    "name": "Add a Retry branch and surface the edit evidence",
+    "name": "Insert an Action and surface the edit evidence",
     "messages": [
       {
         "role": "user",
         "type": "message",
-        "content": "Inspect the lead qualification workflow. Add a Retry node with three attempts after Enrich company. Route Retry success to the condition labeled \"Qualified lead?\" and Retry failure to Manual review, then show me the edit result."
+        "content": "Inspect the lead qualification workflow. Add an Action named Notify sales after Create CRM opportunity, reconnect it to Complete, then show me the edit result."
       }
     ],
     "expectedCall": [
@@ -64,9 +64,9 @@
             {
               "type": "createNode",
               "node": {
-                "id": "retry",
-                "type": "retry",
-                "label": "Retry",
+                "id": "notify-sales",
+                "type": "action",
+                "label": "Notify sales",
                 "position": {
                   "x": {
                     "$type": "number"
@@ -75,34 +75,25 @@
                     "$type": "number"
                   }
                 },
-                "properties": {
-                  "attempts": 3
-                }
+                "properties": {}
               }
             },
             {
               "type": "replaceConnection",
-              "edgeId": "edge-enrich-qualified",
+              "edgeId": "edge-opportunity-end",
               "replacement": [
                 {
-                  "id": "edge-enrich-retry",
-                  "source": "enrich-company",
+                  "id": "edge-opportunity-notify",
+                  "source": "create-opportunity",
                   "sourcePort": "success",
-                  "target": "retry",
+                  "target": "notify-sales",
                   "targetPort": "input"
                 },
                 {
-                  "id": "edge-retry-qualified",
-                  "source": "retry",
+                  "id": "edge-notify-complete",
+                  "source": "notify-sales",
                   "sourcePort": "success",
-                  "target": "qualified-lead",
-                  "targetPort": "input"
-                },
-                {
-                  "id": "edge-retry-review",
-                  "source": "retry",
-                  "sourcePort": "failure",
-                  "target": "manual-review",
+                  "target": "complete",
                   "targetPort": "input"
                 }
               ]

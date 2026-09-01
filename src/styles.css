@@ -39,7 +39,7 @@ main { padding: 24px; }
 .react-flow__node:focus-visible { outline: none; }
 .react-flow__node:focus-visible .flow-node { outline: 3px solid var(--lime); outline-offset: 4px; }
 .flow-node.is-selected { border-color: var(--lime); box-shadow: 0 0 0 2px rgba(201,255,115,.15), 0 12px 30px rgba(0,0,0,.3); }
-.flow-node--retry { background: #213020; border-color: #789050; }
+.flow-node--node { background: #213020; border-color: #789050; }
 .flow-node__type { color: var(--lime); text-transform: uppercase; letter-spacing: .12em; font: 500 .55rem DM Mono, monospace; }
 .flow-node__meta { color: var(--muted); font-size: .66rem; }
 .react-flow__handle { width: 9px; height: 9px; background: var(--lime); border: 2px solid #14212b; }
