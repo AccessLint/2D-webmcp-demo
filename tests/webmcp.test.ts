@@ -4,11 +4,11 @@ import { registerWorkflowTools } from "../src/webmcp/registerTools";
 import { createToolHandlers } from "../src/webmcp/toolHandlers";
 import { createSalesWorkflow } from "./fixtures/salesWorkflow";
 
-const createPopulatedStore = () => createWorkflowStore(createSalesWorkflow());
+const createSalesWorkflowStore = () => createWorkflowStore(createSalesWorkflow());
 
 describe("WebMCP tool boundary", () => {
   it("reads, edits, retrieves, focuses, reveals, and undoes through application state", async () => {
-    const store = createPopulatedStore();
+    const store = createSalesWorkflowStore();
     let focusedOperationId: string | null = null;
     let focusedNodeId: string | null = null;
     let focusedSelector: string | null = null;
@@ -124,7 +124,7 @@ describe("WebMCP tool boundary", () => {
   });
 
   it("returns application evidence for a stale edit without changing the graph", () => {
-    const store = createPopulatedStore();
+    const store = createWorkflowStore();
     const tools = createToolHandlers(store);
     const receipt = tools.edit_workflow({ baseRevision: 4, commands: [{ type: "deleteNode", id: "enrich-company" }] });
     expect(receipt).toMatchObject({
@@ -137,7 +137,7 @@ describe("WebMCP tool boundary", () => {
   });
 
   it("accepts a discovered SurfaceSnapshot label when editing a node", () => {
-    const store = createPopulatedStore();
+    const store = createSalesWorkflowStore();
     const tools = createToolHandlers(store);
 
     const receipt = tools.edit_workflow({
@@ -154,7 +154,7 @@ describe("WebMCP tool boundary", () => {
   });
 
   it("defaults omitted properties when creating a node", () => {
-    const store = createPopulatedStore();
+    const store = createWorkflowStore();
     const tools = createToolHandlers(store);
 
     const receipt = tools.edit_workflow({
@@ -206,7 +206,7 @@ describe("WebMCP tool boundary", () => {
   });
 
   it("publishes runtime schemas and returns structured recovery errors", async () => {
-    const store = createPopulatedStore();
+    const store = createSalesWorkflowStore();
     const observedInvocations: unknown[] = [];
     const observeInvocation = (event: Event) => observedInvocations.push((event as CustomEvent).detail);
     window.addEventListener("webmcp:invocation", observeInvocation);
@@ -472,7 +472,7 @@ describe("WebMCP tool boundary", () => {
   });
 
   it("compacts oversized inspection results without dropping the requested item", () => {
-    const store = createPopulatedStore();
+    const store = createSalesWorkflowStore();
     store.getState().apply(0, [{
       type: "updateNode",
       id: "enrich-company",
@@ -520,7 +520,7 @@ describe("WebMCP tool boundary", () => {
   });
 
   it("pages compact receipt changes and validation problems without losing details", () => {
-    const store = createPopulatedStore();
+    const store = createSalesWorkflowStore();
     const registered = new Map<string, WebMCPTool>();
     const modelContext = Object.assign(new EventTarget(), {
       registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
@@ -643,7 +643,7 @@ describe("WebMCP tool boundary", () => {
   });
 
   it("reports a non-retryable undo after a later edit", () => {
-    const store = createPopulatedStore();
+    const store = createSalesWorkflowStore();
     const first = store.getState().apply(0, [{ type: "updateNode", id: "enrich-company", patch: { label: "Enrich account" } }]);
     store.getState().apply(1, [{ type: "updateNode", id: "create-opportunity", patch: { label: "Create opportunity" } }]);
     const registered = new Map<string, WebMCPTool>();
