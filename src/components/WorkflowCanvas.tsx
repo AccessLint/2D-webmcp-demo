@@ -205,13 +205,13 @@ export function WorkflowCanvas() {
   const apply = useWorkflowStore((state) => state.apply);
   const clear = useWorkflowStore((state) => state.clear);
   const select = useWorkflowStore((state) => state.select);
+  const reportStatus = useWorkflowStore((state) => state.reportStatus);
   const reportError = useWorkflowStore((state) => state.reportError);
   const flow = useRef<ReactFlowInstance<WorkflowFlowNode, Edge> | null>(null);
   const shell = useRef<HTMLDivElement | null>(null);
   const fitFrame = useRef<number | null>(null);
   const activeNodeId = useRef<string | null>(null);
   const [connectionSourceId, setConnectionSourceId] = useState<string | null>(null);
-  const [connectionMessage, setConnectionMessage] = useState("");
   const treeRows = useMemo(
     () => treeGridRows(workflow.nodes, workflow.edges),
     [workflow.edges, workflow.nodes],
@@ -361,7 +361,7 @@ export function WorkflowCanvas() {
         return;
       }
       setConnectionSourceId(node.id);
-      setConnectionMessage(
+      reportStatus(
         `Connection from ${node.label} started. Move to another node and press Control+C or Command+C to connect. Press Escape to cancel.`,
       );
       return;
@@ -388,8 +388,8 @@ export function WorkflowCanvas() {
     }], `Connect ${source.label} to ${node.label}`);
     if (receipt.status !== "completed") return;
     setConnectionSourceId(null);
-    setConnectionMessage(`Connected ${source.label} to ${node.label}.`);
-  }, [apply, connectionSourceId, reportError, workflow.nodes, workflow.revision]);
+    reportStatus(`Connected ${source.label} to ${node.label}.`);
+  }, [apply, connectionSourceId, reportError, reportStatus, workflow.nodes, workflow.revision]);
 
   const onConnect = (connection: Connection) => runCanvasChange(() => {
     apply(workflow.revision, [{
@@ -521,9 +521,6 @@ export function WorkflowCanvas() {
           Press Escape to cancel a connection or clear selection. Use the Workflow connections
           region to review and select connections.
         </p>
-        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-          {connectionMessage}
-        </div>
         <ReactFlow
           ref={configureTreeGrid}
           nodes={nodes}
@@ -573,7 +570,7 @@ export function WorkflowCanvas() {
               event.preventDefault();
               event.stopPropagation();
               setConnectionSourceId(null);
-              setConnectionMessage("Connection canceled.");
+              reportStatus("Connection canceled.");
               return;
             }
             if (event.key !== "Enter" && event.key !== " ") return;

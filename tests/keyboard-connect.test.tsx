@@ -25,7 +25,12 @@ describe("keyboard node connections", () => {
 
   it("connects the focused source and destination with the modifier+C shortcut", async () => {
     const user = userEvent.setup();
-    render(<WorkflowCanvas />);
+    render(
+      <>
+        <LiveStatus />
+        <WorkflowCanvas />
+      </>,
+    );
 
     const source = screen.getByTestId("rf__node-source");
     const target = screen.getByTestId("rf__node-target");
@@ -63,7 +68,12 @@ describe("keyboard node connections", () => {
 
   it("cancels a pending connection with Escape", async () => {
     const user = userEvent.setup();
-    render(<WorkflowCanvas />);
+    render(
+      <>
+        <LiveStatus />
+        <WorkflowCanvas />
+      </>,
+    );
 
     const source = screen.getByTestId("rf__node-source");
     source.focus();
