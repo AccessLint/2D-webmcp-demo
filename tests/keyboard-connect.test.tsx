@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
+import { ChangeHistory } from "../src/components/ChangeHistory";
 import { LiveStatus } from "../src/components/LiveStatus";
 import { WorkflowCanvas } from "../src/components/WorkflowCanvas";
 import { workflowStore } from "../src/state/workflowStore";
@@ -180,6 +181,52 @@ describe("keyboard node connections", () => {
     await user.keyboard("{Control>}c{/Control}{Enter}");
     await waitFor(() => expect(source).toHaveAttribute("aria-selected", "true"));
     await user.keyboard("{Delete}");
+    await waitFor(() => expect(screen.queryByTestId("rf__node-source")).not.toBeInTheDocument());
+
+    const target = screen.getByTestId("rf__node-target");
+    target.focus();
+    await user.keyboard("{Control>}c{/Control}");
+
+    expect(target).toHaveAttribute(
+      "aria-label",
+      expect.stringContaining("connection source using success output"),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Connection from Target started using its success output.",
+    );
+  });
+
+  it("clears the pending mode if undo removes the source", async () => {
+    workflowStore.setState({
+      workflow: {
+        revision: 0,
+        nodes: [
+          { id: "target", type: "action", label: "Target", position: { x: 240, y: 0 }, properties: {} },
+        ],
+        edges: [],
+      },
+      history: [],
+      snapshots: [],
+      selected: null,
+      connectionSource: null,
+    });
+    workflowStore.getState().apply(0, [{
+      type: "createNode",
+      node: { id: "source", type: "node", label: "Source", position: { x: 0, y: 0 }, properties: {} },
+    }], "Add Source");
+    const user = userEvent.setup();
+    render(
+      <>
+        <LiveStatus />
+        <WorkflowCanvas />
+        <ChangeHistory />
+      </>,
+    );
+
+    const source = screen.getByTestId("rf__node-source");
+    source.focus();
+    await user.keyboard("{Control>}c{/Control}");
+    await user.click(screen.getByRole("button", { name: "Undo" }));
     await waitFor(() => expect(screen.queryByTestId("rf__node-source")).not.toBeInTheDocument());
 
     const target = screen.getByTestId("rf__node-target");

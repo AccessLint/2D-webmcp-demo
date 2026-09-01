@@ -2,6 +2,7 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
 import { executeBatch, type WorkflowCommand } from "../graph/commands";
 import type { WorkflowState } from "../graph/model";
+import { nodeDefinitions } from "../graph/nodeTypes";
 import { validateWorkflow } from "../graph/validation";
 import { createReceipt } from "../receipts/createReceipt";
 import type { ChangeReceipt } from "../receipts/schema";
@@ -63,6 +64,15 @@ export const createEmptyWorkflow = (): WorkflowState => ({
   nodes: [],
   edges: [],
 });
+
+function reconcileConnectionSource(
+  workflow: WorkflowState,
+  source: WorkflowConnectionSource | null,
+): WorkflowConnectionSource | null {
+  if (!source) return null;
+  const node = workflow.nodes.find((item) => item.id === source.nodeId);
+  return node && nodeDefinitions[node.type].outputs.includes(source.port) ? source : null;
+}
 
 function createInitialState(workflow: WorkflowState) {
   return {
@@ -145,10 +155,7 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
             resultingRevision: result.state.revision,
           },
         ],
-        connectionSource: current.connectionSource
-          && result.state.nodes.some((node) => node.id === current.connectionSource?.nodeId)
-          ? current.connectionSource
-          : null,
+        connectionSource: reconcileConnectionSource(result.state, current.connectionSource),
         politeMessage: receipt.summary,
         assertiveMessage: "",
       }));
@@ -180,6 +187,7 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
             : item),
         ],
         snapshots: current.snapshots.filter((item) => item.operationId !== operationId),
+        connectionSource: reconcileConnectionSource(restored, current.connectionSource),
         politeMessage: receipt.summary,
       });
       return receipt;
