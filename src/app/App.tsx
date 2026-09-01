@@ -8,7 +8,7 @@ import { registerWorkflowTools } from "../webmcp/registerTools";
 import { createToolHandlers } from "../webmcp/toolHandlers";
 import { parseWorkflowHash } from "./routes";
 
-const demoPrompt = "We’ve had leads disappear whenever company enrichment is unavailable. Update the workflow so those leads are not lost and can be handled by the sales operations team. Show me what changed.";
+const demoPrompt = "Create a hospital patient lifecycle workflow, from arrival through follow-up. Include emergency and scheduled intake, triage, diagnostics, treatment, admission, transfers, discharge, deterioration, delays, and readmission risk. Ensure every branch reaches a meaningful outcome, then show and summarize the completed diagram.";
 
 function WorkflowDemo() {
   const select = useWorkflowStore((state) => state.select);
@@ -47,13 +47,11 @@ function WorkflowDemo() {
           <a href="/evals">Evaluation history</a>
         </nav>
         <header className="demo-intro">
-          <h1>Verifiable workflow editing with WebMCP</h1>
+          <h1>Hospital patient lifecycle</h1>
           <p>
-            This demo shows an agent editing the same workflow as the human interface while the
-            application records an inspectable change receipt. The complete review flow is keyboard
-            accessible, and accessibility for screen reader users is a primary design goal. Flows use
-            just three types—Node, Action, and Condition—with entry and completion points inferred
-            from their connections.
+            Follow a patient from scheduled or emergency arrival through assessment, treatment,
+            disposition, discharge, and final follow-up. Safety exceptions remain visible, clinical
+            judgment stays with people, and every branch ends in a documented care or administrative outcome.
           </p>
           <div className="demo-prompt">
             <div className="demo-prompt__heading">

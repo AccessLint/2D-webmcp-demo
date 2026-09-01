@@ -364,7 +364,7 @@ export function WorkflowCanvas() {
           edgesFocusable={false}
           deleteKeyCode={["Backspace", "Delete"]}
           fitView
-          minZoom={0.25}
+          minZoom={0.05}
           maxZoom={1.5}
           proOptions={{ hideAttribution: true }}
           onNodeClick={(_, node) => toggleNodeSelection(node.id)}

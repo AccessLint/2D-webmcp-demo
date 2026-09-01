@@ -7,14 +7,15 @@ describe("evaluation results", () => {
     render(<EvalResultsPage />);
 
     const breakdown = screen.getByRole("region", { name: "Score breakdown" });
-    expect(within(breakdown).getByText("Task completion")).toBeInTheDocument();
-    expect(within(breakdown).getByText("47/50")).toBeInTheDocument();
-    expect(within(breakdown).getByText("First-attempt edit validity")).toBeInTheDocument();
-    expect(within(breakdown).getByText("6/10")).toBeInTheDocument();
-    expect(within(breakdown).getByText("Visible edit evidence")).toBeInTheDocument();
-    expect(within(breakdown).getByText("10/10")).toBeInTheDocument();
-    expect(within(breakdown).getByText("69/173")).toBeInTheDocument();
+    const taskCompletion = within(breakdown).getByText("Task completion").closest("article")!;
+    expect(within(taskCompletion).getByText("94%")).toBeInTheDocument();
+    const editValidity = within(breakdown).getByText("First-attempt edit validity").closest("article")!;
+    expect(within(editValidity).getByText("60%")).toBeInTheDocument();
+    const visibleEvidence = within(breakdown).getByText("Visible edit evidence").closest("article")!;
+    expect(within(visibleEvidence).getByText("100%")).toBeInTheDocument();
+    const exactCalls = within(breakdown).getByText("Exact-call matching").closest("article")!;
+    expect(within(exactCalls).getByText("39.9%")).toBeInTheDocument();
     expect(within(breakdown).getByText(/needs a fresh run/i)).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("edit evidence reached 10/10");
+    expect(screen.getByRole("status")).toHaveTextContent("edit evidence reached 100%");
   });
 });

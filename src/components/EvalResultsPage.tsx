@@ -94,7 +94,7 @@ function TrendMetric({ label, description, getScore }: (typeof metrics)[number])
               <div className="eval-run-point__labels">
                 <span>{run.label}</span>
                 <span>
-                  {score.passed}/{score.total}
+                  {displayPercent(score)}
                   {evalRuns.length > 1 && ` · ${delta >= 0 ? "+" : ""}${delta.toFixed(1)} points`}
                 </span>
               </div>
@@ -143,7 +143,7 @@ export function EvalResultsPage() {
           </p>
           <div className="eval-status" role="status">
             <strong>End-to-end evidence improved.</strong> The complex edit evidence reached
-            {` ${latest.scoreBreakdown.visibleEditEvidence.passed}/${latest.scoreBreakdown.visibleEditEvidence.total}`},
+            {` ${displayPercent(latest.scoreBreakdown.visibleEditEvidence)}`},
             while exact-call matching is {displayPercent(latest.strictSteps)} because the agent made extra calls.
           </div>
         </header>
@@ -163,8 +163,8 @@ export function EvalResultsPage() {
               return (
                 <article className="eval-score-card" key={label}>
                   <p>{label}</p>
-                  <strong>{current.passed}/{current.total}</strong>
-                  <span>Baseline {baseline.passed}/{baseline.total}</span>
+                  <strong>{displayPercent(current)}</strong>
+                  <span>Baseline {displayPercent(baseline)}</span>
                   <small>{description}</small>
                 </article>
               );
@@ -188,14 +188,14 @@ export function EvalResultsPage() {
             {metrics.map((metric) => <TrendMetric key={metric.label} {...metric} />)}
           </div>
           <p className="eval-note">
-            <strong>Legacy complex-edit detail:</strong> completion rose from {evalRuns[0].complexEdit.passed}/10
-            to {latest.complexEdit.passed}/10 successful attempts, and visible receipt evidence rose from
-            {` ${evalRuns[0].journeys.complexEditJourney.passed}/10 to ${latest.journeys.complexEditJourney.passed}/10`}.
+            <strong>Legacy complex-edit detail:</strong> completion rose from {displayPercent(evalRuns[0].complexEdit)}
+            to {displayPercent(latest.complexEdit)} successful attempts, and visible receipt evidence rose from
+            {` ${displayPercent(evalRuns[0].journeys.complexEditJourney)} to ${displayPercent(latest.journeys.complexEditJourney)}`}.
           </p>
           <p className="eval-note">
-            <strong>Exact-call score:</strong> {evalRuns[0].strictSteps.passed}/{evalRuns[0].strictSteps.total}
-            ({displayPercent(evalRuns[0].strictSteps)}) → {latest.strictSteps.passed}/{latest.strictSteps.total}
-            ({displayPercent(latest.strictSteps)}). Extra or retried calls count against this diagnostic score,
+            <strong>Exact-call score:</strong> {displayPercent(evalRuns[0].strictSteps)} → {displayPercent(latest.strictSteps)}
+            ({evalRuns[0].strictSteps.passed} of {evalRuns[0].strictSteps.total} → {latest.strictSteps.passed} of {latest.strictSteps.total} comparisons).
+            Extra or retried calls count against this diagnostic score,
             so it is not the same as task completion.
           </p>
         </section>
@@ -205,7 +205,8 @@ export function EvalResultsPage() {
             <p className="eyebrow">Tool check</p>
             <h2 id="execution-heading">Are the tools themselves working?</h2>
             <p>
-              Yes. When called with valid inputs, all {smoke.passed}/{smoke.total} browser test steps passed.
+              Yes. When called with valid inputs, {displayPercent(smoke)} of browser test steps passed
+              ({smoke.passed} of {smoke.total}).
               This helps us tell the difference between a broken tool and an agent using a working tool incorrectly.
             </p>
           </div>

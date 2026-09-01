@@ -53,7 +53,13 @@ export type WorkflowStore = {
   logInvocation: (invocation: InvocationInput) => void;
 };
 
-const DEFAULT_SELECTION: WorkflowSelection = { kind: "node", id: "enrich-company" };
+const DEFAULT_SELECTION: WorkflowSelection = { kind: "node", id: "patient-arrives" };
+
+export const createEmptyWorkflow = (): WorkflowState => ({
+  revision: 0,
+  nodes: [],
+  edges: [],
+});
 
 function createInitialState(workflow: WorkflowState) {
   return {
@@ -61,7 +67,9 @@ function createInitialState(workflow: WorkflowState) {
     history: [],
     snapshots: [],
     reviewed: [],
-    selected: DEFAULT_SELECTION,
+    selected: workflow.nodes.some((node) => node.id === DEFAULT_SELECTION.id)
+      ? DEFAULT_SELECTION
+      : null,
     returnFocusId: null,
     focusRequest: 0,
     politeMessage: "",
@@ -106,7 +114,7 @@ function createFailedReceipt(
   };
 }
 
-export function createWorkflowStore(initial = createSeedWorkflow()): StoreApi<WorkflowStore> {
+export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<WorkflowStore> {
   return createStore<WorkflowStore>((set, get) => ({
     ...createInitialState(initial),
     apply: (baseRevision, commands, intent) => {
@@ -211,7 +219,7 @@ export function createWorkflowStore(initial = createSeedWorkflow()): StoreApi<Wo
       return receipt;
     },
     reset: () => set({
-      ...createInitialState(createSeedWorkflow()),
+      ...createInitialState(createEmptyWorkflow()),
       politeMessage: "Workflow reset.",
     }),
     logInvocation: (invocation) => {
@@ -224,7 +232,7 @@ export function createWorkflowStore(initial = createSeedWorkflow()): StoreApi<Wo
   }));
 }
 
-export const workflowStore = createWorkflowStore();
+export const workflowStore = createWorkflowStore(createSeedWorkflow());
 installSessionPersistence(workflowStore);
 
 export function useWorkflowStore<T>(selector: (state: WorkflowStore) => T): T {

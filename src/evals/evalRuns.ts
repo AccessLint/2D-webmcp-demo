@@ -113,6 +113,6 @@ export const evalRuns: EvalRun[] = [
     },
     complexEdit: { passed: 10, total: 10 },
     note:
-      "All 10 complex edits surfaced visible evidence. Extra discovery and inspection calls lowered exact-call efficiency, and three reveal requests stopped at inspection instead of changing the visible selection.",
+      "100% of complex edits surfaced visible evidence. Extra discovery and inspection calls lowered exact-call efficiency, and 30% of reveal requests stopped at inspection instead of changing the visible selection.",
   },
 ];

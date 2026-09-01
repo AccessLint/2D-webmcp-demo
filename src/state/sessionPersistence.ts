@@ -1,7 +1,7 @@
 import type { StoreApi } from "zustand/vanilla";
 import type { WorkflowStore } from "./workflowStore";
 
-const SESSION_KEY = "workflow-evidence-session-v2";
+const SESSION_KEY = "workflow-evidence-session-v6-empty-canvas";
 
 type PersistedWorkflowSession = Pick<
   WorkflowStore,
