@@ -31,7 +31,10 @@ type WorkflowFlowNode = Node<CardData>;
 function WorkflowCard({ data, selected }: NodeProps<WorkflowFlowNode>) {
   const definition = nodeDefinitions[data.kind];
   return (
-    <div className={`flow-node flow-node--${data.kind}${selected ? " is-selected" : ""}`}>
+    <div
+      className={`flow-node flow-node--${data.kind}${selected ? " is-selected" : ""}`}
+      role="gridcell"
+    >
       {definition.inputs.map((port, index) => (
         <Handle
           key={port}
@@ -60,7 +63,7 @@ function WorkflowCard({ data, selected }: NodeProps<WorkflowFlowNode>) {
 
 const nodeTypes = { workflow: WorkflowCard };
 const nodeKeyboardDescription =
-  "Press Enter or Space to toggle selection. Use the Arrow keys to move the node, or hold Shift with an Arrow key to move farther. Press Delete or Backspace to remove it and Escape to clear selection.";
+  "Use the Arrow keys to navigate between nodes. Press Enter or Space to toggle selection. Hold Alt with an Arrow key to move a selected node, or add Shift to move it farther. Press Delete or Backspace to remove it and Escape to clear selection.";
 const ariaLabelConfig = {
   "node.a11yDescription.default": nodeKeyboardDescription,
   "node.a11yDescription.keyboardDisabled": nodeKeyboardDescription,
@@ -86,7 +89,71 @@ function isNodeKind(value: string): value is NodeKind {
   return Object.prototype.hasOwnProperty.call(nodeDefinitions, value);
 }
 
-function toFlowNode(node: WorkflowNode, selected: WorkflowSelection | null): WorkflowFlowNode {
+type ArrowKey = "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight";
+
+const arrowKeys = new Set<ArrowKey>(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+
+function isArrowKey(key: string): key is ArrowKey {
+  return arrowKeys.has(key as ArrowKey);
+}
+
+type TreeGridRow = { node: WorkflowNode; level: number; parentId: string | null };
+
+function treeGridRows(nodes: WorkflowNode[], edges: WorkflowEdge[]): TreeGridRow[] {
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const incoming = new Set<string>();
+  const outgoing = new Map<string, string[]>();
+  for (const edge of edges) {
+    if (!nodesById.has(edge.source) || !nodesById.has(edge.target)) continue;
+    incoming.add(edge.target);
+    outgoing.set(edge.source, [...(outgoing.get(edge.source) ?? []), edge.target]);
+  }
+
+  const rows: TreeGridRow[] = [];
+  const visited = new Set<string>();
+  const visit = (node: WorkflowNode, level: number, parentId: string | null) => {
+    if (visited.has(node.id)) return;
+    visited.add(node.id);
+    rows.push({ node, level, parentId });
+    for (const childId of outgoing.get(node.id) ?? []) {
+      const child = nodesById.get(childId);
+      if (child) visit(child, level + 1, node.id);
+    }
+  };
+
+  for (const root of nodes.filter((node) => !incoming.has(node.id))) visit(root, 1, null);
+  for (const node of nodes) {
+    visit(node, 1, null);
+  }
+  return rows;
+}
+
+function treeGridDestination(
+  currentId: string,
+  rows: TreeGridRow[],
+  key: ArrowKey,
+): WorkflowNode | null {
+  const index = rows.findIndex(({ node }) => node.id === currentId);
+  if (index < 0) return null;
+  const current = rows[index];
+  if (key === "ArrowUp") return rows[index - 1]?.node ?? null;
+  if (key === "ArrowDown") return rows[index + 1]?.node ?? null;
+  if (key === "ArrowLeft") {
+    return current.parentId
+      ? rows.find(({ node }) => node.id === current.parentId)?.node ?? null
+      : null;
+  }
+  const firstChild = rows[index + 1];
+  return firstChild?.parentId === current.node.id ? firstChild.node : null;
+}
+
+function toFlowNode(
+  node: WorkflowNode,
+  selected: WorkflowSelection | null,
+  rovingNodeId: string | null,
+  level: number,
+  rowIndex: number,
+): WorkflowFlowNode {
   const isSelected = selected?.kind === "node" && selected.id === node.id;
   return {
     id: node.id,
@@ -98,8 +165,14 @@ function toFlowNode(node: WorkflowNode, selected: WorkflowSelection | null): Wor
     ariaLabel: node.type === "node"
       ? `Node: ${node.label}`
       : `${nodeDefinitions[node.type].title} node: ${node.label}`,
-    ariaRole: "button",
-    domAttributes: { "aria-pressed": isSelected },
+    ariaRole: "row",
+    domAttributes: {
+      "aria-level": level,
+      "aria-rowindex": rowIndex,
+      "aria-selected": isSelected,
+      "aria-roledescription": undefined,
+      tabIndex: node.id === rovingNodeId ? 0 : -1,
+    },
   };
 }
 
@@ -126,9 +199,21 @@ export function WorkflowCanvas() {
   const flow = useRef<ReactFlowInstance<WorkflowFlowNode, Edge> | null>(null);
   const shell = useRef<HTMLDivElement | null>(null);
   const fitFrame = useRef<number | null>(null);
+  const activeNodeId = useRef<string | null>(null);
+  const treeRows = useMemo(
+    () => treeGridRows(workflow.nodes, workflow.edges),
+    [workflow.edges, workflow.nodes],
+  );
+  const rovingNodeId = workflow.nodes.some((node) => node.id === activeNodeId.current)
+    ? activeNodeId.current
+    : selected?.kind === "node" && workflow.nodes.some((node) => node.id === selected.id)
+      ? selected.id
+      : treeRows[0]?.node.id ?? null;
   const nodes = useMemo(
-    () => workflow.nodes.map((node) => toFlowNode(node, selected)),
-    [workflow.nodes, selected],
+    () => treeRows.map(({ node, level }, index) => (
+      toFlowNode(node, selected, rovingNodeId, level, index + 1)
+    )),
+    [rovingNodeId, selected, treeRows],
   );
   const edges = useMemo(
     () => workflow.edges.map((edge) => toFlowEdge(edge, selected)),
@@ -195,6 +280,31 @@ export function WorkflowCanvas() {
       ? null
       : { kind: "node", id: nodeId });
   }, [select, selected]);
+
+  const setRovingNode = useCallback((nodeId: string, focus = false) => {
+    activeNodeId.current = nodeId;
+    const rows = Array.from(
+      shell.current?.querySelectorAll<HTMLElement>(".react-flow__node[data-id]") ?? [],
+    );
+    rows.forEach((row) => {
+      const isActive = row.dataset.id === nodeId;
+      row.tabIndex = isActive ? 0 : -1;
+    });
+    if (focus) rows.find((row) => row.dataset.id === nodeId)?.focus();
+  }, []);
+
+  const configureTreeGrid = useCallback((element: HTMLDivElement | null) => {
+    if (!element) return;
+    element.setAttribute("role", "group");
+    element.setAttribute("aria-label", "Workflow canvas controls");
+    const nodeRows = element.querySelector<HTMLElement>(".react-flow__nodes");
+    if (!nodeRows) return;
+    nodeRows.setAttribute("role", "treegrid");
+    nodeRows.setAttribute("aria-label", "Workflow canvas");
+    nodeRows.setAttribute("aria-describedby", "workflow-canvas-instructions");
+    nodeRows.setAttribute("aria-colcount", "1");
+    nodeRows.setAttribute("aria-rowcount", String(workflow.nodes.length));
+  }, [workflow.nodes.length]);
 
   const onNodesChange = useCallback((changes: NodeChange<WorkflowFlowNode>[]) => {
     const selectedNode = changes.find(
@@ -278,6 +388,7 @@ export function WorkflowCanvas() {
     }], `Add ${label}`);
     if (receipt.status !== "completed") return;
     form.reset();
+    activeNodeId.current = id;
     select({ kind: "node", id }, undefined, true);
   };
 
@@ -351,12 +462,13 @@ export function WorkflowCanvas() {
       </section>
       <div ref={shell} className="canvas-shell" aria-label="Visual workflow canvas">
         <p id="workflow-canvas-instructions" className="sr-only">
-          Tab to a node. Press Enter or Space to toggle its selection. Use the Arrow keys to move it.
-          Hold Shift with an Arrow key to move farther. Press Backspace to delete it.
-          Press Escape to clear selection. Use the Workflow connections region to review and
-          select connections.
+          Tab once into the workflow tree grid, then use the Arrow keys to navigate between nodes.
+          Press Enter or Space to toggle selection. Hold Alt with an Arrow key to move a selected
+          node, or add Shift to move it farther. Press Backspace to delete it. Press Escape to clear
+          selection. Use the Workflow connections region to review and select connections.
         </p>
         <ReactFlow
+          ref={configureTreeGrid}
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
@@ -367,14 +479,30 @@ export function WorkflowCanvas() {
           minZoom={0.05}
           maxZoom={1.5}
           proOptions={{ hideAttribution: true }}
-          onNodeClick={(_, node) => toggleNodeSelection(node.id)}
+          onNodeClick={(_, node) => {
+            setRovingNode(node.id);
+            toggleNodeSelection(node.id);
+          }}
+          onFocusCapture={(event) => {
+            const nodeId = (event.target as HTMLElement)
+              .closest<HTMLElement>(".react-flow__node[data-id]")
+              ?.dataset.id;
+            if (nodeId) setRovingNode(nodeId);
+          }}
           onKeyDownCapture={(event) => {
-            if (event.key !== "Enter" && event.key !== " ") return;
             const nodeElement = (event.target as HTMLElement).closest<HTMLElement>(
               ".react-flow__node[data-id]",
             );
             const nodeId = nodeElement?.dataset.id;
             if (!nodeId) return;
+            if (isArrowKey(event.key) && !event.altKey) {
+              event.preventDefault();
+              event.stopPropagation();
+              const nextNode = treeGridDestination(nodeId, treeRows, event.key);
+              if (nextNode) setRovingNode(nextNode.id, true);
+              return;
+            }
+            if (event.key !== "Enter" && event.key !== " ") return;
             event.preventDefault();
             event.stopPropagation();
             toggleNodeSelection(nodeId);

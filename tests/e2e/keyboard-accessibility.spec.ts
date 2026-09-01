@@ -1,5 +1,39 @@
 import { expect, test } from "@playwright/test";
 
+test("canvas nodes use treegrid semantics and roving arrow-key navigation", async ({ page }) => {
+  await page.goto("/");
+
+  const newNodeName = page.getByRole("textbox", { name: "New node name" });
+  await newNodeName.fill("Root");
+  await page.getByRole("button", { name: "Add node" }).click();
+  await newNodeName.fill("Next");
+  await page.getByRole("button", { name: "Add node" }).click();
+
+  const treegrid = page.getByRole("treegrid", { name: "Workflow canvas" });
+  const root = treegrid.getByRole("row", { name: "Action node: Root" });
+  const next = treegrid.getByRole("row", { name: "Action node: Next" });
+  await expect(treegrid).toHaveAttribute("aria-rowcount", "2");
+  await expect(treegrid.locator(".react-flow__node[tabindex='0']")).toHaveCount(1);
+  await expect(root.getByRole("gridcell")).toBeVisible();
+  await expect(root).toHaveAttribute("tabindex", "-1");
+  await expect(next).toHaveAttribute("tabindex", "0");
+
+  const initialTransform = await root.getAttribute("style");
+  await root.focus();
+  await root.press("ArrowDown");
+  await expect(next).toBeFocused();
+  await expect(root).toHaveAttribute("style", initialTransform ?? "");
+  await expect(root).toHaveAttribute("tabindex", "-1");
+  await expect(next).toHaveAttribute("tabindex", "0");
+
+  const nextTransform = await next.getAttribute("style");
+  await next.press("Alt+ArrowRight");
+  await expect(next).not.toHaveAttribute("style", nextTransform ?? "");
+
+  await next.press("Tab");
+  await expect(next).not.toBeFocused();
+});
+
 test("selected nodes move and cancel selection with the documented keyboard commands", async ({ page }) => {
   await page.goto("/");
 

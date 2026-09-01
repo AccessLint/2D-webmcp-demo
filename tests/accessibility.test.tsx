@@ -2,7 +2,6 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import App from "../src/app/App";
-import { nodeDefinitions } from "../src/graph/nodeTypes";
 import { validateWorkflow } from "../src/graph/validation";
 import { createReceipt } from "../src/receipts/createReceipt";
 import { workflowStore } from "../src/state/workflowStore";
@@ -18,25 +17,71 @@ describe("accessible workflow review", () => {
     expect(screen.getByText(/leads disappear whenever company enrichment is unavailable/)).toBeInTheDocument();
     expect(screen.getByText(/just three types—Node, Action, and Condition/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy prompt" })).toBeInTheDocument();
-    expect(screen.getByRole("application", { name: /Workflow canvas/ })).toBeInTheDocument();
+    expect(screen.getByRole("treegrid", { name: /Workflow canvas/ })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Workflow outline" })).not.toBeInTheDocument();
     const connections = screen.getByRole("region", { name: "Workflow connections" });
     expect(within(connections).getByRole("heading", { name: "Workflow connections" })).toBeInTheDocument();
     expect(within(connections).getAllByRole("button")).toHaveLength(6);
   });
 
-  it("exposes every workflow node in the keyboard tab order with an accessible name", async () => {
-    render(<App />);
-    await waitFor(() => {
-      for (const node of workflowStore.getState().workflow.nodes) {
-        const renderedNode = screen.getByTestId(`rf__node-${node.id}`);
-        expect(renderedNode).toHaveAttribute("tabindex", "0");
-        expect(renderedNode).toHaveAttribute(
-          "aria-label",
-          node.type === "node" ? `Node: ${node.label}` : `${nodeDefinitions[node.type].title} node: ${node.label}`,
-        );
-      }
+  it("exposes canvas nodes as a treegrid with one tab stop and tree arrow navigation", async () => {
+    workflowStore.setState({
+      workflow: {
+        revision: 0,
+        nodes: [
+          { id: "root", type: "node", label: "Root", position: { x: 0, y: 0 }, properties: {} },
+          { id: "right", type: "action", label: "Right", position: { x: 240, y: 0 }, properties: {} },
+          { id: "down", type: "condition", label: "Down", position: { x: 0, y: 180 }, properties: {} },
+        ],
+        edges: [
+          { id: "root-right", source: "root", sourcePort: "next", target: "right", targetPort: "input" },
+          { id: "root-down", source: "root", sourcePort: "next", target: "down", targetPort: "input" },
+        ],
+      },
+      selected: null,
     });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("treegrid", { name: "Workflow canvas" })).toBeInTheDocument();
+    });
+    const root = screen.getByTestId("rf__node-root");
+    const right = screen.getByTestId("rf__node-right");
+    const down = screen.getByTestId("rf__node-down");
+    expect(root).toHaveAttribute("role", "row");
+    expect(root).toHaveAttribute("aria-label", "Node: Root");
+    expect(right).toHaveAttribute("role", "row");
+    expect(right).toHaveAttribute("aria-label", "Action node: Right");
+    expect(down).toHaveAttribute("role", "row");
+    expect(down).toHaveAttribute("aria-label", "Condition node: Down");
+    expect(root.querySelector('[role="gridcell"]')).toBeInTheDocument();
+    expect(root).toHaveAttribute("aria-level", "1");
+    expect(right).toHaveAttribute("aria-level", "2");
+    expect(root).toHaveAttribute("tabindex", "0");
+    expect(right).toHaveAttribute("tabindex", "-1");
+    expect(down).toHaveAttribute("tabindex", "-1");
+
+    root.focus();
+    await user.keyboard("{ArrowRight}");
+    await waitFor(() => expect(right).toHaveFocus());
+    expect(root).toHaveAttribute("tabindex", "-1");
+    expect(right).toHaveAttribute("tabindex", "0");
+
+    await user.keyboard("{ArrowLeft}");
+    await waitFor(() => expect(root).toHaveFocus());
+    await user.keyboard("{ArrowDown}");
+    await waitFor(() => expect(right).toHaveFocus());
+    await user.keyboard("{ArrowDown}");
+    await waitFor(() => expect(down).toHaveFocus());
+    await user.keyboard("{ArrowUp}");
+    await waitFor(() => expect(right).toHaveFocus());
+    expect(root).toHaveStyle({ transform: "translate(0px,0px)" });
+
+    await user.tab();
+    expect(root).not.toHaveFocus();
+    expect(right).not.toHaveFocus();
+    expect(down).not.toHaveFocus();
   });
 
   it("adds a named node from the node editing controls", async () => {
