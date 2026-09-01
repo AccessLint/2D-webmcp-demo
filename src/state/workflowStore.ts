@@ -30,6 +30,7 @@ export class WorkflowUndoError extends Error {
 }
 export type WorkflowSnapshot = { operationId: string; state: WorkflowState; resultingRevision: number };
 export type WorkflowSelection = { kind: "node" | "edge"; id: string };
+export type WorkflowConnectionSource = { nodeId: string; port: string };
 
 export type WorkflowStore = {
   workflow: WorkflowState;
@@ -37,6 +38,7 @@ export type WorkflowStore = {
   snapshots: WorkflowSnapshot[];
   reviewed: string[];
   selected: WorkflowSelection | null;
+  connectionSource: WorkflowConnectionSource | null;
   returnFocusId: string | null;
   focusRequest: number;
   politeMessage: string;
@@ -45,6 +47,7 @@ export type WorkflowStore = {
   apply: (baseRevision: number, commands: WorkflowCommand[], intent?: string) => ChangeReceipt;
   undo: (operationId: string) => ChangeReceipt;
   select: (selection: WorkflowSelection | null, returnFocusId?: string, focusInspector?: boolean) => void;
+  setConnectionSource: (source: WorkflowConnectionSource | null) => void;
   reportStatus: (message: string) => void;
   reportError: (message: string) => void;
   markReviewed: (operationId: string) => void;
@@ -70,6 +73,7 @@ function createInitialState(workflow: WorkflowState) {
     selected: workflow.nodes.some((node) => node.id === DEFAULT_SELECTION.id)
       ? DEFAULT_SELECTION
       : null,
+    connectionSource: null,
     returnFocusId: null,
     focusRequest: 0,
     politeMessage: "",
@@ -77,7 +81,7 @@ function createInitialState(workflow: WorkflowState) {
     invocations: [],
   } satisfies Omit<
     WorkflowStore,
-    "apply" | "undo" | "select" | "reportStatus" | "reportError" | "markReviewed" | "clear" | "reset" | "logInvocation"
+    "apply" | "undo" | "select" | "setConnectionSource" | "reportStatus" | "reportError" | "markReviewed" | "clear" | "reset" | "logInvocation"
   >;
 }
 
@@ -141,6 +145,10 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
             resultingRevision: result.state.revision,
           },
         ],
+        connectionSource: current.connectionSource
+          && result.state.nodes.some((node) => node.id === current.connectionSource?.nodeId)
+          ? current.connectionSource
+          : null,
         politeMessage: receipt.summary,
         assertiveMessage: "",
       }));
@@ -181,6 +189,7 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
       returnFocusId: returnFocusId ?? null,
       focusRequest: focusInspector ? current.focusRequest + 1 : current.focusRequest,
     })),
+    setConnectionSource: (connectionSource) => set({ connectionSource }),
     reportStatus: (politeMessage) => set({ politeMessage }),
     reportError: (assertiveMessage) => set({ assertiveMessage }),
     markReviewed: (operationId) => set((current) => ({
@@ -213,6 +222,7 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
           },
         ],
         selected: null,
+        connectionSource: null,
         returnFocusId: null,
         politeMessage: "Cleared the canvas.",
         assertiveMessage: "",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, type FormEvent } from "react";
 import {
   Background,
   Controls,
@@ -18,13 +18,17 @@ import "@xyflow/react/dist/style.css";
 import type { WorkflowCommand } from "../graph/commands";
 import type { NodeKind, WorkflowEdge, WorkflowNode } from "../graph/model";
 import { nodeDefinitions } from "../graph/nodeTypes";
-import { useWorkflowStore, type WorkflowSelection } from "../state/workflowStore";
+import {
+  useWorkflowStore,
+  type WorkflowConnectionSource,
+  type WorkflowSelection,
+} from "../state/workflowStore";
 
 type CardData = {
   label: string;
   kind: keyof typeof nodeDefinitions;
   properties: Record<string, string | number | boolean>;
-  connecting: boolean;
+  connectingPort: string | null;
 };
 
 type WorkflowFlowNode = Node<CardData>;
@@ -33,7 +37,7 @@ function WorkflowCard({ data, selected }: NodeProps<WorkflowFlowNode>) {
   const definition = nodeDefinitions[data.kind];
   return (
     <div
-      className={`flow-node flow-node--${data.kind}${selected ? " is-selected" : ""}${data.connecting ? " is-connecting" : ""}`}
+      className={`flow-node flow-node--${data.kind}${selected ? " is-selected" : ""}${data.connectingPort ? " is-connecting" : ""}`}
       role="gridcell"
     >
       {definition.inputs.map((port, index) => (
@@ -54,6 +58,7 @@ function WorkflowCard({ data, selected }: NodeProps<WorkflowFlowNode>) {
           id={port}
           type="source"
           position={Position.Right}
+          className={data.connectingPort === port ? "is-connecting" : undefined}
           style={{ top: `${((index + 1) / (definition.outputs.length + 1)) * 100}%` }}
           aria-label={`${port} output`}
         />
@@ -63,8 +68,9 @@ function WorkflowCard({ data, selected }: NodeProps<WorkflowFlowNode>) {
 }
 
 const nodeTypes = { workflow: WorkflowCard };
+const connectionKeyboardShortcut = "Control+C or Command+C";
 const nodeKeyboardDescription =
-  "Use the Arrow keys to navigate between nodes. Press Enter or Space to toggle selection. Press Control+C or Command+C to start a connection, move to another node, and press it again to connect. Hold Alt with an Arrow key to move a selected node, or add Shift to move it farther. Press Delete or Backspace to remove it and Escape to cancel a connection or clear selection.";
+  `Use the Arrow keys to navigate between nodes. Press Enter or Space to toggle selection. Press ${connectionKeyboardShortcut} to start a connection, press it again on the source to choose another output, or move to another node and press it to connect. Hold Alt with an Arrow key to move a selected node, or add Shift to move it farther. Press Delete or Backspace to remove it and Escape to cancel a connection or clear selection.`;
 const ariaLabelConfig = {
   "node.a11yDescription.default": nodeKeyboardDescription,
   "node.a11yDescription.keyboardDisabled": nodeKeyboardDescription,
@@ -152,12 +158,12 @@ function toFlowNode(
   node: WorkflowNode,
   selected: WorkflowSelection | null,
   rovingNodeId: string | null,
-  connectionSourceId: string | null,
+  connectionSource: WorkflowConnectionSource | null,
   level: number,
   rowIndex: number,
 ): WorkflowFlowNode {
   const isSelected = selected?.kind === "node" && selected.id === node.id;
-  const isConnectionSource = connectionSourceId === node.id;
+  const isConnectionSource = connectionSource?.nodeId === node.id;
   const nodeLabel = node.type === "node"
     ? `Node: ${node.label}`
     : `${nodeDefinitions[node.type].title} node: ${node.label}`;
@@ -169,11 +175,11 @@ function toFlowNode(
       label: node.label,
       kind: node.type,
       properties: node.properties,
-      connecting: isConnectionSource,
+      connectingPort: isConnectionSource ? connectionSource.port : null,
     },
     selected: isSelected,
     focusable: true,
-    ariaLabel: `${nodeLabel}${isConnectionSource ? ", connection source" : ""}`,
+    ariaLabel: `${nodeLabel}${isConnectionSource ? `, connection source using ${connectionSource.port} output` : ""}`,
     ariaRole: "row",
     domAttributes: {
       "aria-level": level,
@@ -205,13 +211,14 @@ export function WorkflowCanvas() {
   const apply = useWorkflowStore((state) => state.apply);
   const clear = useWorkflowStore((state) => state.clear);
   const select = useWorkflowStore((state) => state.select);
+  const connectionSource = useWorkflowStore((state) => state.connectionSource);
+  const setConnectionSource = useWorkflowStore((state) => state.setConnectionSource);
   const reportStatus = useWorkflowStore((state) => state.reportStatus);
   const reportError = useWorkflowStore((state) => state.reportError);
   const flow = useRef<ReactFlowInstance<WorkflowFlowNode, Edge> | null>(null);
   const shell = useRef<HTMLDivElement | null>(null);
   const fitFrame = useRef<number | null>(null);
   const activeNodeId = useRef<string | null>(null);
-  const [connectionSourceId, setConnectionSourceId] = useState<string | null>(null);
   const treeRows = useMemo(
     () => treeGridRows(workflow.nodes, workflow.edges),
     [workflow.edges, workflow.nodes],
@@ -223,9 +230,9 @@ export function WorkflowCanvas() {
       : treeRows[0]?.node.id ?? null;
   const nodes = useMemo(
     () => treeRows.map(({ node, level }, index) => (
-      toFlowNode(node, selected, rovingNodeId, connectionSourceId, level, index + 1)
+      toFlowNode(node, selected, rovingNodeId, connectionSource, level, index + 1)
     )),
-    [connectionSourceId, rovingNodeId, selected, treeRows],
+    [connectionSource, rovingNodeId, selected, treeRows],
   );
   const edges = useMemo(
     () => workflow.edges.map((edge) => toFlowEdge(edge, selected)),
@@ -355,21 +362,33 @@ export function WorkflowCanvas() {
     const node = workflow.nodes.find((item) => item.id === nodeId);
     if (!node) return;
 
-    if (!connectionSourceId) {
-      if (nodeDefinitions[node.type].outputs.length === 0) {
+    const outputs = nodeDefinitions[node.type].outputs;
+    if (!connectionSource) {
+      if (outputs.length === 0) {
         reportError(`${node.label} has no output and cannot start a connection.`);
         return;
       }
-      setConnectionSourceId(node.id);
+      const port = outputs[0];
+      setConnectionSource({ nodeId: node.id, port });
+      reportStatus(outputs.length > 1
+        ? `Connection from ${node.label} started using its ${port} output. Press ${connectionKeyboardShortcut} again on ${node.label} to choose another output, or move to another node and press it to connect. Press Escape to cancel.`
+        : `Connection from ${node.label} started using its ${port} output. Move to another node and press ${connectionKeyboardShortcut} to connect. Press Escape to cancel.`);
+      return;
+    }
+
+    if (connectionSource.nodeId === node.id) {
+      const currentPortIndex = outputs.indexOf(connectionSource.port);
+      const port = outputs[(currentPortIndex + 1) % outputs.length];
+      setConnectionSource({ nodeId: node.id, port });
       reportStatus(
-        `Connection from ${node.label} started. Move to another node and press Control+C or Command+C to connect. Press Escape to cancel.`,
+        `Connection from ${node.label} will use its ${port} output. Move to another node and press ${connectionKeyboardShortcut} to connect. Press Escape to cancel.`,
       );
       return;
     }
 
-    const source = workflow.nodes.find((item) => item.id === connectionSourceId);
+    const source = workflow.nodes.find((item) => item.id === connectionSource.nodeId);
     if (!source) return;
-    const sourcePort = nodeDefinitions[source.type].outputs[0];
+    const sourcePort = connectionSource.port;
     const targetPort = nodeDefinitions[node.type].inputs[0];
     if (!targetPort) {
       reportError(`${node.label} has no input and cannot receive a connection.`);
@@ -387,9 +406,12 @@ export function WorkflowCanvas() {
       },
     }], `Connect ${source.label} to ${node.label}`);
     if (receipt.status !== "completed") return;
-    setConnectionSourceId(null);
-    reportStatus(`Connected ${source.label} to ${node.label}.`);
-  }, [apply, connectionSourceId, reportError, reportStatus, workflow.nodes, workflow.revision]);
+    setConnectionSource(null);
+    const targetPortDescription = targetPort === "input" ? "input" : `${targetPort} input`;
+    reportStatus(
+      `Connected ${source.label}'s ${sourcePort} output to ${node.label}'s ${targetPortDescription}.`,
+    );
+  }, [apply, connectionSource, reportError, reportStatus, setConnectionSource, workflow.nodes, workflow.revision]);
 
   const onConnect = (connection: Connection) => runCanvasChange(() => {
     apply(workflow.revision, [{
@@ -515,11 +537,12 @@ export function WorkflowCanvas() {
       <div ref={shell} className="canvas-shell" aria-label="Visual workflow canvas">
         <p id="workflow-canvas-instructions" className="sr-only">
           Tab once into the workflow tree grid, then use the Arrow keys to navigate between nodes.
-          Press Enter or Space to toggle selection. Press Control+C or Command+C to start a
-          connection, move to another node, and press it again to connect. Hold Alt with an Arrow
-          key to move a selected node, or add Shift to move it farther. Press Backspace to delete it.
-          Press Escape to cancel a connection or clear selection. Use the Workflow connections
-          region to review and select connections.
+          Press Enter or Space to toggle selection. Press {connectionKeyboardShortcut} to start a
+          connection. Press it again on the source to choose another output, or move to another
+          node and press it to connect. Hold Alt with an Arrow key to move a selected node, or add
+          Shift to move it farther. Press Backspace to delete it. Press Escape to cancel a
+          connection or clear selection. Use the Workflow connections region to review and select
+          connections.
         </p>
         <ReactFlow
           ref={configureTreeGrid}
@@ -566,10 +589,10 @@ export function WorkflowCanvas() {
               if (nextNode) setRovingNode(nextNode.id, true);
               return;
             }
-            if (event.key === "Escape" && connectionSourceId) {
+            if (event.key === "Escape" && connectionSource) {
               event.preventDefault();
               event.stopPropagation();
-              setConnectionSourceId(null);
+              setConnectionSource(null);
               reportStatus("Connection canceled.");
               return;
             }

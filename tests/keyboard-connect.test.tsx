@@ -44,7 +44,7 @@ describe("keyboard node connections", () => {
     });
     expect(source.querySelector(".flow-node")).toHaveClass("is-connecting");
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Connection from Source started. Move to another node and press Control+C or Command+C to connect. Press Escape to cancel.",
+      "Connection from Source started using its next output. Move to another node and press Control+C or Command+C to connect. Press Escape to cancel.",
     );
 
     await user.keyboard("{ArrowDown}");
@@ -63,7 +63,9 @@ describe("keyboard node connections", () => {
     });
     expect(target).toHaveFocus();
     expect(source.querySelector(".flow-node")).not.toHaveClass("is-connecting");
-    expect(screen.getByRole("status")).toHaveTextContent("Connected Source to Target.");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Connected Source's next output to Target's input.",
+    );
   });
 
   it("cancels a pending connection with Escape", async () => {
@@ -116,5 +118,80 @@ describe("keyboard node connections", () => {
     );
     expect(workflowStore.getState().workflow.edges).toHaveLength(0);
     expect(source).toHaveAttribute("aria-label", expect.stringContaining("connection source"));
+  });
+
+  it("lets a screen reader user choose an output on a multi-output source", async () => {
+    workflowStore.setState((state) => ({
+      workflow: {
+        ...state.workflow,
+        nodes: state.workflow.nodes.map((node) => (
+          node.id === "source" ? { ...node, type: "action" as const } : node
+        )),
+      },
+    }));
+    const user = userEvent.setup();
+    render(
+      <>
+        <LiveStatus />
+        <WorkflowCanvas />
+      </>,
+    );
+
+    const source = screen.getByTestId("rf__node-source");
+    const target = screen.getByTestId("rf__node-target");
+    source.focus();
+    await user.keyboard("{Control>}c{/Control}");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Connection from Source started using its success output. Press Control+C or Command+C again on Source to choose another output",
+    );
+
+    await user.keyboard("{Control>}c{/Control}");
+    await waitFor(() => {
+      expect(source).toHaveAttribute(
+        "aria-label",
+        expect.stringContaining("connection source using failure output"),
+      );
+    });
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Connection from Source will use its failure output.",
+    );
+
+    await user.keyboard("{ArrowDown}{Control>}c{/Control}");
+    expect(target).toHaveFocus();
+    expect(workflowStore.getState().workflow.edges).toEqual([
+      expect.objectContaining({ source: "source", sourcePort: "failure", target: "target" }),
+    ]);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Connected Source's failure output to Target's input.",
+    );
+  });
+
+  it("clears the pending mode if the source is deleted", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <LiveStatus />
+        <WorkflowCanvas />
+      </>,
+    );
+
+    const source = screen.getByTestId("rf__node-source");
+    source.focus();
+    await user.keyboard("{Control>}c{/Control}{Enter}");
+    await waitFor(() => expect(source).toHaveAttribute("aria-selected", "true"));
+    await user.keyboard("{Delete}");
+    await waitFor(() => expect(screen.queryByTestId("rf__node-source")).not.toBeInTheDocument());
+
+    const target = screen.getByTestId("rf__node-target");
+    target.focus();
+    await user.keyboard("{Control>}c{/Control}");
+
+    expect(target).toHaveAttribute(
+      "aria-label",
+      expect.stringContaining("connection source using success output"),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Connection from Target started using its success output.",
+    );
   });
 });

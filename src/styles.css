@@ -55,6 +55,7 @@ main { padding: 24px; }
 .flow-node__type { color: var(--lime); text-transform: uppercase; letter-spacing: .12em; font: 500 .55rem DM Mono, monospace; }
 .flow-node__meta { color: var(--muted); font-size: .66rem; }
 .react-flow__handle { width: 9px; height: 9px; background: var(--lime); border: 2px solid #14212b; }
+.react-flow__handle.is-connecting { background: var(--orange); box-shadow: 0 0 0 4px rgba(255,184,107,.22); }
 .react-flow__edge-path { stroke: #778a93; stroke-width: 1.5; }
 .react-flow__edge.selected .react-flow__edge-path { stroke: var(--lime); stroke-width: 2.5; }
 .react-flow__edge-text { font: 9px DM Mono, monospace; fill: #b9c8cc; }
