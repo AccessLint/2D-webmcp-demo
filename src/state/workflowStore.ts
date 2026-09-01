@@ -48,6 +48,7 @@ export type WorkflowStore = {
   select: (selection: WorkflowSelection | null, returnFocusId?: string, focusInspector?: boolean) => void;
   reportError: (message: string) => void;
   markReviewed: (operationId: string) => void;
+  clear: () => ChangeReceipt;
   reset: () => void;
   logInvocation: (invocation: InvocationInput) => void;
 };
@@ -68,7 +69,7 @@ function createInitialState(workflow: WorkflowState) {
     invocations: [],
   } satisfies Omit<
     WorkflowStore,
-    "apply" | "undo" | "select" | "reportError" | "markReviewed" | "reset" | "logInvocation"
+    "apply" | "undo" | "select" | "reportError" | "markReviewed" | "clear" | "reset" | "logInvocation"
   >;
 }
 
@@ -178,6 +179,37 @@ export function createWorkflowStore(initial = createSeedWorkflow()): StoreApi<Wo
         ? current.reviewed
         : [...current.reviewed, operationId],
     })),
+    clear: () => {
+      const current = get();
+      const cleared = {
+        revision: current.workflow.revision + 1,
+        nodes: [],
+        edges: [],
+      } satisfies WorkflowState;
+      const receipt = createReceipt({
+        before: current.workflow,
+        after: cleared,
+        validation: validateWorkflow(cleared),
+        intent: "Clear canvas",
+      });
+      set({
+        workflow: cleared,
+        history: [receipt, ...current.history],
+        snapshots: [
+          ...current.snapshots,
+          {
+            operationId: receipt.operationId,
+            state: structuredClone(current.workflow),
+            resultingRevision: cleared.revision,
+          },
+        ],
+        selected: null,
+        returnFocusId: null,
+        politeMessage: "Cleared the canvas.",
+        assertiveMessage: "",
+      });
+      return receipt;
+    },
     reset: () => set({
       ...createInitialState(createSeedWorkflow()),
       politeMessage: "Workflow reset.",

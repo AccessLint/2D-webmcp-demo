@@ -26,6 +26,7 @@ main { padding: 24px; }
 .node-editor__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .node-editor__heading h2 { margin: 0; font-size: 1rem; }
 .node-editor__heading span { color: var(--muted); font: .7rem DM Mono, monospace; }
+.node-editor__heading-actions { display: flex; align-items: center; gap: 12px; }
 .node-editor__forms { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 10px 24px; margin-top: 12px; }
 .node-editor form { display: flex; align-items: end; gap: 8px; }
 .node-editor label { display: grid; gap: 5px; }
@@ -34,6 +35,7 @@ main { padding: 24px; }
 .node-editor input, .node-editor select { min-width: 0; height: 40px; padding: 8px 10px; border: 1px solid #40515c; border-radius: 3px; color: var(--ink); background: #0b141c; }
 .node-editor select { min-width: 112px; }
 .node-editor button { min-height: 40px; padding: 8px 12px; border: 1px solid var(--lime); border-radius: 3px; color: #121810; background: var(--lime); cursor: pointer; font-size: .75rem; font-weight: 700; }
+.node-editor .node-editor__clear { min-height: 34px; padding: 6px 10px; border-color: #40515c; color: var(--ink); background: transparent; }
 .canvas-shell { height: min(72vh, 760px); min-height: 520px; background: #09121a; }
 .flow-node { min-width: 145px; padding: 14px 17px; border: 1px solid #40515d; border-radius: 4px; background: #14212b; box-shadow: 0 8px 28px rgba(0,0,0,.2); display: flex; flex-direction: column; gap: 4px; }
 .react-flow__node:focus-visible { outline: none; }

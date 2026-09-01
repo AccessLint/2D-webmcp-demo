@@ -120,6 +120,7 @@ export function WorkflowCanvas() {
   const selected = useWorkflowStore((state) => state.selected);
   const focusRequest = useWorkflowStore((state) => state.focusRequest);
   const apply = useWorkflowStore((state) => state.apply);
+  const clear = useWorkflowStore((state) => state.clear);
   const select = useWorkflowStore((state) => state.select);
   const reportError = useWorkflowStore((state) => state.reportError);
   const flow = useRef<ReactFlowInstance<WorkflowFlowNode, Edge> | null>(null);
@@ -304,7 +305,17 @@ export function WorkflowCanvas() {
       <section className="node-editor" aria-labelledby="node-editor-heading">
         <div className="node-editor__heading">
           <h2 id="node-editor-heading">Edit nodes</h2>
-          <span>{workflow.nodes.length} nodes</span>
+          <div className="node-editor__heading-actions">
+            <span>{workflow.nodes.length} nodes</span>
+            <button
+              className="node-editor__clear"
+              type="button"
+              disabled={workflow.nodes.length === 0 && workflow.edges.length === 0}
+              onClick={clear}
+            >
+              Clear canvas
+            </button>
+          </div>
         </div>
         <div className="node-editor__forms">
           <form onSubmit={addNode}>
