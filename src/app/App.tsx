@@ -8,7 +8,7 @@ import { registerWorkflowTools } from "../webmcp/registerTools";
 import { createToolHandlers } from "../webmcp/toolHandlers";
 import { parseWorkflowHash } from "./routes";
 
-const demoPrompt = "Create a hospital patient lifecycle workflow, from arrival through follow-up. Include emergency and scheduled intake, triage, diagnostics, treatment, admission, transfers, discharge, deterioration, delays, and readmission risk. Ensure every branch reaches a meaningful outcome, then show and summarize the completed diagram.";
+const demoPrompt = "Use the pages WebMCP tools to create a hospital patient lifecycle workflow, from arrival through follow-up. Include emergency and scheduled intake, triage, diagnostics, treatment, admission, transfers, discharge, deterioration, delays, and readmission risk. Ensure every branch reaches a meaningful outcome, then show and summarize the completed diagram.";
 
 function WorkflowDemo() {
   const select = useWorkflowStore((state) => state.select);
@@ -47,12 +47,8 @@ function WorkflowDemo() {
           <a href="/evals">Evaluation history</a>
         </nav>
         <header className="demo-intro">
-          <h1>Hospital patient lifecycle</h1>
-          <p>
-            Follow a patient from scheduled or emergency arrival through assessment, treatment,
-            disposition, discharge, and final follow-up. Safety exceptions remain visible, clinical
-            judgment stays with people, and every branch ends in a documented care or administrative outcome.
-          </p>
+          <h1>2D WebMCP - Agent-friendly, accessible canvas editor</h1>
+          <p>Work with a mouse, keyboard, or AI agent to create complex workflows.</p>
           <div className="demo-prompt">
             <div className="demo-prompt__heading">
               <h2>Try this prompt</h2>
