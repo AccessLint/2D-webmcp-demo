@@ -8,7 +8,7 @@ import { registerWorkflowTools } from "../webmcp/registerTools";
 import { createToolHandlers } from "../webmcp/toolHandlers";
 import { parseWorkflowHash } from "./routes";
 
-const demoPrompt = "Use the pages WebMCP tools to create a hospital patient lifecycle workflow, from arrival through follow-up. Include emergency and scheduled intake, triage, diagnostics, treatment, admission, transfers, discharge, deterioration, delays, and readmission risk. Ensure every branch reaches a meaningful outcome, then show and summarize the completed diagram.";
+const demoPrompt = "Use the page's WebMCP tools to create a software bug triage workflow, from report intake through resolution and follow-up. Include duplicate detection, reproduction, severity and priority assessment, ownership, investigation, fixes, verification, release, closure, blocked cases, and regressions. Ensure every branch reaches a meaningful outcome, then show and summarize the completed diagram.";
 
 function WorkflowDemo() {
   const select = useWorkflowStore((state) => state.select);
