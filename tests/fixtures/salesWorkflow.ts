@@ -1,4 +1,5 @@
 import type { WorkflowState } from "../../src/graph/model";
+import { toPublicWorkflowEdge } from "../../src/webmcp/edgeContract";
 
 export function createSalesWorkflow(): WorkflowState {
   return {
@@ -32,12 +33,7 @@ export function createSalesWorkflowEditCommands() {
     })),
     ...workflow.edges.map((edge) => ({
       type: "connect" as const,
-      edge: {
-        id: edge.id,
-        source: { nodeId: edge.source, port: edge.sourcePort },
-        target: { nodeId: edge.target, port: edge.targetPort },
-        ...(edge.label ? { label: edge.label } : {}),
-      },
+      edge: toPublicWorkflowEdge(edge),
     })),
   ];
 }

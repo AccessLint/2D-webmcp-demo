@@ -16,6 +16,7 @@ import {
 import { browserUiActions, type UiActions } from "./uiActions";
 import { selectorForUiTarget } from "./uiTargets";
 import { workflowSummary } from "./discovery";
+import { toPublicWorkflowEdge } from "./edgeContract";
 import { ToolError } from "./errors";
 import { toolNames } from "./toolNames";
 
@@ -45,10 +46,7 @@ function inspectNode(state: WorkflowState, id: string) {
 function inspectEdge(state: WorkflowState, id: string) {
   const edge = requireEdge(state, id);
   return {
-    id: edge.id,
-    source: { nodeId: edge.source, port: edge.sourcePort },
-    target: { nodeId: edge.target, port: edge.targetPort },
-    ...(edge.label ? { label: edge.label } : {}),
+    ...toPublicWorkflowEdge(edge),
     reference: edgeReference(edge),
     sourceNode: nodeReference(requireNode(state, edge.source)),
     targetNode: nodeReference(requireNode(state, edge.target)),

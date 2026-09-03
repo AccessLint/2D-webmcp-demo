@@ -1,6 +1,7 @@
 import type { WorkflowState } from "../graph/model";
 import { nodeDefinitions } from "../graph/nodeTypes";
 import { nodeReference } from "../graph/references";
+import { toPublicWorkflowEdge } from "./edgeContract";
 import { uiTargetList } from "./uiTargets";
 import { toolNames } from "./toolNames";
 import { surfaceSchemaDescriptor, workflowSurfaceSnapshot } from "./surfaceSnapshot";
@@ -22,12 +23,7 @@ export function workflowSummary(state: WorkflowState) {
     authoring: {
       nodeTypes: Object.entries(nodeDefinitions).map(([type, definition]) => ({ type, title: definition.title, inputs: [...definition.inputs], outputs: [...definition.outputs] })),
       nodes: state.nodes.map((node) => ({ id: node.id, type: node.type, label: node.label, inputs: [...nodeDefinitions[node.type].inputs], outputs: [...nodeDefinitions[node.type].outputs] })),
-      edges: state.edges.map(({ id, source, sourcePort, target, targetPort, label }) => ({
-        id,
-        source: { nodeId: source, port: sourcePort },
-        target: { nodeId: target, port: targetPort },
-        ...(label ? { label } : {}),
-      })),
+      edges: state.edges.map(toPublicWorkflowEdge),
       uiTargets: uiTargetList,
     },
     recommendedNextCalls: [
