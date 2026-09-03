@@ -32,14 +32,13 @@ function labelValue(label) {
 function edgeEndpoint(edge, side) {
   const endpoint = edge?.[side];
   return {
-    nodeId: typeof endpoint === "string" ? endpoint : endpoint?.nodeId,
-    port: edge?.[`${side}Port`] ?? (typeof endpoint === "object" ? endpoint?.port : undefined),
+    nodeId: typeof endpoint === "object" ? endpoint?.nodeId : undefined,
+    port: typeof endpoint === "object" ? endpoint?.port : undefined,
   };
 }
 
 function replacementsFor(command) {
-  if (Array.isArray(command?.replacements)) return command.replacements;
-  return Array.isArray(command?.replacement) ? command.replacement : [command?.replacement].filter(Boolean);
+  return Array.isArray(command?.replacements) ? command.replacements : [];
 }
 
 function createdGraphFrom(commands) {

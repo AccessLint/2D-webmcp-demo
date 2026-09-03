@@ -97,16 +97,12 @@ function compactInspection(result: unknown[], input: unknown) {
     const reference = isRecord(item.reference) ? item.reference : {};
     const relationships = Array.isArray(item.relationships) ? item.relationships.filter(isRecord) : [];
     if (reference.kind === "workflow-edge") {
-      const sourceNode = isRecord(item.sourceNode) ? item.sourceNode : {};
-      const targetNode = isRecord(item.targetNode) ? item.targetNode : {};
       return {
         kind: reference.kind,
         id: item.id,
         label: item.label,
-        sourceId: sourceNode.id,
-        sourcePort: item.sourcePort,
-        targetId: targetNode.id,
-        targetPort: item.targetPort,
+        source: item.source,
+        target: item.target,
       };
     }
     const properties = isRecord(item.properties) ? item.properties : {};

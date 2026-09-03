@@ -45,7 +45,10 @@ function inspectNode(state: WorkflowState, id: string) {
 function inspectEdge(state: WorkflowState, id: string) {
   const edge = requireEdge(state, id);
   return {
-    ...edge,
+    id: edge.id,
+    source: { nodeId: edge.source, port: edge.sourcePort },
+    target: { nodeId: edge.target, port: edge.targetPort },
+    ...(edge.label ? { label: edge.label } : {}),
     reference: edgeReference(edge),
     sourceNode: nodeReference(requireNode(state, edge.source)),
     targetNode: nodeReference(requireNode(state, edge.target)),

@@ -513,6 +513,26 @@ test("requires the existing connection to be rerouted with replaceConnection", (
   });
 
   assert.equal(hasVerifiedTaskOutcome(attempt, true), true);
+  const canonical = commands[0];
+  commands[0] = {
+    type: "replaceConnection",
+    edgeId: canonical.edgeId,
+    replacement: canonical.replacements,
+  };
+  assert.equal(hasVerifiedTaskOutcome(attempt, true), false);
+  commands[0] = {
+    type: "replaceConnection",
+    edgeId: canonical.edgeId,
+    replacements: [{
+      id: "edge-receive-review",
+      source: "receive-request",
+      sourcePort: "success",
+      target: "manual-review",
+      targetPort: "input",
+    }],
+  };
+  assert.equal(hasVerifiedTaskOutcome(attempt, true), false);
+  commands[0] = canonical;
   commands[0].type = "connect";
   assert.equal(hasVerifiedTaskOutcome(attempt, true), false);
 });

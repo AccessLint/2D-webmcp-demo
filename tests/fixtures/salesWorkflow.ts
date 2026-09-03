@@ -22,3 +22,22 @@ export function createSalesWorkflow(): WorkflowState {
     ],
   };
 }
+
+export function createSalesWorkflowEditCommands() {
+  const workflow = createSalesWorkflow();
+  return [
+    ...workflow.nodes.map((node) => ({
+      type: "createNode" as const,
+      node: structuredClone(node),
+    })),
+    ...workflow.edges.map((edge) => ({
+      type: "connect" as const,
+      edge: {
+        id: edge.id,
+        source: { nodeId: edge.source, port: edge.sourcePort },
+        target: { nodeId: edge.target, port: edge.targetPort },
+        ...(edge.label ? { label: edge.label } : {}),
+      },
+    })),
+  ];
+}

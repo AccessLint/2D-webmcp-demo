@@ -133,6 +133,13 @@ describe("WebMCP tool boundary", () => {
     await expect(tools.show_edit_result({ operationId: receipt.operationId })).resolves.toMatchObject({ operationId: receipt.operationId, summary: receipt.summary, focusedIn: "change-history", visible: true });
     expect(focusedOperationId).toBe(receipt.operationId);
     expect(tools.inspect_workflow_items({ objects: [{ kind: "workflow-node", id: "notify-sales" }] })[0]).toMatchObject({ label: "Notify sales", properties: {} });
+    const inspectedEdge = tools.inspect_workflow_items({ objects: [{ kind: "workflow-edge", id: "edge-opportunity-notify" }] })[0];
+    expect(inspectedEdge).toMatchObject({
+      id: "edge-opportunity-notify",
+      source: { nodeId: "create-opportunity", port: "success" },
+      target: { nodeId: "notify-sales", port: "input" },
+    });
+    expect(inspectedEdge).not.toHaveProperty("sourcePort");
     await expect(tools.focus_page_element({ selector: "[data-id='notify-sales']" })).resolves.toMatchObject({ selector: "[data-id='notify-sales']", tagName: "div", focusWhen: "window-focus-or-accessibility-interaction", queued: true });
     expect(focusedSelector).toBe("[data-id='notify-sales']");
     await expect(tools.focus_page_element({ targetId: "canvas.zoom-in" })).resolves.toMatchObject({ targetId: "canvas.zoom-in", selector: "button[aria-label='Zoom In']", queued: true });
@@ -469,6 +476,16 @@ describe("WebMCP tool boundary", () => {
       items: [expect.objectContaining({ id: "enrich-company" })],
     });
     expect(Array.isArray(compactInspection)).toBe(false);
+    const compactEdgeInspection = registered.get("inspect_workflow_items")!.execute({
+      objects: [{ kind: "workflow-edge", id: "edge-enrich-qualified" }],
+    });
+    expect(compactEdgeInspection).toMatchObject({
+      items: [expect.objectContaining({
+        id: "edge-enrich-qualified",
+        source: { nodeId: "enrich-company", port: "success" },
+        target: { nodeId: "qualified-lead", port: "input" },
+      })],
+    });
     expect(registered.get("get_edit_result")!.execute({ operationId: "missing" })).toMatchObject({
       ok: false,
       error: {

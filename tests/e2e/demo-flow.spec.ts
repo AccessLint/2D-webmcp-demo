@@ -1,27 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
+import { createSalesWorkflowEditCommands } from "../fixtures/salesWorkflow";
 
 async function seedSalesWorkflow(page: Page) {
-  await page.evaluate(async () => {
+  const commands = createSalesWorkflowEditCommands();
+  await page.evaluate(async (commands) => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
     await tools.edit_workflow.execute({
       baseRevision: 0,
-      commands: [
-        { type: "createNode", node: { id: "new-lead", type: "node", label: "New lead submitted" } },
-        { type: "createNode", node: { id: "enrich-company", type: "action", label: "Enrich company" } },
-        { type: "createNode", node: { id: "qualified-lead", type: "condition", label: "Qualified lead?" } },
-        { type: "createNode", node: { id: "create-opportunity", type: "action", label: "Create CRM opportunity" } },
-        { type: "createNode", node: { id: "add-to-nurture", type: "action", label: "Add to nurture campaign" } },
-        { type: "createNode", node: { id: "manual-review", type: "action", label: "Manual review" } },
-        { type: "createNode", node: { id: "complete", type: "action", label: "Complete" } },
-        { type: "connect", edge: { id: "edge-lead-enrich", source: { nodeId: "new-lead", port: "next" }, target: { nodeId: "enrich-company", port: "input" } } },
-        { type: "connect", edge: { id: "edge-enrich-qualified", source: { nodeId: "enrich-company", port: "success" }, target: { nodeId: "qualified-lead", port: "input" } } },
-        { type: "connect", edge: { id: "edge-qualified-opportunity", source: { nodeId: "qualified-lead", port: "yes" }, target: { nodeId: "create-opportunity", port: "input" }, label: "Qualified" } },
-        { type: "connect", edge: { id: "edge-qualified-nurture", source: { nodeId: "qualified-lead", port: "no" }, target: { nodeId: "add-to-nurture", port: "input" }, label: "Nurture" } },
-        { type: "connect", edge: { id: "edge-opportunity-end", source: { nodeId: "create-opportunity", port: "success" }, target: { nodeId: "complete", port: "input" } } },
-        { type: "connect", edge: { id: "edge-nurture-end", source: { nodeId: "add-to-nurture", port: "success" }, target: { nodeId: "complete", port: "input" } } },
-      ],
+      commands,
     });
-  });
+  }, commands);
 }
 
 test("a WebMCP edit automatically reveals its receipt", async ({ page }) => {
