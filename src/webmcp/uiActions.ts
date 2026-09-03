@@ -17,6 +17,7 @@ const sameBounds = (first: DOMRect, second: DOMRect) => Math.abs(first.x - secon
 export const domFocusWhen = "window-focus-or-accessibility-interaction" as const;
 let cancelPendingDomFocusRequest: (() => void) | null = null;
 let domFocusRequestGeneration = 0;
+const receiptRenderFrameBudget = 120;
 
 async function waitForElement<ElementType extends Element>(
   find: () => ElementType | null,
@@ -61,7 +62,7 @@ export const browserUiActions: UiActions = {
       () => document.getElementById(changeHeadingId(operationId)),
       `Change entry ${operationId} is not available in the app UI.`,
       signal,
-      120,
+      receiptRenderFrameBudget,
     );
     signal?.throwIfAborted();
     const entry = heading.closest("article") ?? heading;

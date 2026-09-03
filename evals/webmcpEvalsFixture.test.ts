@@ -224,12 +224,19 @@ describe("WebMCP eval fixture", () => {
     ])).toBe(false);
 
     const rerouteCase = byOutcome.get("connection-reroute")!;
-    const edgeInspection = call("inspect_workflow_items", {}, {
+    const edgeInspection = call("inspect_workflow_items", {
+      returnedCount: 1,
+      items: [{ kind: "workflow-edge", id: "edge-receive-archive" }],
+    }, {
       objects: [{ kind: "workflow-edge", id: "edge-receive-archive" }],
+      detail: "relationships",
     });
     const rerouteEdit = call("edit_workflow", completedEdit(1, 2), { baseRevision: 1, commands: [] });
     expect(allPass(rerouteCase.expectedCall, [discovery, edgeInspection, rerouteEdit])).toBe(true);
-    const contextualInspection = call("inspect_workflow_items", {}, {
+    const contextualInspection = call("inspect_workflow_items", {
+      returnedCount: 3,
+      items: [{ kind: "workflow-edge", id: "edge-receive-archive" }],
+    }, {
       objects: [
         { kind: "workflow-node", id: "receive-request" },
         { kind: "workflow-node", id: "manual-review" },
@@ -239,6 +246,10 @@ describe("WebMCP eval fixture", () => {
     });
     const inPlaceReroute = call("edit_workflow", completedEdit(1, 1), { baseRevision: 1, commands: [] });
     expect(allPass(rerouteCase.expectedCall, [discovery, contextualInspection, inPlaceReroute])).toBe(true);
+    const failedInspection = call("inspect_workflow_items", { ok: false, error: { code: "INVALID_INPUT" } }, {});
+    expect(allPass(rerouteCase.expectedCall, [discovery, failedInspection, inPlaceReroute])).toBe(false);
+    const oversizedReroute = call("edit_workflow", completedEdit(1, 3), { baseRevision: 1, commands: [] });
+    expect(allPass(rerouteCase.expectedCall, [discovery, contextualInspection, oversizedReroute])).toBe(false);
     expect(allPass(rerouteCase.expectedCall, [
       discovery,
       contextualInspection,

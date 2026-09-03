@@ -215,7 +215,14 @@
       },
       {
         "functionName": "inspect_workflow_items",
-        "arguments": {}
+        "arguments": {
+          "objects": { "$type": "array" },
+          "detail": "relationships"
+        },
+        "result": {
+          "returnedCount": { "$gte": 1 },
+          "items": { "$type": "array" }
+        }
       },
       {
         "functionName": "edit_workflow",
@@ -227,6 +234,7 @@
           "status": "completed",
           "baseRevision": 1,
           "resultingRevision": 2,
+          "changeCount": { "$gte": 1, "$lte": 2 },
           "operationId": { "$type": "string" },
           "visible": true
         }
