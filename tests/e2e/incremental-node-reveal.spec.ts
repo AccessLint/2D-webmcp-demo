@@ -15,18 +15,24 @@ test("edit_workflow reveals a new diagram one node at a time", async ({ page }) 
   });
   await page.goto("/");
 
-  const observedNodeCounts = await page.evaluate(async () => {
+  const observedGraphCounts = await page.evaluate(async () => {
     const tools = (window as unknown as {
       __workflowTools: Record<string, { execute: (input: unknown) => unknown }>;
     }).__workflowTools;
-    const counts: number[] = [];
-    const recordNodeCount = () => {
-      const count = document.querySelectorAll(".react-flow__node").length;
-      if (counts.at(-1) !== count) counts.push(count);
+    const counts: Array<{ nodes: number; edges: number }> = [];
+    const recordGraphCount = () => {
+      const count = {
+        nodes: document.querySelectorAll(".react-flow__node").length,
+        edges: document.querySelectorAll(".react-flow__edge").length,
+      };
+      const previous = counts.at(-1);
+      if (!previous || previous.nodes !== count.nodes || previous.edges !== count.edges) {
+        counts.push(count);
+      }
     };
-    const observer = new MutationObserver(recordNodeCount);
+    const observer = new MutationObserver(recordGraphCount);
     observer.observe(document.querySelector(".canvas-shell")!, { childList: true, subtree: true });
-    recordNodeCount();
+    recordGraphCount();
 
     await tools.edit_workflow.execute({
       baseRevision: 0,
@@ -52,15 +58,65 @@ test("edit_workflow reveals a new diagram one node at a time", async ({ page }) 
         },
       ],
     });
-    recordNodeCount();
+    recordGraphCount();
     observer.disconnect();
     return counts;
   });
 
-  expect(observedNodeCounts).toContain(1);
-  expect(observedNodeCounts).toContain(2);
-  expect(observedNodeCounts).toContain(3);
-  expect(observedNodeCounts.indexOf(1)).toBeLessThan(observedNodeCounts.indexOf(2));
-  expect(observedNodeCounts.indexOf(2)).toBeLessThan(observedNodeCounts.indexOf(3));
+  expect(observedGraphCounts).toContainEqual({ nodes: 1, edges: 0 });
+  expect(observedGraphCounts).toContainEqual({ nodes: 2, edges: 1 });
+  expect(observedGraphCounts).toContainEqual({ nodes: 3, edges: 2 });
   await expect(page.locator(".react-flow__edge")).toHaveCount(2);
+});
+
+test("a connection-only edit appears without reloading the canvas", async ({ page }) => {
+  await page.addInitScript(() => {
+    const tools: Record<string, { execute: (input: unknown) => unknown }> = {};
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        registerTool(tool: { name: string; execute: (input: unknown) => unknown }) {
+          tools[tool.name] = tool;
+        },
+      },
+    });
+    (window as unknown as { __workflowTools: typeof tools }).__workflowTools = tools;
+  });
+  await page.goto("/");
+
+  await page.evaluate(async () => {
+    const registeredTools = (window as unknown as {
+      __workflowTools: Record<string, { execute: (input: unknown) => unknown }>;
+    }).__workflowTools;
+    await registeredTools.edit_workflow.execute({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "source", type: "start", label: "Source" } },
+        { type: "createNode", node: { id: "target", type: "end", label: "Target" } },
+      ],
+    });
+  });
+  await expect(page.locator(".react-flow__node")).toHaveCount(2);
+  await expect(page.locator(".react-flow__edge")).toHaveCount(0);
+
+  await page.evaluate(async () => {
+    const registeredTools = (window as unknown as {
+      __workflowTools: Record<string, { execute: (input: unknown) => unknown }>;
+    }).__workflowTools;
+    await registeredTools.edit_workflow.execute({
+      baseRevision: 1,
+      commands: [{
+        type: "connect",
+        edge: {
+          id: "source-target",
+          source: { nodeId: "source", port: "next" },
+          target: { nodeId: "target", port: "input" },
+        },
+      }],
+    });
+  });
+
+  const edge = page.locator('.react-flow__edge[data-id="source-target"]');
+  await expect(edge).toHaveCount(1);
+  await expect(edge).toHaveAttribute("aria-label", "Connection from Source to Target: next");
 });
