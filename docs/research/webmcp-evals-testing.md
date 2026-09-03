@@ -85,6 +85,9 @@ The app must already be running at `http://127.0.0.1:4173`. The command uses the
 npm run eval:latency -- .evals/report-<timestamp>.json
 ```
 
+For `openai:*` models, the local patch uses OpenAI's Responses API so reasoning models can use function tools.
+The separate `ollama:*` provider remains on the OpenAI-compatible Chat Completions API.
+
 The summary reports all attempts and each validated fixture `taskType`, including separate `create` and `edit`
 groups. Duration percentiles include successful required trajectories only, while tool-call, retry, and redundancy
 counts include every timed attempt. For create and edit tasks, success additionally requires one completed,
