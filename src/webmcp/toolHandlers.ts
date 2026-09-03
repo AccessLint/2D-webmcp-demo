@@ -26,19 +26,6 @@ type ToolHandlerOptions = {
 
 const NODE_REVEAL_INTERVAL_MS = 180;
 
-const nextFrame = (signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
-  signal?.throwIfAborted();
-  const frame = requestAnimationFrame(() => {
-    signal?.removeEventListener("abort", onAbort);
-    resolve();
-  });
-  const onAbort = () => {
-    cancelAnimationFrame(frame);
-    reject(signal?.reason ?? new DOMException("The operation was aborted.", "AbortError"));
-  };
-  signal?.addEventListener("abort", onAbort, { once: true });
-});
-
 const wait = (milliseconds: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
   signal?.throwIfAborted();
   const timeout = window.setTimeout(() => {
@@ -54,7 +41,6 @@ const wait = (milliseconds: number, signal?: AbortSignal) => new Promise<void>((
 
 const waitForNodeReveal = async (signal?: AbortSignal) => {
   if (typeof document === "undefined" || !document.querySelector(".canvas-shell")) return;
-  await nextFrame(signal);
   await wait(NODE_REVEAL_INTERVAL_MS, signal);
 };
 

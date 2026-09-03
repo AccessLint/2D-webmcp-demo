@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createWorkflowStore } from "../src/state/workflowStore";
 import { createToolHandlers } from "../src/webmcp/toolHandlers";
 import type { UiActions } from "../src/webmcp/uiActions";
@@ -24,6 +24,40 @@ function uiActions(): UiActions {
 }
 
 describe("incremental agent node reveal", () => {
+  it("finishes revealing nodes when animation frames are suspended", async () => {
+    const canvas = document.createElement("div");
+    canvas.className = "canvas-shell";
+    document.body.append(canvas);
+    vi.useFakeTimers();
+    vi.stubGlobal("requestAnimationFrame", vi.fn(() => 1));
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const store = createWorkflowStore();
+    const tools = createToolHandlers(store, uiActions());
+    let settled = false;
+
+    try {
+      const edit = tools.edit_workflow({
+        baseRevision: 0,
+        commands: [
+          { type: "createNode", node: { id: "first", type: "action", label: "First" } },
+          { type: "createNode", node: { id: "second", type: "action", label: "Second" } },
+        ],
+      }).then(() => {
+        settled = true;
+      });
+
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      expect(settled).toBe(true);
+      await edit;
+      expect(store.getState().nodeReveal).toBeNull();
+      expect(store.getState().workflow.nodes).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("reveals created nodes one at a time while the graph remains atomically committed", async () => {
     const store = createWorkflowStore();
     const revealSteps: Array<{ pending: string[]; nodeCount: number; edgeCount: number; revision: number }> = [];
