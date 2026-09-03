@@ -1,8 +1,9 @@
 import type { WorkflowState } from "./model";
 import { nodeDefinitions } from "./nodeTypes";
 
-const HORIZONTAL_GAP = 300;
-const VERTICAL_GAP = 200;
+const HORIZONTAL_GAP = 380;
+const ISOLATED_HORIZONTAL_GAP = 300;
+const VERTICAL_GAP = 240;
 const CANVAS_INSET = 100;
 
 /**
@@ -98,10 +99,10 @@ export function layoutWorkflow(
   }
 
   const isolatedNodes = state.nodes.filter((node) => neighbors.get(node.id)?.length === 0);
+  const connectedRanks = state.nodes
+    .filter((node) => (neighbors.get(node.id)?.length ?? 0) > 0)
+    .map((node) => ranks.get(node.id) ?? 0);
   if (isolatedNodes.length > 0) {
-    const connectedRanks = state.nodes
-      .filter((node) => (neighbors.get(node.id)?.length ?? 0) > 0)
-      .map((node) => ranks.get(node.id) ?? 0);
     const firstIsolatedRank = connectedRanks.length > 0 ? Math.max(...connectedRanks) + 1 : 0;
     isolatedNodes.forEach((node, index) => ranks.set(node.id, firstIsolatedRank + index));
   }
@@ -112,6 +113,17 @@ export function layoutWorkflow(
     layers.set(rank, [...(layers.get(rank) ?? []), node.id]);
   }
   const widestLayer = Math.max(...Array.from(layers.values(), (ids) => ids.length));
+  const isolatedOrder = new Map(isolatedNodes.map((node, index) => [node.id, index]));
+  const horizontalPosition = (id: string, rank: number) => {
+    const isolatedIndex = isolatedOrder.get(id);
+    if (isolatedIndex === undefined) return CANVAS_INSET + rank * HORIZONTAL_GAP;
+    if (connectedRanks.length === 0) {
+      return CANVAS_INSET + isolatedIndex * ISOLATED_HORIZONTAL_GAP;
+    }
+    return CANVAS_INSET
+      + Math.max(...connectedRanks) * HORIZONTAL_GAP
+      + (isolatedIndex + 1) * ISOLATED_HORIZONTAL_GAP;
+  };
   const idealPositions = new Map<string, { x: number; y: number }>();
   const forwardIncoming = (id: string) => (
     (incoming.get(id) ?? []).filter((edge) => !backEdgeIds.has(edge.id))
@@ -164,7 +176,7 @@ export function layoutWorkflow(
       const y = nearestAvailableY(placement.desiredY, occupied);
       occupied.push(y);
       idealPositions.set(placement.id, {
-        x: CANVAS_INSET + rank * HORIZONTAL_GAP,
+        x: horizontalPosition(placement.id, rank),
         y,
       });
     }
