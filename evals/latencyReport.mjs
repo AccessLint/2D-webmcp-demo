@@ -21,6 +21,13 @@ function assertTaskType(taskType) {
   return taskType;
 }
 
+function assertOutcomeType(outcomeType) {
+  if (outcomeType !== undefined && !isSupportedOutcomeType(outcomeType)) {
+    throw new Error(`Unknown eval outcomeType ${JSON.stringify(outcomeType)}.`);
+  }
+  return outcomeType;
+}
+
 export function distribution(values) {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -42,16 +49,19 @@ function hasRequiredExpectedCall(nodes) {
   });
 }
 
-function groupAttempts(stepResults, taskTypesByName) {
+function groupAttempts(stepResults, fixtureMetadataByName) {
   const attempts = new Map();
   for (const result of stepResults) {
     const name = result.test?.name || result.test?.messages?.[0]?.content || "Unnamed eval";
     const runIndex = result.runIndex || 1;
     const key = `${name}\u0000${runIndex}`;
+    const fixtureMetadata = fixtureMetadataByName.get(name);
+    const taskType = assertTaskType(result.test?.taskType || fixtureMetadata?.taskType || "uncategorized");
     const attempt = attempts.get(key) || {
       name,
       runIndex,
-      taskType: assertTaskType(result.test?.taskType || taskTypesByName.get(name) || "uncategorized"),
+      taskType,
+      outcomeType: assertOutcomeType(result.test?.outcomeType || fixtureMetadata?.outcomeType),
       results: [],
     };
     attempt.results.push(result);
@@ -98,12 +108,15 @@ export function buildLatencyReport(report, fixtureCases = []) {
   if (!Array.isArray(stepResults)) {
     throw new Error("Expected a webmcp-evals JSON report with results.results.");
   }
-  const taskTypesByName = new Map(
+  const fixtureMetadataByName = new Map(
     fixtureCases
       .filter((test) => test.name && test.taskType)
-      .map((test) => [test.name, assertTaskType(test.taskType)]),
+      .map((test) => [test.name, {
+        taskType: assertTaskType(test.taskType),
+        outcomeType: assertOutcomeType(test.outcomeType),
+      }]),
   );
-  const attempts = groupAttempts(stepResults, taskTypesByName);
+  const attempts = groupAttempts(stepResults, fixtureMetadataByName);
   const taskTypes = [...new Set(attempts.map((attempt) => attempt.taskType))].sort();
   return {
     generatedAt: new Date().toISOString(),
@@ -123,4 +136,4 @@ export function buildLatencyReport(report, fixtureCases = []) {
     ),
   };
 }
-import { hasVerifiedTaskOutcome } from "./taskOutcome.mjs";
+import { hasVerifiedTaskOutcome, isSupportedOutcomeType } from "./taskOutcome.mjs";

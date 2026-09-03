@@ -2,6 +2,7 @@
   {
     "name": "Add a notification step to an approval workflow",
     "taskType": "edit",
+    "outcomeType": "notification-edit",
     "setupCalls": [
       {
         "functionName": "edit_workflow",
@@ -116,6 +117,7 @@
   {
     "name": "Create a new approval workflow",
     "taskType": "create",
+    "outcomeType": "approval-create",
     "messages": [
       {
         "role": "user",
@@ -172,6 +174,368 @@
           "operationId": {
             "$type": "string"
           }
+        },
+        "result": { "status": "completed", "visible": true }
+      }
+    ]
+  },
+  {
+    "name": "Create a complex multi-branch bug workflow",
+    "taskType": "create",
+    "outcomeType": "complex-branch-create",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Create a bug-handling workflow using these exact labels and node types: input ‘Report intake’; actions ‘Triage report’, ‘Investigate bug’, ‘Fix bug’, and ‘Request more details’; conditions ‘Reproducible?’ and ‘Verification passed?’; and ends ‘Release fix’ and ‘Close incomplete’. Connect Report intake to Triage report; Triage report success to Reproducible?; Reproducible? yes to Investigate bug and no to Request more details; Investigate bug success to Fix bug and failure to Close incomplete; Fix bug success to Verification passed? and failure to Close incomplete; Verification passed? yes to Release fix and no back to Fix bug; and Request more details success to Close incomplete. Create the full workflow atomically and show me what changed."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "discover_workflow",
+        "arguments": {}
+      },
+      {
+        "functionName": "edit_workflow",
+        "arguments": {
+          "baseRevision": 0,
+          "commands": { "$type": "array" }
+        },
+        "result": {
+          "ok": false,
+          "error": { "code": "INVALID_INPUT" }
+        },
+        "optional": true,
+        "latencyAllowance": false
+      },
+      {
+        "functionName": "discover_workflow",
+        "arguments": {},
+        "optional": true,
+        "latencyAllowance": false
+      },
+      {
+        "functionName": "edit_workflow",
+        "arguments": {
+          "baseRevision": 0,
+          "commands": { "$type": "array" }
+        },
+        "result": {
+          "status": "completed",
+          "baseRevision": 0,
+          "resultingRevision": 1,
+          "changeCount": 20,
+          "operationId": { "$type": "string" },
+          "nextCall": { "tool": "show_edit_result" }
+        }
+      },
+      {
+        "functionName": "show_edit_result",
+        "arguments": {
+          "operationId": { "$type": "string" }
+        },
+        "result": { "status": "completed", "visible": true }
+      }
+    ]
+  },
+  {
+    "name": "Reroute an existing workflow connection",
+    "taskType": "edit",
+    "outcomeType": "connection-reroute",
+    "setupCalls": [
+      {
+        "functionName": "edit_workflow",
+        "arguments": {
+          "baseRevision": 0,
+          "commands": [
+            {
+              "type": "createNode",
+              "node": {
+                "id": "receive-request",
+                "type": "action",
+                "label": "Receive request",
+                "position": { "x": 100, "y": 200 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "createNode",
+              "node": {
+                "id": "manual-review",
+                "type": "action",
+                "label": "Manual review",
+                "position": { "x": 400, "y": 350 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "createNode",
+              "node": {
+                "id": "archive-request",
+                "type": "end",
+                "label": "Archive request",
+                "position": { "x": 700, "y": 200 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "connect",
+              "edge": {
+                "id": "edge-receive-archive",
+                "source": "receive-request",
+                "sourcePort": "success",
+                "target": "archive-request",
+                "targetPort": "input"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Inspect the current connection from Receive request to Archive request. Then use replaceConnection to reroute Receive request’s success output to Manual review instead, keeping every existing node. Show me what changed."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "discover_workflow",
+        "arguments": {}
+      },
+      {
+        "functionName": "inspect_workflow_items",
+        "arguments": {
+          "objects": [
+            { "kind": "workflow-edge", "id": "edge-receive-archive" }
+          ]
+        }
+      },
+      {
+        "functionName": "edit_workflow",
+        "arguments": {
+          "baseRevision": 1,
+          "commands": { "$type": "array" }
+        },
+        "result": {
+          "status": "completed",
+          "baseRevision": 1,
+          "resultingRevision": 2,
+          "changeCount": 2,
+          "operationId": { "$type": "string" },
+          "nextCall": { "tool": "show_edit_result" }
+        }
+      },
+      {
+        "functionName": "show_edit_result",
+        "arguments": {
+          "operationId": { "$type": "string" }
+        },
+        "result": { "status": "completed", "visible": true }
+      }
+    ]
+  },
+  {
+    "name": "Inspect and edit a paginated large workflow",
+    "taskType": "edit",
+    "outcomeType": "paginated-routing-hub-edit",
+    "setupCalls": [
+      {
+        "functionName": "edit_workflow",
+        "arguments": {
+          "baseRevision": 0,
+          "commands": [
+            {
+              "type": "createNode",
+              "node": {
+                "id": "queue-intake",
+                "type": "action",
+                "label": "Queue intake",
+                "position": { "x": 100, "y": 100 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "createNode",
+              "node": {
+                "id": "validate-request",
+                "type": "action",
+                "label": "Validate request",
+                "position": { "x": 100, "y": 250 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "createNode",
+              "node": {
+                "id": "score-request",
+                "type": "action",
+                "label": "Score request",
+                "position": { "x": 100, "y": 400 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "createNode",
+              "node": {
+                "id": "route-a",
+                "type": "action",
+                "label": "Route A",
+                "position": { "x": 700, "y": 100 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "createNode",
+              "node": {
+                "id": "route-b",
+                "type": "action",
+                "label": "Route B",
+                "position": { "x": 700, "y": 250 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "createNode",
+              "node": {
+                "id": "route-c",
+                "type": "action",
+                "label": "Route C",
+                "position": { "x": 700, "y": 400 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "createNode",
+              "node": {
+                "id": "routing-hub",
+                "type": "action",
+                "label": "Routing hub",
+                "position": { "x": 400, "y": 250 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "connect",
+              "edge": {
+                "id": "edge-queue-hub",
+                "source": "queue-intake",
+                "sourcePort": "success",
+                "target": "routing-hub",
+                "targetPort": "input"
+              }
+            },
+            {
+              "type": "connect",
+              "edge": {
+                "id": "edge-validate-hub",
+                "source": "validate-request",
+                "sourcePort": "success",
+                "target": "routing-hub",
+                "targetPort": "input"
+              }
+            },
+            {
+              "type": "connect",
+              "edge": {
+                "id": "edge-score-hub",
+                "source": "score-request",
+                "sourcePort": "success",
+                "target": "routing-hub",
+                "targetPort": "input"
+              }
+            },
+            {
+              "type": "connect",
+              "edge": {
+                "id": "edge-hub-a",
+                "source": "routing-hub",
+                "sourcePort": "success",
+                "target": "route-a",
+                "targetPort": "input"
+              }
+            },
+            {
+              "type": "connect",
+              "edge": {
+                "id": "edge-hub-b",
+                "source": "routing-hub",
+                "sourcePort": "success",
+                "target": "route-b",
+                "targetPort": "input"
+              }
+            },
+            {
+              "type": "connect",
+              "edge": {
+                "id": "edge-hub-c",
+                "source": "routing-hub",
+                "sourcePort": "success",
+                "target": "route-c",
+                "targetPort": "input"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Review this large workflow using discover_workflow pages of 4 items until you locate Routing hub. Inspect all of Routing hub’s relationships using pages of 3 relationships. Then rename only that node to Reviewed routing hub and show me what changed."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "discover_workflow",
+        "arguments": { "limit": 4 }
+      },
+      {
+        "functionName": "discover_workflow",
+        "arguments": { "cursor": 4, "limit": 4 }
+      },
+      {
+        "functionName": "inspect_workflow_items",
+        "arguments": {
+          "objects": [
+            { "kind": "workflow-node", "id": "routing-hub" }
+          ],
+          "detail": "relationships",
+          "limit": 3
+        }
+      },
+      {
+        "functionName": "inspect_workflow_items",
+        "arguments": {
+          "objects": [
+            { "kind": "workflow-node", "id": "routing-hub" }
+          ],
+          "detail": "relationships",
+          "cursor": 3,
+          "limit": 3
+        }
+      },
+      {
+        "functionName": "edit_workflow",
+        "arguments": {
+          "baseRevision": 1,
+          "commands": { "$type": "array" }
+        },
+        "result": {
+          "status": "completed",
+          "baseRevision": 1,
+          "resultingRevision": 2,
+          "changeCount": 1,
+          "operationId": { "$type": "string" },
+          "nextCall": { "tool": "show_edit_result" }
+        }
+      },
+      {
+        "functionName": "show_edit_result",
+        "arguments": {
+          "operationId": { "$type": "string" }
         },
         "result": { "status": "completed", "visible": true }
       }
