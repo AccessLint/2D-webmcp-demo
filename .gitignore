@@ -2,6 +2,7 @@ node_modules/
 dist/
 test-results/
 playwright-report/
+.evals/
 *.tsbuildinfo
 .DS_Store
 .devpost-hackathon-state.json
