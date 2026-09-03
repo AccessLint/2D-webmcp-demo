@@ -76,7 +76,7 @@ describe("WebMCP eval fixture", () => {
     expect(focusedOperations).toEqual([created.operationId, updated.operationId]);
     expect(store.getState().workflow.nodes).toEqual([
       expect.objectContaining({ id: "draft", position: { x: 100, y: 100 }, properties: {} }),
-      expect.objectContaining({ id: "approve", label: "Approved", position: { x: 400, y: 100 }, properties: {} }),
+      expect.objectContaining({ id: "approve", label: "Approved", position: { x: 385, y: 100 }, properties: {} }),
     ]);
   });
 

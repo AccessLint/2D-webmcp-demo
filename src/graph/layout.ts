@@ -1,9 +1,13 @@
 import type { WorkflowState } from "./model";
 import { nodeDefinitions } from "./nodeTypes";
 
-const HORIZONTAL_GAP = 380;
-const ISOLATED_HORIZONTAL_GAP = 300;
-const VERTICAL_GAP = 240;
+// Keep these dimensions in sync with the base `.flow-node` styles. Layout
+// positions are top-left coordinates, so adding half the relevant node
+// dimension leaves half a node of visible space between neighboring cards.
+const NODE_WIDTH = 190;
+const NODE_MIN_HEIGHT = 74;
+const HORIZONTAL_STEP = NODE_WIDTH * 1.5;
+const VERTICAL_STEP = NODE_MIN_HEIGHT * 1.5;
 const CANVAS_INSET = 100;
 
 /**
@@ -116,13 +120,13 @@ export function layoutWorkflow(
   const isolatedOrder = new Map(isolatedNodes.map((node, index) => [node.id, index]));
   const horizontalPosition = (id: string, rank: number) => {
     const isolatedIndex = isolatedOrder.get(id);
-    if (isolatedIndex === undefined) return CANVAS_INSET + rank * HORIZONTAL_GAP;
+    if (isolatedIndex === undefined) return CANVAS_INSET + rank * HORIZONTAL_STEP;
     if (connectedRanks.length === 0) {
-      return CANVAS_INSET + isolatedIndex * ISOLATED_HORIZONTAL_GAP;
+      return CANVAS_INSET + isolatedIndex * HORIZONTAL_STEP;
     }
     return CANVAS_INSET
-      + Math.max(...connectedRanks) * HORIZONTAL_GAP
-      + (isolatedIndex + 1) * ISOLATED_HORIZONTAL_GAP;
+      + Math.max(...connectedRanks) * HORIZONTAL_STEP
+      + (isolatedIndex + 1) * HORIZONTAL_STEP;
   };
   const idealPositions = new Map<string, { x: number; y: number }>();
   const forwardIncoming = (id: string) => (
@@ -132,22 +136,22 @@ export function layoutWorkflow(
     for (let distance = 0; distance <= occupied.length + 1; distance += 1) {
       const candidates = distance === 0
         ? [desiredY]
-        : [desiredY - distance * VERTICAL_GAP, desiredY + distance * VERTICAL_GAP];
+        : [desiredY - distance * VERTICAL_STEP, desiredY + distance * VERTICAL_STEP];
       const available = candidates.find((candidate) => (
         candidate >= CANVAS_INSET
-        && occupied.every((used) => Math.abs(used - candidate) >= VERTICAL_GAP)
+        && occupied.every((used) => Math.abs(used - candidate) >= VERTICAL_STEP)
       ));
       if (available !== undefined) return available;
     }
-    return desiredY + (occupied.length + 1) * VERTICAL_GAP;
+    return desiredY + (occupied.length + 1) * VERTICAL_STEP;
   };
 
   for (const rank of Array.from(layers.keys()).sort((left, right) => left - right)) {
     const ids = layers.get(rank)!;
-    const defaultInset = ((widestLayer - ids.length) * VERTICAL_GAP) / 2;
+    const defaultInset = ((widestLayer - ids.length) * VERTICAL_STEP) / 2;
     const placements = ids.map((id, index) => {
       const incomingEdges = forwardIncoming(id);
-      let desiredY = CANVAS_INSET + defaultInset + index * VERTICAL_GAP;
+      let desiredY = CANVAS_INSET + defaultInset + index * VERTICAL_STEP;
       if (incomingEdges.length > 0) {
         desiredY = incomingEdges.reduce(
           (total, edge) => total + idealPositions.get(edge.source)!.y,
@@ -161,7 +165,7 @@ export function layoutWorkflow(
         ));
         if (siblingEdges.length > 1) {
           const siblingIndex = siblingEdges.findIndex((edge) => edge.id === incomingEdge.id);
-          desiredY += (siblingIndex - (siblingEdges.length - 1) / 2) * VERTICAL_GAP;
+          desiredY += (siblingIndex - (siblingEdges.length - 1) / 2) * VERTICAL_STEP;
         }
       }
       return { id, desiredY, incomingCount: incomingEdges.length };

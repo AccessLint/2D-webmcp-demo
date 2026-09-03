@@ -59,11 +59,11 @@ describe("automatic workflow layout", () => {
       store.getState().workflow.nodes.map((node) => [node.id, node.position]),
     );
     expect(positions).toEqual({
-      finish: { x: 1620, y: 100 },
+      finish: { x: 1240, y: 100 },
       start: { x: 100, y: 100 },
-      review: { x: 480, y: 100 },
-      approve: { x: 860, y: 100 },
-      archive: { x: 1240, y: 100 },
+      review: { x: 385, y: 100 },
+      approve: { x: 670, y: 100 },
+      archive: { x: 955, y: 100 },
     });
   });
 
@@ -89,10 +89,10 @@ describe("automatic workflow layout", () => {
       store.getState().workflow.nodes.map((node) => [node.id, node.position]),
     );
     expect(positions).toEqual({
-      decision: { x: 100, y: 220 },
-      "a-rejected": { x: 480, y: 340 },
-      "z-approved": { x: 480, y: 100 },
-      finish: { x: 860, y: 220 },
+      decision: { x: 100, y: 155.5 },
+      "a-rejected": { x: 385, y: 211 },
+      "z-approved": { x: 385, y: 100 },
+      finish: { x: 670, y: 155.5 },
     });
   });
 
@@ -144,9 +144,9 @@ describe("automatic workflow layout", () => {
     );
     expect(positions).toEqual({
       intake: { x: 100, y: 100 },
-      fix: { x: 480, y: 100 },
-      verify: { x: 860, y: 100 },
-      release: { x: 1240, y: 100 },
+      fix: { x: 385, y: 100 },
+      verify: { x: 670, y: 100 },
+      release: { x: 955, y: 100 },
     });
   });
 
@@ -186,7 +186,7 @@ describe("automatic workflow layout", () => {
     const positions = Object.fromEntries(
       store.getState().workflow.nodes.map((node) => [node.id, node.position]),
     );
-    expect(positions.join).toEqual({ x: 480, y: 340 });
+    expect(positions.join).toEqual({ x: 385, y: 211 });
     expect(positions.continue.y).not.toBe(positions.join.y);
   });
 
@@ -235,9 +235,9 @@ describe("automatic workflow layout", () => {
       store.getState().workflow.nodes.map((node) => [node.id, node.position]),
     );
     expect(positions).toEqual({
-      decision: { x: 100, y: 220 },
-      approved: { x: 480, y: 100 },
-      rejected: { x: 480, y: 340 },
+      decision: { x: 100, y: 155.5 },
+      approved: { x: 385, y: 100 },
+      rejected: { x: 385, y: 211 },
     });
   });
 
@@ -302,9 +302,9 @@ describe("automatic workflow layout", () => {
       store.getState().workflow.nodes.map((node) => [node.id, node.position]),
     );
     expect(positions).toEqual({
-      decision: { x: 100, y: 220 },
-      approved: { x: 480, y: 100 },
-      rejected: { x: 480, y: 340 },
+      decision: { x: 100, y: 155.5 },
+      approved: { x: 385, y: 100 },
+      rejected: { x: 385, y: 211 },
     });
   });
 
