@@ -19,8 +19,10 @@ function isCompletedEdit(call) {
     && result.resultingRevision === input.baseRevision + 1
     && Number.isInteger(result.changeCount)
     && result.changeCount > 0
-    && result.nextCall?.tool === "show_edit_result"
-    && result.nextCall?.input?.operationId === result.operationId;
+    && (result.visible === true || (
+      result.nextCall?.tool === "show_edit_result"
+      && result.nextCall?.input?.operationId === result.operationId
+    ));
 }
 
 function labelValue(label) {
@@ -43,7 +45,7 @@ function createdGraphFrom(commands) {
 }
 
 function matchingReceiptWasShown(calls, editCall) {
-  return calls.some((call) => call.functionName === "show_edit_result"
+  return editCall.result?.visible === true || calls.some((call) => call.functionName === "show_edit_result"
     && inputFor(call).operationId === editCall.result?.operationId
     && call.result?.visible === true
     && call.result?.status === "completed");

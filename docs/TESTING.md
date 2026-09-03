@@ -1,5 +1,16 @@
 # Judge smoke test
 
+## Model-backed latency evaluation
+
+The reproducible browser evaluation is pinned to `openai:gpt-5.6-terra`:
+
+```sh
+npm run eval:browser
+npm run eval:latency:check
+```
+
+The generated latency report separates semantic task success from strict trajectory efficiency and reports every case independently. The gate requires 100% semantic and trajectory success, zero retries, overall p50 at or below 10 seconds, overall p95 at or below 20 seconds, and complex-create p50 at or below 15 seconds.
+
 Use this three-minute walkthrough to see the core WebMCP and accessibility features. No mouse is required.
 
 ## Setup

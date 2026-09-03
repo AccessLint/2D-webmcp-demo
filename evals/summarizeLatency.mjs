@@ -33,9 +33,13 @@ const summary = buildLatencyReport(report, fixtureCases);
 await writeFile(outputPath, `${JSON.stringify(summary, null, 2)}\n`);
 
 const formatDuration = (metric) => metric ? `p50 ${(metric.p50 / 1000).toFixed(2)}s · p95 ${(metric.p95 / 1000).toFixed(2)}s` : "not measured";
-console.log("\nAgent turnaround (successful task trajectories)");
-console.log(`All: ${summary.all.successfulAttempts}/${summary.all.attempts} successful · ${formatDuration(summary.all.metrics.durationMs)}`);
+console.log("\nAgent turnaround by verified task outcome");
+console.log(`All: ${summary.all.successfulAttempts}/${summary.all.attempts} semantic · ${summary.all.trajectorySuccessfulAttempts}/${summary.all.attempts} efficient · ${formatDuration(summary.all.metrics.durationMs)}`);
 for (const [taskType, result] of Object.entries(summary.byTaskType)) {
-  console.log(`${taskType}: ${result.successfulAttempts}/${result.attempts} successful · ${formatDuration(result.metrics.durationMs)}`);
+  console.log(`${taskType}: ${result.successfulAttempts}/${result.attempts} semantic · ${result.trajectorySuccessfulAttempts}/${result.attempts} efficient · ${formatDuration(result.metrics.durationMs)}`);
+}
+console.log("\nBy case");
+for (const [name, result] of Object.entries(summary.byCase)) {
+  console.log(`${name}: ${result.successfulAttempts}/${result.attempts} semantic · ${result.trajectorySuccessfulAttempts}/${result.attempts} efficient · ${formatDuration(result.metrics.durationMs)}`);
 }
 console.log(`\nLatency report saved to ${outputPath}`);

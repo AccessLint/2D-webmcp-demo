@@ -10,6 +10,7 @@ import { createWorkflowStore } from "../src/state/workflowStore";
 import { createToolHandlers } from "../src/webmcp/toolHandlers";
 import { toolNames } from "../src/webmcp/toolNames";
 import { fitToolOutput } from "../src/webmcp/toolOutputs";
+import { jsonSchemas } from "../src/webmcp/toolSchemas";
 
 const call = (functionName: string, result: unknown = {}, args: unknown = {}) => ({ functionName, args, result });
 const completedEdit = (baseRevision: number, changeCount: number) => ({
@@ -18,22 +19,60 @@ const completedEdit = (baseRevision: number, changeCount: number) => ({
   baseRevision,
   resultingRevision: baseRevision + 1,
   changeCount,
-  nextCall: { tool: "show_edit_result", input: { operationId: "operation-1" } },
+  visible: true,
 });
 const failedEdit = (baseRevision: number) => call(
   "edit_workflow",
   { ok: false, error: { code: "INVALID_INPUT" } },
   { baseRevision, commands: [] },
 );
-const shownEdit = call(
-  "show_edit_result",
-  { status: "completed", visible: true },
-  { operationId: "operation-1" },
-);
 const allPass = (expectedCall: unknown[], actualCalls: unknown[]) =>
   evaluateExecutionTrajectory(expectedCall, actualCalls).every((result: { outcome: string }) => result.outcome === "pass");
 
 describe("WebMCP eval fixture", () => {
+  it("accepts position-free creates and the nodeId update alias, then reveals the receipt", async () => {
+    const store = createWorkflowStore();
+    const focusedOperations: string[] = [];
+    const handlers = createToolHandlers(store, {
+      async focusChangeEntry(operationId) {
+        focusedOperations.push(operationId);
+        return { operationId, focusedIn: "change-history", visible: true };
+      },
+      async focusWorkflowNode() {
+        return { focused: true, visible: true };
+      },
+      async focusDomNode(selector) {
+        return { selector, tagName: "button", id: null, focusWhen: "window-focus-or-accessibility-interaction", queued: true };
+      },
+    });
+
+    const created = await handlers.edit_workflow({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "draft", type: "action", label: "Draft" } },
+        { type: "createNode", node: { id: "approve", type: "action", label: "Approve" } },
+      ],
+    });
+    const updated = await handlers.edit_workflow({
+      baseRevision: 1,
+      commands: [
+        { type: "updateNode", nodeId: "approve", patch: { label: "Approved" } },
+      ],
+    });
+
+    expect(created).toMatchObject({ status: "completed", visible: true, focusedIn: "change-history" });
+    expect(updated).toMatchObject({ status: "completed", visible: true, focusedIn: "change-history" });
+    expect(focusedOperations).toEqual([created.operationId, updated.operationId]);
+    expect(store.getState().workflow.nodes).toEqual([
+      expect.objectContaining({ id: "draft", position: { x: 100, y: 100 }, properties: {} }),
+      expect.objectContaining({ id: "approve", label: "Approved", position: { x: 400, y: 100 }, properties: {} }),
+    ]);
+  });
+
+  it("keeps the edit schema within the model-context budget", () => {
+    expect(JSON.stringify(jsonSchemas.apply).length).toBeLessThan(4_500);
+  });
+
   it("contains runnable cases that reference registered workflow tools", () => {
     const registeredTools = new Set(Object.values(toolNames));
 
@@ -49,12 +88,12 @@ describe("WebMCP eval fixture", () => {
     }
   });
 
-  it("runs every setup transaction against the current edit tool", () => {
+  it("runs every setup transaction against the current edit tool", async () => {
     for (const evalCase of evalCases) {
       const handlers = createToolHandlers(createWorkflowStore());
       for (const setupCall of evalCase.setupCalls ?? []) {
         expect(setupCall.functionName).toBe("edit_workflow");
-        expect(handlers.edit_workflow(setupCall.arguments)).toMatchObject({ status: "completed" });
+        await expect(handlers.edit_workflow(setupCall.arguments)).resolves.toMatchObject({ status: "completed" });
       }
       if (evalCase.outcomeType === "connection-reroute") {
         const discovery = fitToolOutput("discover_workflow", {}, handlers.discover_workflow({}));
@@ -67,7 +106,7 @@ describe("WebMCP eval fixture", () => {
     }
   });
 
-  it("accepts the current successful and recoverable tool trajectories for edit and create cases", () => {
+  it("accepts direct edit and create trajectories without recovery or proof calls", () => {
     const editCase = evalCases.find((evalCase) => evalCase.taskType === "edit");
     const createCase = evalCases.find((evalCase) => evalCase.taskType === "create");
     expect(editCase).toBeDefined();
@@ -79,23 +118,21 @@ describe("WebMCP eval fixture", () => {
     const successfulEdit = call("edit_workflow", completedEdit(1, 2), { baseRevision: 1, commands: [] });
     const successfulCreate = call("edit_workflow", completedEdit(0, 3), { baseRevision: 0, commands: [] });
 
-    expect(allPass(editCase!.expectedCall, [discovery, inspection, successfulEdit, shownEdit])).toBe(true);
+    expect(allPass(editCase!.expectedCall, [discovery, inspection, successfulEdit])).toBe(true);
     expect(allPass(editCase!.expectedCall, [
       discovery,
       failedEdit(1),
       refreshedDiscovery,
       inspection,
       successfulEdit,
-      shownEdit,
-    ])).toBe(true);
-    expect(allPass(createCase!.expectedCall, [discovery, successfulCreate, shownEdit])).toBe(true);
+    ])).toBe(false);
+    expect(allPass(createCase!.expectedCall, [discovery, successfulCreate])).toBe(true);
     expect(allPass(createCase!.expectedCall, [
       discovery,
       failedEdit(0),
       refreshedDiscovery,
       successfulCreate,
-      shownEdit,
-    ])).toBe(true);
+    ])).toBe(false);
   });
 
   it("counts recovery retries separately without hiding redundant rediscovery", () => {
@@ -107,7 +144,6 @@ describe("WebMCP eval fixture", () => {
       { functionName: "discover_workflow", succeeded: true },
       { functionName: "inspect_workflow_items", succeeded: true },
       { functionName: "edit_workflow", succeeded: true },
-      { functionName: "show_edit_result", succeeded: true },
     ];
 
     const timing = buildTiming(
@@ -124,7 +160,6 @@ describe("WebMCP eval fixture", () => {
       { functionName: "discover_workflow", succeeded: true },
       { functionName: "edit_workflow", succeeded: true },
       { functionName: "edit_workflow", succeeded: true },
-      { functionName: "show_edit_result", succeeded: true },
     ];
     const duplicateTiming = buildTiming(
       { durationMs: 1_000, toolAttempts: duplicateSuccessfulEdit },
@@ -137,6 +172,31 @@ describe("WebMCP eval fixture", () => {
     expect(duplicateTiming.redundantToolCallCount).toBe(1);
   });
 
+  it("preserves aggregate model-step timing and token usage", () => {
+    const timing = buildTiming(
+      {
+        durationMs: 8_000,
+        modelExecutionMs: 7_900,
+        modelStepCount: 3,
+        inputTokenCount: 12_000,
+        outputTokenCount: 900,
+        toolSchemaCharacterCount: 24_000,
+        toolAttempts: [],
+      },
+      [],
+      [],
+      8_000,
+    );
+
+    expect(timing).toMatchObject({
+      modelExecutionMs: 7_900,
+      modelStepCount: 3,
+      inputTokenCount: 12_000,
+      outputTokenCount: 900,
+      toolSchemaCharacterCount: 24_000,
+    });
+  });
+
   it("accepts the required trajectories for complex creation, rerouting, and pagination", () => {
     const byOutcome = new Map(evalCases.map((evalCase) => [evalCase.outcomeType, evalCase]));
     const discovery = call("discover_workflow");
@@ -144,21 +204,20 @@ describe("WebMCP eval fixture", () => {
 
     const complexCase = byOutcome.get("complex-branch-create")!;
     const complexEdit = call("edit_workflow", completedEdit(0, 20), { baseRevision: 0, commands: [] });
-    expect(allPass(complexCase.expectedCall, [discovery, complexEdit, shownEdit])).toBe(true);
+    expect(allPass(complexCase.expectedCall, [discovery, complexEdit])).toBe(true);
     expect(allPass(complexCase.expectedCall, [
       discovery,
       failedEdit(0),
       refreshedDiscovery,
       complexEdit,
-      shownEdit,
-    ])).toBe(true);
+    ])).toBe(false);
 
     const rerouteCase = byOutcome.get("connection-reroute")!;
     const edgeInspection = call("inspect_workflow_items", {}, {
       objects: [{ kind: "workflow-edge", id: "edge-receive-archive" }],
     });
     const rerouteEdit = call("edit_workflow", completedEdit(1, 2), { baseRevision: 1, commands: [] });
-    expect(allPass(rerouteCase.expectedCall, [discovery, edgeInspection, rerouteEdit, shownEdit])).toBe(true);
+    expect(allPass(rerouteCase.expectedCall, [discovery, edgeInspection, rerouteEdit])).toBe(true);
 
     const paginationCase = byOutcome.get("paginated-routing-hub-edit")!;
     const hubObject = [{ kind: "workflow-node", id: "routing-hub" }];
@@ -168,15 +227,14 @@ describe("WebMCP eval fixture", () => {
       call("inspect_workflow_items", {}, { objects: hubObject, detail: "relationships", limit: 3 }),
       call("inspect_workflow_items", {}, { objects: hubObject, detail: "relationships", cursor: 3, limit: 3 }),
       call("edit_workflow", completedEdit(1, 1), { baseRevision: 1, commands: [] }),
-      shownEdit,
     ];
     expect(allPass(paginationCase.expectedCall, paginatedCalls)).toBe(true);
   });
 
-  it("makes the large workflow require both discovery and relationship pagination", () => {
+  it("makes the large workflow require both discovery and relationship pagination", async () => {
     const evalCase = evalCases.find((candidate) => candidate.outcomeType === "paginated-routing-hub-edit")!;
     const handlers = createToolHandlers(createWorkflowStore());
-    handlers.edit_workflow(evalCase.setupCalls![0].arguments);
+    await handlers.edit_workflow(evalCase.setupCalls![0].arguments);
 
     const firstDiscovery = fitToolOutput("discover_workflow", { limit: 4 }, handlers.discover_workflow({ limit: 4 }));
     const secondDiscovery = fitToolOutput(
@@ -191,6 +249,9 @@ describe("WebMCP eval fixture", () => {
         items: expect.arrayContaining([expect.objectContaining({ id: "routing-hub" })]),
       },
     });
+    expect(secondDiscovery).not.toHaveProperty("nodeTypes");
+    expect(secondDiscovery).not.toHaveProperty("uiTargets");
+    expect(secondDiscovery).not.toHaveProperty("nextCalls");
 
     const objects = [{ kind: "workflow-node" as const, id: "routing-hub" }];
     const firstInspection = fitToolOutput(

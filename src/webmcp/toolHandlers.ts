@@ -68,11 +68,28 @@ export function createToolHandlers(store: StoreApi<WorkflowStore>, uiActions: Ui
         ? inspectNode(state, id)
         : inspectEdge(state, id));
     },
-    [toolNames.editWorkflow](input: unknown, options?: { signal: AbortSignal }) {
+    async [toolNames.editWorkflow](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);
       const parsed = applyInputSchema.parse(input);
-      const receipt = store.getState().apply(parsed.baseRevision, normalizeCommands(parsed.commands), parsed.intent);
-      return receipt;
+      const receipt = store.getState().apply(
+        parsed.baseRevision,
+        normalizeCommands(parsed.commands, store.getState().workflow.nodes),
+        parsed.intent,
+      );
+      try {
+        const focusResult = await uiActions.focusChangeEntry(receipt.operationId, options?.signal);
+        return { ...receipt, ...focusResult };
+      } catch {
+        return {
+          ...receipt,
+          visible: false as const,
+          nextCall: {
+            tool: toolNames.showEditResult,
+            input: { operationId: receipt.operationId },
+            purpose: "Retry visible proof for the completed edit.",
+          },
+        };
+      }
     },
     async [toolNames.showWorkflowItem](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);

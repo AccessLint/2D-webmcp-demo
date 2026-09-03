@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildLatencyReport, distribution } from "./latencyReport.mjs";
+import { buildLatencyReport, distribution, evaluateLatencyGates } from "./latencyReport.mjs";
 import { hasVerifiedTaskOutcome } from "./taskOutcome.mjs";
 
 function completedEditAttempt({ outcomeType, taskType, baseRevision, commands }) {
@@ -46,6 +46,34 @@ test("distribution reports nearest-rank p50 and p95", () => {
   });
 });
 
+test("latency gates enforce semantic, efficiency, retry, and turnaround targets", () => {
+  const passing = {
+    all: {
+      successRate: 1,
+      trajectorySuccessRate: 1,
+      metrics: {
+        durationMs: { p50: 9_000, p95: 18_000 },
+        retryToolCallCount: { mean: 0 },
+      },
+    },
+    byCase: {
+      "Create a complex multi-branch bug workflow": {
+        metrics: { durationMs: { p50: 14_000 } },
+      },
+    },
+  };
+
+  assert.deepEqual(evaluateLatencyGates(passing), []);
+
+  const failing = structuredClone(passing);
+  failing.all.successRate = 0.98;
+  failing.all.trajectorySuccessRate = 0.96;
+  failing.all.metrics.durationMs.p95 = 21_000;
+  failing.all.metrics.retryToolCallCount.mean = 0.2;
+  failing.byCase["Create a complex multi-branch bug workflow"].metrics.durationMs.p50 = 16_000;
+  assert.equal(evaluateLatencyGates(failing).length, 5);
+});
+
 test("rejects unknown task categories instead of silently creating a group", () => {
   assert.throws(() => buildLatencyReport({ results: { results: [] } }, [
     { name: "Typo", taskType: "craete" },
@@ -70,6 +98,11 @@ test("summarizes one timing record per run and allows extra read calls", () => {
       timeToFirstToolCallMs: 3_000,
       toolExecutionMs: 200,
       nonToolDurationMs: 11_800,
+      modelExecutionMs: 11_600,
+      modelStepCount: 4,
+      inputTokenCount: 10_000,
+      outputTokenCount: 800,
+      toolSchemaCharacterCount: 40_000,
       toolCallCount: 4,
       retryToolCallCount: 0,
       redundantToolCallCount: 1,
@@ -89,7 +122,68 @@ test("summarizes one timing record per run and allows extra read calls", () => {
   assert.equal(result.all.attempts, 1);
   assert.equal(result.all.successfulAttempts, 1);
   assert.equal(result.all.metrics.durationMs.p50, 12_000);
+  assert.equal(result.all.metrics.modelExecutionMs.p50, 11_600);
+  assert.equal(result.all.metrics.modelStepCount.p50, 4);
+  assert.equal(result.all.metrics.inputTokenCount.p50, 10_000);
+  assert.equal(result.all.metrics.outputTokenCount.p50, 800);
+  assert.equal(result.all.metrics.toolSchemaCharacterCount.p50, 40_000);
   assert.equal(result.byTaskType.read.metrics.redundantToolCallCount.mean, 1);
+});
+
+test("reports semantic task success separately from strict trajectory efficiency", () => {
+  const attempt = completedEditAttempt({
+    outcomeType: "paginated-routing-hub-edit",
+    taskType: "edit",
+    baseRevision: 1,
+    commands: [
+      { type: "updateNode", id: "routing-hub", patch: { label: "Reviewed routing hub" } },
+    ],
+  });
+  const timing = {
+    durationMs: 12_000,
+    toolCallCount: 3,
+    retryToolCallCount: 1,
+    redundantToolCallCount: 0,
+  };
+  const report = {
+    results: {
+      results: [
+        ...attempt.results.map(({ response }) => ({
+          test: {
+            name: "Paginated workflow",
+            taskType: "edit",
+            outcomeType: "paginated-routing-hub-edit",
+            expectedCall: [{ functionName: response.functionName }],
+          },
+          response,
+          outcome: "pass",
+          runIndex: 1,
+          timing,
+        })),
+        {
+          test: {
+            name: "Paginated workflow",
+            taskType: "edit",
+            outcomeType: "paginated-routing-hub-edit",
+            expectedCall: [{ functionName: "inspect_workflow_items" }],
+          },
+          response: { missing: "Did not execute this step" },
+          outcome: "fail",
+          runIndex: 1,
+          timing,
+        },
+      ],
+    },
+  };
+
+  const result = buildLatencyReport(report);
+
+  assert.equal(result.all.successfulAttempts, 1);
+  assert.equal(result.all.trajectorySuccessfulAttempts, 0);
+  assert.equal(result.all.trajectorySuccessRate, 0);
+  assert.equal(result.all.metrics.durationMs.p50, 12_000);
+  assert.equal(result.all.metrics.allAttemptDurationMs.p50, 12_000);
+  assert.equal(result.byCase["Paginated workflow"].successfulAttempts, 1);
 });
 
 test("excludes failed required trajectories from successful latency percentiles", () => {
@@ -178,6 +272,46 @@ test("requires a semantically valid notification edit and matching visible recei
     timing,
   });
   assert.equal(buildLatencyReport(report).byTaskType.edit.successfulAttempts, 0);
+});
+
+test("accepts a completed edit that reveals its own receipt", () => {
+  const report = {
+    results: {
+      results: [
+        {
+          test: {
+            name: "Notification",
+            taskType: "edit",
+            outcomeType: "notification-edit",
+            expectedCall: [{ functionName: "edit_workflow" }],
+          },
+          response: {
+            functionName: "edit_workflow",
+            args: {
+              baseRevision: 1,
+              commands: [
+                { type: "createNode", node: { id: "notify", type: "action", label: "Notify requester" } },
+                { type: "connect", edge: { source: "approve-request", sourcePort: "success", target: "notify", targetPort: "input" } },
+              ],
+            },
+            result: {
+              operationId: "op-1",
+              status: "completed",
+              baseRevision: 1,
+              resultingRevision: 2,
+              changeCount: 2,
+              visible: true,
+            },
+          },
+          outcome: "pass",
+          runIndex: 1,
+          timing: { durationMs: 7_000, toolCallCount: 1, retryToolCallCount: 0, redundantToolCallCount: 0 },
+        },
+      ],
+    },
+  };
+
+  assert.equal(buildLatencyReport(report).byTaskType.edit.successfulAttempts, 1);
 });
 
 test("does not reject a failed undo that leaves the completed edit in place", () => {

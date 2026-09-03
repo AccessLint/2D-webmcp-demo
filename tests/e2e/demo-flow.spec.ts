@@ -1,5 +1,28 @@
 import { expect, test } from "@playwright/test";
 
+test("a WebMCP edit automatically reveals its receipt", async ({ page }) => {
+  await page.addInitScript(() => {
+    const tools: Record<string, { execute: (input: unknown) => unknown }> = {};
+    Object.defineProperty(document, "modelContext", { configurable: true, value: { registerTool(tool: { name: string; execute: (input: unknown) => unknown }) { tools[tool.name] = tool; } } });
+    (window as unknown as { __workflowTools: typeof tools }).__workflowTools = tools;
+  });
+  await page.goto("/");
+
+  const result = await page.evaluate(async () => {
+    const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
+    return await tools.edit_workflow.execute({
+      baseRevision: 0,
+      commands: [{ type: "createNode", node: { id: "draft", type: "action", label: "Draft" } }],
+    }) as { status: string; visible: boolean };
+  });
+
+  expect(result).toMatchObject({ status: "completed", visible: true });
+  const receiptHeading = page.getByRole("heading", { name: "Created Draft." });
+  await expect(receiptHeading).toBeVisible();
+  await expect(receiptHeading).toBeFocused();
+  await expect(page.getByRole("row", { name: "Action node: Draft" })).toBeVisible();
+});
+
 test("canvas refits after becoming measurable", async ({ page }) => {
   await page.addInitScript(() => {
     const observer = new MutationObserver(() => {
@@ -61,15 +84,14 @@ test("inferred recovery-route receipt can be focused, spot checked, and undone",
   expect(historyBox.top).toBeGreaterThan(viewport.height);
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    const receipt = tools.edit_workflow.execute({
+    const receipt = await tools.edit_workflow.execute({
       baseRevision: 0,
       intent: "Keep leads from disappearing when enrichment is unavailable",
       commands: [
         { type: "connect", edge: { id: "edge-enrich-review", source: "enrich-company", sourcePort: "failure", target: "manual-review", targetPort: "input", label: "Enrichment unavailable" } },
       ],
-    }) as { operationId: string };
-    const focusResult = await tools.show_edit_result.execute({ operationId: receipt.operationId }) as { visible: boolean };
-    if (!focusResult.visible) throw new Error("Change entry was not visible after focus.");
+    }) as { operationId: string; visible: boolean };
+    if (!receipt.visible) throw new Error("Change entry was not visible after edit.");
     return receipt.operationId;
   });
   await expect(page.getByRole("status")).toContainText("Changed 1 connection");

@@ -56,27 +56,6 @@
         "arguments": {}
       },
       {
-        "functionName": "edit_workflow",
-        "arguments": {
-          "baseRevision": 1,
-          "commands": {
-            "$type": "array"
-          }
-        },
-        "result": {
-          "ok": false,
-          "error": { "code": "INVALID_INPUT" }
-        },
-        "optional": true,
-        "latencyAllowance": false
-      },
-      {
-        "functionName": "discover_workflow",
-        "arguments": {},
-        "optional": true,
-        "latencyAllowance": false
-      },
-      {
         "functionName": "inspect_workflow_items",
         "arguments": {
           "objects": {
@@ -99,18 +78,8 @@
           "resultingRevision": 2,
           "changeCount": 2,
           "operationId": { "$type": "string" },
-          "nextCall": { "tool": "show_edit_result" }
+          "visible": true
         }
-      },
-      {
-        "functionName": "show_edit_result",
-        "arguments": {
-          "operationId": {
-            "$type": "string"
-          }
-        },
-        "result": { "status": "completed", "visible": true },
-        "optional": false
       }
     ]
   },
@@ -139,43 +108,13 @@
           }
         },
         "result": {
-          "ok": false,
-          "error": { "code": "INVALID_INPUT" }
-        },
-        "optional": true,
-        "latencyAllowance": false
-      },
-      {
-        "functionName": "discover_workflow",
-        "arguments": {},
-        "optional": true,
-        "latencyAllowance": false
-      },
-      {
-        "functionName": "edit_workflow",
-        "arguments": {
-          "baseRevision": 0,
-          "commands": {
-            "$type": "array"
-          }
-        },
-        "result": {
           "status": "completed",
           "baseRevision": 0,
           "resultingRevision": 1,
           "changeCount": 3,
           "operationId": { "$type": "string" },
-          "nextCall": { "tool": "show_edit_result" }
+          "visible": true
         }
-      },
-      {
-        "functionName": "show_edit_result",
-        "arguments": {
-          "operationId": {
-            "$type": "string"
-          }
-        },
-        "result": { "status": "completed", "visible": true }
       }
     ]
   },
@@ -202,39 +141,13 @@
           "commands": { "$type": "array" }
         },
         "result": {
-          "ok": false,
-          "error": { "code": "INVALID_INPUT" }
-        },
-        "optional": true,
-        "latencyAllowance": false
-      },
-      {
-        "functionName": "discover_workflow",
-        "arguments": {},
-        "optional": true,
-        "latencyAllowance": false
-      },
-      {
-        "functionName": "edit_workflow",
-        "arguments": {
-          "baseRevision": 0,
-          "commands": { "$type": "array" }
-        },
-        "result": {
           "status": "completed",
           "baseRevision": 0,
           "resultingRevision": 1,
           "changeCount": 20,
           "operationId": { "$type": "string" },
-          "nextCall": { "tool": "show_edit_result" }
+          "visible": true
         }
-      },
-      {
-        "functionName": "show_edit_result",
-        "arguments": {
-          "operationId": { "$type": "string" }
-        },
-        "result": { "status": "completed", "visible": true }
       }
     ]
   },
@@ -324,15 +237,8 @@
           "resultingRevision": 2,
           "changeCount": 2,
           "operationId": { "$type": "string" },
-          "nextCall": { "tool": "show_edit_result" }
+          "visible": true
         }
-      },
-      {
-        "functionName": "show_edit_result",
-        "arguments": {
-          "operationId": { "$type": "string" }
-        },
-        "result": { "status": "completed", "visible": true }
       }
     ]
   },
@@ -529,15 +435,8 @@
           "resultingRevision": 2,
           "changeCount": 1,
           "operationId": { "$type": "string" },
-          "nextCall": { "tool": "show_edit_result" }
+          "visible": true
         }
-      },
-      {
-        "functionName": "show_edit_result",
-        "arguments": {
-          "operationId": { "$type": "string" }
-        },
-        "result": { "status": "completed", "visible": true }
       }
     ]
   }

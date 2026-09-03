@@ -1,12 +1,15 @@
 diff --git a/node_modules/webmcp-evals/dist/backends/vercel.js b/node_modules/webmcp-evals/dist/backends/vercel.js
-index 379228c..8826eec 100644
+index 379228c..59b1ebe 100644
 --- a/node_modules/webmcp-evals/dist/backends/vercel.js
 +++ b/node_modules/webmcp-evals/dist/backends/vercel.js
-@@ -12,6 +12,18 @@ import { ConsoleLogger } from "../utils/logger.js";
+@@ -12,6 +12,26 @@ import { ConsoleLogger } from "../utils/logger.js";
  // any reasonable trajectory in evals.json; small enough that a stuck model
  // terminates without burning tokens. Overridable via `--max-steps=N`.
  const DEFAULT_MAX_STEPS = 6;
-+function buildRawTiming(startedAt, firstToolCallAt, toolExecutionMs, toolAttempts) {
++function sumModelStepField(modelSteps, field) {
++    return modelSteps.reduce((sum, step) => sum + (Number.isFinite(step[field]) ? step[field] : 0), 0);
++}
++function buildRawTiming(startedAt, firstToolCallAt, toolExecutionMs, toolAttempts, modelSteps) {
 +    const durationMs = performance.now() - startedAt;
 +    return {
 +        durationMs,
@@ -15,13 +18,18 @@ index 379228c..8826eec 100644
 +            : { timeToFirstToolCallMs: firstToolCallAt - startedAt }),
 +        toolExecutionMs,
 +        nonToolDurationMs: Math.max(0, durationMs - toolExecutionMs),
++        modelExecutionMs: sumModelStepField(modelSteps, "modelExecutionMs"),
++        modelStepCount: modelSteps.length,
++        inputTokenCount: sumModelStepField(modelSteps, "inputTokens"),
++        outputTokenCount: sumModelStepField(modelSteps, "outputTokens"),
++        toolSchemaCharacterCount: sumModelStepField(modelSteps, "toolSchemaCharacters"),
 +        toolAttempts,
 +    };
 +}
  export class VercelBackend {
      aiModel;
      modelName;
-@@ -91,6 +103,10 @@ export class VercelBackend {
+@@ -91,8 +111,15 @@ export class VercelBackend {
          return { toolCalls, text: aiResult.text, steps };
      }
      async executeInBrowserEval(test, registry) {
@@ -31,8 +39,21 @@ index 379228c..8826eec 100644
 +        const toolAttempts = [];
          const availableToolsPerStep = [];
          const stepsHistory = [];
++        const modelSteps = [];
++        let modelStepStartedAt;
++        let toolExecutionAtStepStart = 0;
          const getBrowserConsoleErrors = () => registry instanceof BrowserToolRegistry ? registry.getBrowserConsoleErrors() : undefined;
-@@ -119,6 +135,12 @@ export class VercelBackend {
+         const buildErrorTrajectory = () => {
+             return stepsHistory.map((step, idx) => ({
+@@ -101,6 +128,7 @@ export class VercelBackend {
+                 toolCalls: step.toolCalls,
+                 toolResults: step.toolResults,
+                 availableTools: availableToolsPerStep[idx] || [],
++                timing: modelSteps[idx],
+             }));
+         };
+         try {
+@@ -119,6 +147,12 @@ export class VercelBackend {
                  tools: aiToolsWithExecution,
                  instructions: SYSTEM_PROMPT,
                  experimental_onToolCallStart: (event) => {
@@ -45,7 +66,7 @@ index 379228c..8826eec 100644
                      this.logger.debug(`\n[DEBUG] Tool "${event.toolCall.toolName}" starting...`);
                      this.logger.dir(event.toolCall.args || event.toolCall.input, {
                          depth: null,
-@@ -126,6 +148,20 @@ export class VercelBackend {
+@@ -126,6 +160,20 @@ export class VercelBackend {
                      });
                  },
                  experimental_onToolCallFinish: (event) => {
@@ -66,7 +87,35 @@ index 379228c..8826eec 100644
                      if (event.success) {
                          this.logger.debug(`[DEBUG] Tool "${event.toolCall.toolName}" completed in ${event.durationMs}ms`);
                          if (event.output)
-@@ -152,6 +188,7 @@ export class VercelBackend {
+@@ -137,14 +185,27 @@ export class VercelBackend {
+                 },
+                 onStepFinish: (event) => {
+                     this.logger.debug(`[DEBUG] Step ${event.stepNumber || ""} finished (${event.finishReason}). Total Tokens: ${event.usage.totalTokens}`);
++                    const elapsedMs = modelStepStartedAt === undefined ? 0 : performance.now() - modelStepStartedAt;
++                    const stepToolExecutionMs = toolExecutionMs - toolExecutionAtStepStart;
++                    const stepTiming = {
++                        modelExecutionMs: Math.max(0, elapsedMs - stepToolExecutionMs),
++                        inputTokens: event.usage?.inputTokens,
++                        outputTokens: event.usage?.outputTokens,
++                        totalTokens: event.usage?.totalTokens,
++                        toolSchemaCharacters: JSON.stringify(availableToolsPerStep.at(-1) || []).length,
++                    };
++                    modelSteps.push(stepTiming);
+                     stepsHistory.push({
+                         text: event.text,
+                         reasoningText: event.reasoningText,
+                         toolCalls: event.toolCalls,
+                         toolResults: event.toolResults,
++                        timing: stepTiming,
+                     });
+                 },
+                 prepareStep: async (_opts) => {
++                    modelStepStartedAt = performance.now();
++                    toolExecutionAtStepStart = toolExecutionMs;
+                     currentTools = await registry.getCurrentTools();
+                     rebuildTools(currentTools);
+                     availableToolsPerStep.push([...currentTools]);
+@@ -152,6 +213,7 @@ export class VercelBackend {
                  },
              });
              const aiMessages = mapMessages(test.messages);
@@ -74,26 +123,32 @@ index 379228c..8826eec 100644
              const resultPayload = await agentWithExec.generate({ messages: aiMessages });
              // Gather executed tool calls across all steps
              const executedCalls = [];
-@@ -188,6 +225,7 @@ export class VercelBackend {
+@@ -183,11 +245,13 @@ export class VercelBackend {
+                 toolCalls: step.toolCalls,
+                 toolResults: step.toolResults,
+                 availableTools: availableToolsPerStep[idx] || [],
++                timing: modelSteps[idx],
+             }));
+             return {
                  toolCalls: executedCalls,
                  text: resultPayload.text,
                  steps,
-+                timing: buildRawTiming(timingStartedAt, firstToolCallAt, toolExecutionMs, toolAttempts),
++                timing: buildRawTiming(timingStartedAt, firstToolCallAt, toolExecutionMs, toolAttempts, modelSteps),
                  browserConsoleErrors: getBrowserConsoleErrors(),
              };
          }
-@@ -196,6 +234,9 @@ export class VercelBackend {
+@@ -196,6 +260,9 @@ export class VercelBackend {
              return {
                  toolCalls: [],
                  steps: buildErrorTrajectory(),
 +                timing: timingStartedAt === undefined
 +                    ? undefined
-+                    : buildRawTiming(timingStartedAt, firstToolCallAt, toolExecutionMs, toolAttempts),
++                    : buildRawTiming(timingStartedAt, firstToolCallAt, toolExecutionMs, toolAttempts, modelSteps),
                  browserConsoleErrors: getBrowserConsoleErrors(),
                  error: e,
              };
 diff --git a/node_modules/webmcp-evals/dist/evaluator/browserEvaluator.js b/node_modules/webmcp-evals/dist/evaluator/browserEvaluator.js
-index 7a75b6c..f7345d8 100644
+index 7a75b6c..c9ba0d3 100644
 --- a/node_modules/webmcp-evals/dist/evaluator/browserEvaluator.js
 +++ b/node_modules/webmcp-evals/dist/evaluator/browserEvaluator.js
 @@ -61,9 +61,11 @@ function calculateTotalSteps(tests, runs) {
@@ -152,7 +207,7 @@ index 7a75b6c..f7345d8 100644
                  ...(browserConsoleErrors.length > 0 ? { browserConsoleErrors } : {}),
              },
          ];
-@@ -98,6 +119,63 @@ async function runSingleBrowserTest(test, browser, backend, config, runIndex) {
+@@ -98,6 +119,78 @@ async function runSingleBrowserTest(test, browser, backend, config, runIndex) {
          }
      }
  }
@@ -172,6 +227,21 @@ index 7a75b6c..f7345d8 100644
 +        ...(rawTiming?.nonToolDurationMs === undefined
 +            ? {}
 +            : { nonToolDurationMs: rawTiming.nonToolDurationMs }),
++        ...(rawTiming?.modelExecutionMs === undefined
++            ? {}
++            : { modelExecutionMs: rawTiming.modelExecutionMs }),
++        ...(rawTiming?.modelStepCount === undefined
++            ? {}
++            : { modelStepCount: rawTiming.modelStepCount }),
++        ...(rawTiming?.inputTokenCount === undefined
++            ? {}
++            : { inputTokenCount: rawTiming.inputTokenCount }),
++        ...(rawTiming?.outputTokenCount === undefined
++            ? {}
++            : { outputTokenCount: rawTiming.outputTokenCount }),
++        ...(rawTiming?.toolSchemaCharacterCount === undefined
++            ? {}
++            : { toolSchemaCharacterCount: rawTiming.toolSchemaCharacterCount }),
 +        toolCallCount: actualToolNames.length,
 +        retryToolCallCount,
 +        redundantToolCallCount,
@@ -216,7 +286,7 @@ index 7a75b6c..f7345d8 100644
  async function setupBrowserPage(browser, url) {
      const page = await browser.newPage();
      await page.goto(url, {
-@@ -106,7 +184,7 @@ async function setupBrowserPage(browser, url) {
+@@ -106,7 +199,7 @@ async function setupBrowserPage(browser, url) {
      });
      return page;
  }
@@ -225,7 +295,7 @@ index 7a75b6c..f7345d8 100644
      const testResults = [];
      const trajectories = test.expectedCall
          ? evaluateExecutionTrajectory(test.expectedCall, executedCalls)
-@@ -121,6 +199,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
+@@ -121,6 +214,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
              ...(browserConsoleErrors.length > 0 ? { browserConsoleErrors } : {}),
              runIndex,
              stepIndex: 1,
@@ -233,7 +303,7 @@ index 7a75b6c..f7345d8 100644
          });
      }
      else {
-@@ -136,8 +215,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
+@@ -136,8 +230,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
              }
              testResults.push({
                  test: {
@@ -243,7 +313,7 @@ index 7a75b6c..f7345d8 100644
                      expectedCall: traj.expected ? [traj.expected] : null,
                  },
                  response,
-@@ -148,6 +226,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
+@@ -148,6 +241,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
                      : {}),
                  runIndex,
                  stepIndex: currentStepIndex,

@@ -114,7 +114,7 @@ describe("WebMCP tool boundary", () => {
       ]),
     });
 
-    const receipt = tools.edit_workflow({
+    const receipt = await tools.edit_workflow({
       baseRevision: 0,
       intent: "Add Notify sales after Create CRM opportunity",
       commands: [
@@ -125,7 +125,11 @@ describe("WebMCP tool boundary", () => {
         ] },
       ],
     });
-    expect(tools.get_edit_result({ operationId: receipt.operationId })).toEqual(receipt);
+    expect(tools.get_edit_result({ operationId: receipt.operationId })).toMatchObject({
+      operationId: receipt.operationId,
+      summary: receipt.summary,
+      status: receipt.status,
+    });
     await expect(tools.show_edit_result({ operationId: receipt.operationId })).resolves.toMatchObject({ operationId: receipt.operationId, summary: receipt.summary, focusedIn: "change-history", visible: true });
     expect(focusedOperationId).toBe(receipt.operationId);
     expect(tools.inspect_workflow_items({ objects: [{ kind: "workflow-node", id: "notify-sales" }] })[0]).toMatchObject({ label: "Notify sales", properties: {} });
@@ -139,24 +143,27 @@ describe("WebMCP tool boundary", () => {
     expect(tools.undo_workflow_edit({ operationId: receipt.operationId }).summary).toContain("Undid");
   });
 
-  it("returns application evidence for a stale edit without changing the graph", () => {
+  it("returns application evidence for a stale edit without changing the graph", async () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store);
-    const receipt = tools.edit_workflow({ baseRevision: 4, commands: [{ type: "deleteNode", id: "enrich-company" }] });
+    const receipt = await tools.edit_workflow({ baseRevision: 4, commands: [{ type: "deleteNode", id: "enrich-company" }] });
     expect(receipt).toMatchObject({
       status: "conflict", baseRevision: 4, resultingRevision: 0, changes: [], undo: { available: false },
       failure: { code: "REVISION_CONFLICT", message: "Expected revision 0, received 4." },
       recovery: { tool: "discover_workflow", input: {}, currentRevision: 0, then: "edit_workflow" },
     });
     expect(store.getState().workflow.revision).toBe(0);
-    expect(tools.get_edit_result({ operationId: receipt.operationId })).toEqual(receipt);
+    expect(tools.get_edit_result({ operationId: receipt.operationId })).toMatchObject({
+      operationId: receipt.operationId,
+      status: receipt.status,
+    });
   });
 
-  it("accepts a discovered SurfaceSnapshot label when editing a node", () => {
+  it("accepts a discovered SurfaceSnapshot label when editing a node", async () => {
     const store = createSalesWorkflowStore();
     const tools = createToolHandlers(store);
 
-    const receipt = tools.edit_workflow({
+    const receipt = await tools.edit_workflow({
       baseRevision: 0,
       commands: [{
         type: "updateNode",
@@ -169,11 +176,11 @@ describe("WebMCP tool boundary", () => {
     expect(store.getState().workflow.nodes.find((node) => node.id === "enrich-company")?.label).toBe("Enrich company v2");
   });
 
-  it("defaults omitted properties when creating a node", () => {
+  it("defaults omitted properties when creating a node", async () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store);
 
-    const receipt = tools.edit_workflow({
+    const receipt = await tools.edit_workflow({
       baseRevision: 0,
       commands: [{
         type: "createNode",
@@ -185,9 +192,9 @@ describe("WebMCP tool boundary", () => {
     expect(store.getState().workflow.nodes.find((node) => node.id === "new-action")?.properties).toEqual({});
   });
 
-  it("preserves a typed command failure and recovery guidance in the receipt", () => {
+  it("preserves a typed command failure and recovery guidance in the receipt", async () => {
     const tools = createToolHandlers(createWorkflowStore());
-    const receipt = tools.edit_workflow({
+    const receipt = await tools.edit_workflow({
       baseRevision: 0,
       commands: [{ type: "updateNode", id: "missing", patch: { label: "Still missing" } }],
     });
@@ -242,17 +249,16 @@ describe("WebMCP tool boundary", () => {
     expect(registered.get("discover_workflow")?.description).toContain("recovery directs");
     expect(registered.get("inspect_workflow_items")?.description).toContain("does not select or reveal");
     expect(registered.get("edit_workflow")?.description).toContain("Do not increment it");
-    expect(registered.get("edit_workflow")?.description).toContain("top-level type");
-    expect(registered.get("edit_workflow")?.description).toContain("Never wrap a command");
+    expect(registered.get("edit_workflow")?.description).toContain("Commands use these shapes");
     expect(registered.get("edit_workflow")?.description).toContain("itemPage.nextCursor");
-    expect(registered.get("edit_workflow")?.description).toContain("createNode node.label");
+    expect(registered.get("edit_workflow")?.description).toContain("reveals the resulting receipt");
     expect(registered.get("focus_page_element")?.description).toContain("exactly one targetId");
     expect(registered.get("focus_page_element")?.description).toContain("Always call discover_workflow first");
     expect(registered.get("focus_page_element")?.description).toContain("Queue keyboard focus");
     expect(registered.get("focus_page_element")?.description).toContain("window receives focus");
     expect(registered.get("show_workflow_item")?.description).toContain("select, show, reveal, or bring an item into view");
-    expect(registered.get("show_edit_result")?.description).toContain("edit_workflow or undo_workflow_edit");
-    expect(registered.get("show_edit_result")?.description).toContain("outcome or implication");
+    expect(registered.get("show_edit_result")?.description).toContain("visible false");
+    expect(registered.get("show_edit_result")?.description).toContain("Do not call it after an edit that returns visible true");
     expect(registered.get("discover_workflow")?.annotations).toEqual({
       readOnlyHint: true,
       untrustedContentHint: true,
@@ -289,7 +295,7 @@ describe("WebMCP tool boundary", () => {
       durationMs: expect.any(Number),
     });
     expect(observedInvocations[0]).toMatchObject({ tool: "discover_workflow", code: "INVALID_INPUT" });
-    const invalidEdit = registered.get("edit_workflow")!.execute({
+    const invalidEdit = await registered.get("edit_workflow")!.execute({
       baseRevision: 0,
       commands: [{ command: "createNode", node: {} }],
     });
@@ -321,30 +327,26 @@ describe("WebMCP tool boundary", () => {
     expect(JSON.stringify(invalidEdit).length).toBeLessThanOrEqual(1_500);
     expect(registered.get("edit_workflow")?.inputSchema).toMatchObject({
       properties: {
-        baseRevision: expect.objectContaining({
-          description: expect.stringMatching(/surface\.documentVersion.*Do not increment/),
-        }),
-        commands: expect.objectContaining({ description: "Atomic workflow edits. Every command must match one documented command type." }),
+        baseRevision: expect.objectContaining({ type: "integer", minimum: 0 }),
+        commands: expect.objectContaining({ type: "array", minItems: 1, maxItems: 20 }),
       },
       additionalProperties: false,
     });
+    expect(JSON.stringify(registered.get("edit_workflow")?.inputSchema).length).toBeLessThan(4_500);
+    expect(JSON.stringify(registered.get("edit_workflow")?.inputSchema)).toContain('"nodeId"');
     expect(JSON.stringify(registered.get("edit_workflow")?.inputSchema)).not.toContain("\\\\p{");
-    const applied = registered.get("edit_workflow")!.execute({
+    const applied = await registered.get("edit_workflow")!.execute({
       baseRevision: 0,
       commands: [{ type: "updateNode", id: "enrich-company", patch: { label: "Enrich company" } }],
     });
-    expect(applied).not.toBeInstanceOf(Promise);
     expect(applied).toMatchObject({
       status: "completed",
       resultingRevision: 1,
       operationId: expect.any(String),
       changeCount: 0,
       changePage: { cursor: 0, nextCursor: null, items: [] },
-      nextCall: {
-        tool: "show_edit_result",
-        input: { operationId: expect.any(String) },
-        purpose: expect.stringMatching(/visible evidence.*outcome or implication/),
-      },
+      visible: false,
+      nextCall: { tool: "show_edit_result", input: { operationId: expect.any(String) } },
     });
     expect(store.getState().invocations.find((invocation) => invocation.tool === "edit_workflow")).toMatchObject({
       outcome: "completed",
@@ -370,7 +372,7 @@ describe("WebMCP tool boundary", () => {
         ]),
       },
       nextCalls: {
-        edit: expect.stringMatching(/connect.*source.*sourcePort.*target.*targetPort/),
+        edit: expect.stringMatching(/Reuse itemPage IDs.*positions are optional.*reveals its receipt/),
       },
     });
     expect(compactDiscovery.itemPage.items.length).toBeGreaterThanOrEqual(3);
@@ -411,7 +413,7 @@ describe("WebMCP tool boundary", () => {
     delete document.modelContext;
   });
 
-  it("rejects oversized domain strings before they enter workflow state", () => {
+  it("rejects oversized domain strings before they enter workflow state", async () => {
     const registered = new Map<string, WebMCPTool>();
     const modelContext = Object.assign(new EventTarget(), {
       registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
@@ -419,7 +421,7 @@ describe("WebMCP tool boundary", () => {
     Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
     const registration = registerWorkflowTools(createToolHandlers(createWorkflowStore()));
 
-    const result = registered.get("edit_workflow")!.execute({
+    const result = await registered.get("edit_workflow")!.execute({
       baseRevision: 0,
       commands: [{
         type: "createNode",
@@ -435,7 +437,7 @@ describe("WebMCP tool boundary", () => {
 
     expect(result).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
 
-    const tooManyProperties = registered.get("edit_workflow")!.execute({
+    const tooManyProperties = await registered.get("edit_workflow")!.execute({
       baseRevision: 0,
       commands: [{
         type: "createNode",
@@ -450,7 +452,7 @@ describe("WebMCP tool boundary", () => {
     });
     expect(tooManyProperties).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
 
-    const controlCharacters = registered.get("edit_workflow")!.execute({
+    const controlCharacters = await registered.get("edit_workflow")!.execute({
       baseRevision: 0,
       commands: [{
         type: "createNode",
@@ -465,7 +467,7 @@ describe("WebMCP tool boundary", () => {
     });
     expect(controlCharacters).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
 
-    const manyInvalidCommands = registered.get("edit_workflow")!.execute({
+    const manyInvalidCommands = await registered.get("edit_workflow")!.execute({
       baseRevision: 0,
       commands: Array.from({ length: 20 }, (_, index) => ({
         type: "deleteNode",
@@ -536,7 +538,7 @@ describe("WebMCP tool boundary", () => {
     delete document.modelContext;
   });
 
-  it("pages compact receipt changes without validation metadata", () => {
+  it("pages compact receipt changes without validation metadata", async () => {
     const store = createSalesWorkflowStore();
     const registered = new Map<string, WebMCPTool>();
     const modelContext = Object.assign(new EventTarget(), {
@@ -545,7 +547,7 @@ describe("WebMCP tool boundary", () => {
     Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
     const registration = registerWorkflowTools(createToolHandlers(store));
 
-    const edit = registered.get("edit_workflow")!.execute({
+    const edit = await registered.get("edit_workflow")!.execute({
       baseRevision: 0,
       commands: Array.from({ length: 6 }, (_, index) => [{
           type: "createNode",

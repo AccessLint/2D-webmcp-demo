@@ -24,20 +24,23 @@ function compactDiscovery(result: UnknownRecord, input: unknown) {
     ? authoring.uiTargets.filter(isRecord).map(({ id, label }) => ({ id, label }))
     : [];
   const pageItems = allItems.slice(cursor, cursor + requestedLimit);
+  const capabilities = cursor === 0 ? {
+    nodeTypes,
+    uiTargets,
+    nextCalls: {
+      inspect: "inspect_workflow_items: use itemPage IDs.",
+      edit: `edit_workflow baseRevision ${String(result.revision)}. Reuse itemPage IDs; no duplicates. Node positions are optional. A successful edit reveals its receipt.`,
+    },
+  } : {};
   const createOutput = () => ({
     schemaVersion: result.schemaVersion,
     revision: result.revision,
     counts: { nodes: result.nodes, edges: result.edges },
-    nodeTypes,
-    uiTargets,
+    ...capabilities,
     itemPage: {
       cursor,
       nextCursor: cursor + pageItems.length < allItems.length ? cursor + pageItems.length : null,
       items: pageItems,
-    },
-    nextCalls: {
-      inspect: "inspect_workflow_items: use itemPage IDs.",
-      edit: `edit_workflow baseRevision ${String(result.revision)}. Reuse itemPage IDs; no duplicates. Commands use type. Edges: connect {edge:{id,source,sourcePort,target,targetPort}}; disconnect {edgeId}; replaceConnection {edgeId,replacement:[edge]}.`,
     },
   });
 
@@ -65,6 +68,7 @@ function compactReceipt(result: UnknownRecord, input: unknown) {
     baseRevision: result.baseRevision,
     resultingRevision: result.resultingRevision,
     summary: result.summary,
+    ...(typeof result.visible === "boolean" ? { visible: result.visible } : {}),
     changeCount: changes.length,
     changePage: {
       cursor: changeCursor,
@@ -72,13 +76,7 @@ function compactReceipt(result: UnknownRecord, input: unknown) {
       items: compactChanges,
     },
     undo: result.undo,
-    ...(result.status === "completed" && typeof result.operationId === "string" ? {
-      nextCall: {
-        tool: "show_edit_result",
-        input: { operationId: result.operationId },
-        purpose: "Show visible evidence, then briefly state the operation's outcome or implication.",
-      },
-    } : {}),
+    ...(isRecord(result.nextCall) ? { nextCall: result.nextCall } : {}),
     ...(result.failure ? { failure: result.failure } : {}),
     ...(result.recovery ? { recovery: result.recovery } : {}),
   });

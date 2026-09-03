@@ -32,7 +32,7 @@ function isAbortError(error: unknown): boolean {
 const editCommandExamples = {
   createNode: {
     type: "createNode",
-    node: { id: "new-action", type: "action", label: "New action", position: { x: 700, y: 300 }, properties: {} },
+    node: { id: "new-action", type: "action", label: "New action" },
   },
   connect: {
     type: "connect",
@@ -187,7 +187,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.editWorkflow,
       title: "Edit workflow",
-      description: `Call after ${toolNames.discoverWorkflow}. Reuse existing IDs returned in itemPage. Before deciding an ID is absent, follow itemPage.nextCursor until it is null; one page is not proof of absence. Never create a node with an existing ID. Set baseRevision to discovery's exact revision, or Number(surface.documentVersion) for a SurfaceSnapshot. Do not increment it. Every command object needs a top-level type, for example {type:"createNode",node:{...}}. Never wrap a command as {createNode:{...}}. Node properties may be omitted when empty. Edge endpoints are source and target, not sourceId and targetId. Atomically applies up to 20 commands. Both createNode node.label and updateNode patch.label accept a string or copied Snapshot label object. On conflict or when recovery directs you, rediscover before retrying.`,
+      description: `Call after ${toolNames.discoverWorkflow}. Reuse existing IDs returned in itemPage. Before deciding an ID is absent, follow itemPage.nextCursor until it is null; one page is not proof of absence. Never create a node with an existing ID. Set baseRevision to discovery's exact revision. Do not increment it. Commands use these shapes: createNode {node:{id,type,label,position?}}, updateNode {id,patch} (nodeId aliases id), deleteNode {id}, connect {edge}, disconnect {edgeId}, replaceConnection {edgeId,replacement}. Positions and empty properties may be omitted. Edge endpoints are source and target. Applies up to 20 commands atomically and reveals the resulting receipt. On conflict, rediscover before retrying.`,
       inputSchema: jsonSchemas.apply,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.editWorkflow],
@@ -219,7 +219,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.showEditResult,
       title: "Show edit result",
-      description: `Use this as the final proof step after ${toolNames.editWorkflow} or ${toolNames.undoWorkflowEdit}. Pass the result's operationId to bring that history entry into view and move keyboard focus to it as visible evidence. After it succeeds, briefly tell the user what the operation accomplished and its outcome or implication, not only the changed-object details.`,
+      description: `Use after ${toolNames.undoWorkflowEdit}, to revisit an existing receipt, or when ${toolNames.editWorkflow} returns visible false. Do not call it after an edit that returns visible true. Pass the operationId to bring the history entry into view and focus it as visible evidence.`,
       inputSchema: jsonSchemas.operation,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.showEditResult],
