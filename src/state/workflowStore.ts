@@ -1,6 +1,7 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
 import { executeBatch, type WorkflowCommand } from "../graph/commands";
+import { layoutWorkflow } from "../graph/layout";
 import type { WorkflowState } from "../graph/model";
 import { nodeDefinitions } from "../graph/nodeTypes";
 import { createReceipt } from "../receipts/createReceipt";
@@ -31,6 +32,7 @@ export class WorkflowUndoError extends Error {
 export type WorkflowSnapshot = { operationId: string; state: WorkflowState; resultingRevision: number };
 export type WorkflowSelection = { kind: "node" | "edge"; id: string };
 export type WorkflowConnectionSource = { nodeId: string; port: string };
+export type WorkflowApplyOptions = { autoLayoutNodeIds?: readonly string[] };
 
 export type WorkflowStore = {
   workflow: WorkflowState;
@@ -43,7 +45,7 @@ export type WorkflowStore = {
   politeMessage: string;
   assertiveMessage: string;
   invocations: Invocation[];
-  apply: (baseRevision: number, commands: WorkflowCommand[], intent?: string) => ChangeReceipt;
+  apply: (baseRevision: number, commands: WorkflowCommand[], intent?: string, options?: WorkflowApplyOptions) => ChangeReceipt;
   undo: (operationId: string) => ChangeReceipt;
   select: (selection: WorkflowSelection | null, returnFocusId?: string, focusInspector?: boolean) => void;
   setConnectionSource: (source: WorkflowConnectionSource | null) => void;
@@ -124,7 +126,7 @@ function createFailedReceipt(
 export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<WorkflowStore> {
   return createStore<WorkflowStore>((set, get) => ({
     ...createInitialState(initial),
-    apply: (baseRevision, commands, intent) => {
+    apply: (baseRevision, commands, intent, options) => {
       const before = get().workflow;
       const result = executeBatch(before, { baseRevision, commands });
       if (!result.ok) {
@@ -136,19 +138,20 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
         return receipt;
       }
 
-      const receipt = createReceipt({ before, after: result.state, intent });
+      const nextWorkflow = layoutWorkflow(result.state, options?.autoLayoutNodeIds ?? []);
+      const receipt = createReceipt({ before, after: nextWorkflow, intent });
       set((current) => ({
-        workflow: result.state,
+        workflow: nextWorkflow,
         history: [receipt, ...current.history],
         snapshots: [
           ...current.snapshots,
           {
             operationId: receipt.operationId,
             state: structuredClone(before),
-            resultingRevision: result.state.revision,
+            resultingRevision: nextWorkflow.revision,
           },
         ],
-        connectionSource: reconcileConnectionSource(result.state, current.connectionSource),
+        connectionSource: reconcileConnectionSource(nextWorkflow, current.connectionSource),
         politeMessage: receipt.summary,
         assertiveMessage: "",
       }));

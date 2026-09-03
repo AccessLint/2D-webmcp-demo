@@ -71,10 +71,25 @@ export function createToolHandlers(store: StoreApi<WorkflowStore>, uiActions: Ui
     async [toolNames.editWorkflow](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);
       const parsed = applyInputSchema.parse(input);
+      const explicitlyPositionedNodeIds = new Set(parsed.commands.flatMap((command) => {
+        if (command.type === "createNode" && command.node.position !== undefined) return [command.node.id];
+        if (command.type === "updateNode" && command.patch.position !== undefined) {
+          return [command.id ?? command.nodeId!];
+        }
+        return [];
+      }));
+      const autoLayoutNodeIds = parsed.commands.flatMap((command) => (
+        command.type === "createNode"
+          && command.node.position === undefined
+          && !explicitlyPositionedNodeIds.has(command.node.id)
+          ? [command.node.id]
+          : []
+      ));
       const receipt = store.getState().apply(
         parsed.baseRevision,
         normalizeCommands(parsed.commands, store.getState().workflow.nodes),
         parsed.intent,
+        { autoLayoutNodeIds },
       );
       try {
         const focusResult = await uiActions.focusChangeEntry(receipt.operationId, options?.signal);
