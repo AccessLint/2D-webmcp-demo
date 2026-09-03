@@ -210,4 +210,130 @@ describe("automatic workflow layout", () => {
     const join = store.getState().workflow.nodes.find((node) => node.id === "join")!;
     expect(join.position.y).toBeCloseTo((100 + 300 + 900) / 3);
   });
+
+  it("stacks branches when connections are added after automatic node creation", async () => {
+    const store = createWorkflowStore();
+    const tools = createToolHandlers(store, uiActions);
+
+    await tools.edit_workflow({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "decision", type: "condition", label: "Approved?" } },
+        { type: "createNode", node: { id: "approved", type: "action", label: "Approve" } },
+        { type: "createNode", node: { id: "rejected", type: "action", label: "Reject" } },
+      ],
+    });
+    await tools.edit_workflow({
+      baseRevision: 1,
+      commands: [
+        connect("decision-yes", "decision", "yes", "approved"),
+        connect("decision-no", "decision", "no", "rejected"),
+      ],
+    });
+
+    const positions = Object.fromEntries(
+      store.getState().workflow.nodes.map((node) => [node.id, node.position]),
+    );
+    expect(positions).toEqual({
+      decision: { x: 100, y: 220 },
+      approved: { x: 480, y: 100 },
+      rejected: { x: 480, y: 340 },
+    });
+  });
+
+  it("does not reflow an automatically created node after an explicit move", async () => {
+    const store = createWorkflowStore();
+    const tools = createToolHandlers(store, uiActions);
+
+    await tools.edit_workflow({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "decision", type: "condition", label: "Approved?" } },
+        { type: "createNode", node: { id: "approved", type: "action", label: "Approve" } },
+        { type: "createNode", node: { id: "rejected", type: "action", label: "Reject" } },
+      ],
+    });
+    await tools.edit_workflow({
+      baseRevision: 1,
+      commands: [
+        { type: "updateNode", id: "decision", patch: { position: { x: 900, y: 500 } } },
+      ],
+    });
+    await tools.edit_workflow({
+      baseRevision: 2,
+      commands: [
+        connect("decision-yes", "decision", "yes", "approved"),
+        connect("decision-no", "decision", "no", "rejected"),
+      ],
+    });
+
+    const decision = store.getState().workflow.nodes.find((node) => node.id === "decision")!;
+    expect(decision.position).toEqual({ x: 900, y: 500 });
+  });
+
+  it("restores automatic layout ownership when an explicit move is undone", async () => {
+    const store = createWorkflowStore();
+    const tools = createToolHandlers(store, uiActions);
+
+    await tools.edit_workflow({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "decision", type: "condition", label: "Approved?" } },
+        { type: "createNode", node: { id: "approved", type: "action", label: "Approve" } },
+        { type: "createNode", node: { id: "rejected", type: "action", label: "Reject" } },
+      ],
+    });
+    const moveReceipt = await tools.edit_workflow({
+      baseRevision: 1,
+      commands: [
+        { type: "updateNode", id: "decision", patch: { position: { x: 900, y: 500 } } },
+      ],
+    });
+    tools.undo_workflow_edit({ operationId: moveReceipt.operationId });
+    await tools.edit_workflow({
+      baseRevision: 3,
+      commands: [
+        connect("decision-yes", "decision", "yes", "approved"),
+        connect("decision-no", "decision", "no", "rejected"),
+      ],
+    });
+
+    const positions = Object.fromEntries(
+      store.getState().workflow.nodes.map((node) => [node.id, node.position]),
+    );
+    expect(positions).toEqual({
+      decision: { x: 100, y: 220 },
+      approved: { x: 480, y: 100 },
+      rejected: { x: 480, y: 340 },
+    });
+  });
+
+  it("stacks a later branch whose target was already connected elsewhere", async () => {
+    const store = createWorkflowStore();
+    const tools = createToolHandlers(store, uiActions);
+
+    await tools.edit_workflow({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "start", type: "start", label: "Start" } },
+        { type: "createNode", node: { id: "decision", type: "condition", label: "Approved?" } },
+        { type: "createNode", node: { id: "approved", type: "action", label: "Approve" } },
+        { type: "createNode", node: { id: "rejected", type: "action", label: "Reject" } },
+        { type: "createNode", node: { id: "done", type: "end", label: "Done" } },
+        connect("start-decision", "start", "next", "decision"),
+        connect("decision-yes", "decision", "yes", "approved"),
+        connect("rejected-done", "rejected", "success", "done"),
+      ],
+    });
+    await tools.edit_workflow({
+      baseRevision: 1,
+      commands: [connect("decision-no", "decision", "no", "rejected")],
+    });
+
+    const positions = Object.fromEntries(
+      store.getState().workflow.nodes.map((node) => [node.id, node.position]),
+    );
+    expect(positions.approved.x).toBe(positions.rejected.x);
+    expect(positions.approved.y).not.toBe(positions.rejected.y);
+  });
 });

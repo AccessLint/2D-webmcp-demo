@@ -5,7 +5,7 @@ const SESSION_KEY = "workflow-evidence-session-v6-empty-canvas";
 
 type PersistedWorkflowSession = Pick<
   WorkflowStore,
-  "workflow" | "history" | "snapshots" | "selected" | "invocations"
+  "workflow" | "history" | "snapshots" | "autoLayoutNodeIds" | "selected" | "invocations"
 >;
 
 function isPersistedWorkflowSession(value: unknown): value is Partial<PersistedWorkflowSession> {
@@ -19,11 +19,22 @@ function isPersistedWorkflowSession(value: unknown): value is Partial<PersistedW
   );
 }
 
+function persistedAutoLayoutNodeIds(
+  session: Partial<PersistedWorkflowSession>,
+  fallback: string[],
+): string[] {
+  const nodeIds: unknown = session.autoLayoutNodeIds;
+  return Array.isArray(nodeIds) && nodeIds.every((id) => typeof id === "string")
+    ? nodeIds
+    : fallback;
+}
+
 function sessionSnapshot(state: WorkflowStore): PersistedWorkflowSession {
   return {
     workflow: state.workflow,
     history: state.history,
     snapshots: state.snapshots,
+    autoLayoutNodeIds: state.autoLayoutNodeIds,
     selected: state.selected,
     invocations: state.invocations,
   };
@@ -42,6 +53,9 @@ export function installSessionPersistence(store: StoreApi<WorkflowStore>): void 
           workflow: parsedSession.workflow ?? current.workflow,
           history: parsedSession.history ?? current.history,
           snapshots: parsedSession.snapshots ?? current.snapshots,
+          // Legacy sessions have no ownership metadata. Preserve their canvas,
+          // but conservatively treat its positions as user-owned.
+          autoLayoutNodeIds: persistedAutoLayoutNodeIds(parsedSession, current.autoLayoutNodeIds),
           selected: parsedSession.selected ?? current.selected,
           invocations: parsedSession.invocations ?? current.invocations,
         });

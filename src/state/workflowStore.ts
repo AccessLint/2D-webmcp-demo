@@ -1,6 +1,7 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
 import { executeBatch, type WorkflowCommand } from "../graph/commands";
+import { planAutomaticLayout } from "../graph/automaticLayoutPlan";
 import { layoutWorkflow } from "../graph/layout";
 import type { WorkflowState } from "../graph/model";
 import { nodeDefinitions } from "../graph/nodeTypes";
@@ -29,7 +30,12 @@ export class WorkflowUndoError extends Error {
     this.name = "WorkflowUndoError";
   }
 }
-export type WorkflowSnapshot = { operationId: string; state: WorkflowState; resultingRevision: number };
+export type WorkflowSnapshot = {
+  operationId: string;
+  state: WorkflowState;
+  autoLayoutNodeIds: string[];
+  resultingRevision: number;
+};
 export type WorkflowSelection = { kind: "node" | "edge"; id: string };
 export type WorkflowConnectionSource = { nodeId: string; port: string };
 export type WorkflowNodeReveal = { operationId: string; pendingNodeIds: string[] };
@@ -42,6 +48,7 @@ export type WorkflowStore = {
   workflow: WorkflowState;
   history: ChangeReceipt[];
   snapshots: WorkflowSnapshot[];
+  autoLayoutNodeIds: string[];
   nodeReveal: WorkflowNodeReveal | null;
   selected: WorkflowSelection | null;
   connectionSource: WorkflowConnectionSource | null;
@@ -85,6 +92,7 @@ function createInitialState(workflow: WorkflowState) {
     workflow: structuredClone(workflow),
     history: [],
     snapshots: [],
+    autoLayoutNodeIds: [],
     nodeReveal: null,
     selected: workflow.nodes.some((node) => node.id === DEFAULT_SELECTION.id)
       ? DEFAULT_SELECTION
@@ -135,7 +143,8 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
   return createStore<WorkflowStore>((set, get) => ({
     ...createInitialState(initial),
     apply: (baseRevision, commands, intent, options) => {
-      const before = get().workflow;
+      const currentState = get();
+      const before = currentState.workflow;
       const result = executeBatch(before, { baseRevision, commands });
       if (!result.ok) {
         const receipt = createFailedReceipt(before, baseRevision, result, intent);
@@ -147,18 +156,26 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
         return receipt;
       }
 
-      const nextWorkflow = layoutWorkflow(result.state, options?.autoLayoutNodeIds ?? []);
+      const layoutPlan = planAutomaticLayout({
+        after: result.state,
+        commands,
+        currentNodeIds: currentState.autoLayoutNodeIds,
+        newNodeIds: options?.autoLayoutNodeIds ?? [],
+      });
+      const nextWorkflow = layoutWorkflow(result.state, layoutPlan.movableNodeIds);
       const receipt = createReceipt({ before, after: nextWorkflow, intent });
       const initiallyHiddenNodeIds = [...new Set(options?.initiallyHiddenNodeIds ?? [])]
         .filter((id) => nextWorkflow.nodes.some((node) => node.id === id));
       set((current) => ({
         workflow: nextWorkflow,
         history: [receipt, ...current.history],
+        autoLayoutNodeIds: layoutPlan.ownedNodeIds,
         snapshots: [
           ...current.snapshots,
           {
             operationId: receipt.operationId,
             state: structuredClone(before),
+            autoLayoutNodeIds: [...currentState.autoLayoutNodeIds],
             resultingRevision: nextWorkflow.revision,
           },
         ],
@@ -202,6 +219,7 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
       });
       set({
         workflow: restored,
+        autoLayoutNodeIds: [...(snapshot.autoLayoutNodeIds ?? [])],
         history: [
           receipt,
           ...current.history.map((item) => item.operationId === operationId
@@ -237,12 +255,14 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
       });
       set({
         workflow: cleared,
+        autoLayoutNodeIds: [],
         history: [receipt, ...current.history],
         snapshots: [
           ...current.snapshots,
           {
             operationId: receipt.operationId,
             state: structuredClone(current.workflow),
+            autoLayoutNodeIds: [...current.autoLayoutNodeIds],
             resultingRevision: cleared.revision,
           },
         ],
