@@ -1,19 +1,38 @@
 diff --git a/node_modules/webmcp-evals/dist/backends/vercel.js b/node_modules/webmcp-evals/dist/backends/vercel.js
-index 379228c..c172a20 100644
+index 379228c..8826eec 100644
 --- a/node_modules/webmcp-evals/dist/backends/vercel.js
 +++ b/node_modules/webmcp-evals/dist/backends/vercel.js
-@@ -91,6 +91,10 @@ export class VercelBackend {
+@@ -12,6 +12,18 @@ import { ConsoleLogger } from "../utils/logger.js";
+ // any reasonable trajectory in evals.json; small enough that a stuck model
+ // terminates without burning tokens. Overridable via `--max-steps=N`.
+ const DEFAULT_MAX_STEPS = 6;
++function buildRawTiming(startedAt, firstToolCallAt, toolExecutionMs, toolAttempts) {
++    const durationMs = performance.now() - startedAt;
++    return {
++        durationMs,
++        ...(firstToolCallAt === undefined
++            ? {}
++            : { timeToFirstToolCallMs: firstToolCallAt - startedAt }),
++        toolExecutionMs,
++        nonToolDurationMs: Math.max(0, durationMs - toolExecutionMs),
++        toolAttempts,
++    };
++}
+ export class VercelBackend {
+     aiModel;
+     modelName;
+@@ -91,6 +103,10 @@ export class VercelBackend {
          return { toolCalls, text: aiResult.text, steps };
      }
      async executeInBrowserEval(test, registry) {
-+        const timingStartedAt = performance.now();
++        let timingStartedAt;
 +        let firstToolCallAt;
 +        let toolExecutionMs = 0;
 +        const toolAttempts = [];
          const availableToolsPerStep = [];
          const stepsHistory = [];
          const getBrowserConsoleErrors = () => registry instanceof BrowserToolRegistry ? registry.getBrowserConsoleErrors() : undefined;
-@@ -119,6 +123,12 @@ export class VercelBackend {
+@@ -119,6 +135,12 @@ export class VercelBackend {
                  tools: aiToolsWithExecution,
                  instructions: SYSTEM_PROMPT,
                  experimental_onToolCallStart: (event) => {
@@ -26,7 +45,7 @@ index 379228c..c172a20 100644
                      this.logger.debug(`\n[DEBUG] Tool "${event.toolCall.toolName}" starting...`);
                      this.logger.dir(event.toolCall.args || event.toolCall.input, {
                          depth: null,
-@@ -126,6 +136,20 @@ export class VercelBackend {
+@@ -126,6 +148,20 @@ export class VercelBackend {
                      });
                  },
                  experimental_onToolCallFinish: (event) => {
@@ -47,39 +66,29 @@ index 379228c..c172a20 100644
                      if (event.success) {
                          this.logger.debug(`[DEBUG] Tool "${event.toolCall.toolName}" completed in ${event.durationMs}ms`);
                          if (event.output)
-@@ -184,10 +208,20 @@ export class VercelBackend {
-                 toolResults: step.toolResults,
-                 availableTools: availableToolsPerStep[idx] || [],
-             }));
-+            const durationMs = performance.now() - timingStartedAt;
-             return {
+@@ -152,6 +188,7 @@ export class VercelBackend {
+                 },
+             });
+             const aiMessages = mapMessages(test.messages);
++            timingStartedAt = performance.now();
+             const resultPayload = await agentWithExec.generate({ messages: aiMessages });
+             // Gather executed tool calls across all steps
+             const executedCalls = [];
+@@ -188,6 +225,7 @@ export class VercelBackend {
                  toolCalls: executedCalls,
                  text: resultPayload.text,
                  steps,
-+                timing: {
-+                    durationMs,
-+                    ...(firstToolCallAt === undefined
-+                        ? {}
-+                        : { timeToFirstToolCallMs: firstToolCallAt - timingStartedAt }),
-+                    toolExecutionMs,
-+                    nonToolDurationMs: Math.max(0, durationMs - toolExecutionMs),
-+                    toolAttempts,
-+                },
++                timing: buildRawTiming(timingStartedAt, firstToolCallAt, toolExecutionMs, toolAttempts),
                  browserConsoleErrors: getBrowserConsoleErrors(),
              };
          }
-@@ -196,6 +230,14 @@ export class VercelBackend {
+@@ -196,6 +234,9 @@ export class VercelBackend {
              return {
                  toolCalls: [],
                  steps: buildErrorTrajectory(),
-+                timing: {
-+                    durationMs: performance.now() - timingStartedAt,
-+                    ...(firstToolCallAt === undefined
-+                        ? {}
-+                        : { timeToFirstToolCallMs: firstToolCallAt - timingStartedAt }),
-+                    toolExecutionMs,
-+                    toolAttempts,
-+                },
++                timing: timingStartedAt === undefined
++                    ? undefined
++                    : buildRawTiming(timingStartedAt, firstToolCallAt, toolExecutionMs, toolAttempts),
                  browserConsoleErrors: getBrowserConsoleErrors(),
                  error: e,
              };
@@ -241,3 +250,43 @@ index 7a75b6c..f9a6f63 100644
              });
          }
      }
+diff --git a/node_modules/webmcp-evals/dist/test/vercel.test.js b/node_modules/webmcp-evals/dist/test/vercel.test.js
+index 8c37c97..823d398 100644
+--- a/node_modules/webmcp-evals/dist/test/vercel.test.js
++++ b/node_modules/webmcp-evals/dist/test/vercel.test.js
+@@ -77,6 +77,35 @@ describe("VercelBackend", () => {
+         });
+     });
+     describe("executeInBrowserEval multi-turn message handling", () => {
++        it("starts prompt timing after browser tool discovery", async (t) => {
++            const timestamps = [10, 100, 160];
++            let timestampIndex = 0;
++            t.mock.method(performance, "now", () => timestamps[timestampIndex++]);
++            const dummyRegistry = {
++                getCurrentTools: () => {
++                    performance.now();
++                    return [
++                        {
++                            functionName: "add_topping",
++                            description: "Adds a topping",
++                            parameters: { type: "object" },
++                        },
++                    ];
++                },
++                executeTool: async () => ({}),
++            };
++            t.mock.method(ai.ToolLoopAgent.prototype, "generate", async () => ({
++                steps: [],
++                text: "mock text",
++            }));
++            const backend = new VercelBackend({ model: "gemini-3-flash-preview" });
++            const result = await backend.executeInBrowserEval({
++                name: "Timing boundary",
++                messages: [{ role: "user", type: "message", content: "Add one onion" }],
++                expectedCall: [],
++            }, dummyRegistry);
++            assert.strictEqual(result.timing.durationMs, 60);
++        });
+         it("should pass mapped messages array correctly to agentWithExec.generate", async (t) => {
+             // Create a dummy registry object that returns some dummy registered tools
+             const dummyRegistry = {
