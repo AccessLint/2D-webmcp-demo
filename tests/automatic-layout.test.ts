@@ -189,4 +189,25 @@ describe("automatic workflow layout", () => {
     expect(positions.join).toEqual({ x: 400, y: 300 });
     expect(positions.continue.y).not.toBe(positions.join.y);
   });
+
+  it("centers an automatic join between manually positioned predecessors", async () => {
+    const store = createWorkflowStore();
+    const tools = createToolHandlers(store, uiActions);
+
+    await tools.edit_workflow({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "top", type: "action", label: "Top", position: { x: 100, y: 100 } } },
+        { type: "createNode", node: { id: "middle", type: "action", label: "Middle", position: { x: 100, y: 300 } } },
+        { type: "createNode", node: { id: "bottom", type: "action", label: "Bottom", position: { x: 100, y: 900 } } },
+        { type: "createNode", node: { id: "join", type: "action", label: "Join" } },
+        connect("top-join", "top", "success", "join"),
+        connect("middle-join", "middle", "success", "join"),
+        connect("bottom-join", "bottom", "success", "join"),
+      ],
+    });
+
+    const join = store.getState().workflow.nodes.find((node) => node.id === "join")!;
+    expect(join.position.y).toBeCloseTo((100 + 300 + 900) / 3);
+  });
 });

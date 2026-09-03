@@ -204,13 +204,42 @@ export function layoutWorkflow(
     componentIds.forEach((id) => offsets.set(id, offset));
   }
 
+  const finalPositions = new Map(state.nodes.map((node) => {
+    if (!movable.has(node.id)) return [node.id, node.position] as const;
+    const ideal = idealPositions.get(node.id)!;
+    const offset = offsets.get(node.id)!;
+    return [node.id, { x: ideal.x + offset.x, y: ideal.y + offset.y }] as const;
+  }));
+
+  // Resolve each rank in final canvas coordinates. Joins are placed first so
+  // their position reflects every incoming path, including fixed/manual nodes;
+  // other automatic nodes move to the nearest free lane around them.
+  for (const rank of Array.from(layers.keys()).sort((left, right) => left - right)) {
+    const ids = layers.get(rank)!;
+    const fixedIds = ids.filter((id) => !movable.has(id));
+    const automaticIds = ids.filter((id) => movable.has(id));
+    const joins = automaticIds.filter((id) => forwardIncoming(id).length > 1);
+    const nonJoins = automaticIds.filter((id) => forwardIncoming(id).length <= 1);
+    const occupied = fixedIds.map((id) => finalPositions.get(id)!.y);
+
+    for (const id of [...joins, ...nonJoins]) {
+      const incomingEdges = forwardIncoming(id);
+      const desiredY = incomingEdges.length > 1
+        ? incomingEdges.reduce(
+            (total, edge) => total + finalPositions.get(edge.source)!.y,
+            0,
+          ) / incomingEdges.length
+        : finalPositions.get(id)!.y;
+      const y = nearestAvailableY(desiredY, occupied);
+      occupied.push(y);
+      finalPositions.set(id, { ...finalPositions.get(id)!, y });
+    }
+  }
+
   return {
     ...state,
-    nodes: state.nodes.map((node) => {
-      if (!movable.has(node.id)) return node;
-      const ideal = idealPositions.get(node.id)!;
-      const offset = offsets.get(node.id)!;
-      return { ...node, position: { x: ideal.x + offset.x, y: ideal.y + offset.y } };
-    }),
+    nodes: state.nodes.map((node) => movable.has(node.id)
+      ? { ...node, position: finalPositions.get(node.id)! }
+      : node),
   };
 }
