@@ -96,7 +96,6 @@
       {
         "functionName": "edit_workflow",
         "arguments": {
-          "baseRevision": 0,
           "commands": {
             "$type": "array"
           }
@@ -127,7 +126,6 @@
       {
         "functionName": "edit_workflow",
         "arguments": {
-          "baseRevision": 0,
           "commands": { "$type": "array" }
         },
         "result": {

@@ -77,7 +77,7 @@ export const commandSchema = z.discriminatedUnion("type", [
   }).strict().describe("Replace one connection with up to ten new connections."),
 ]);
 export const applyInputSchema = z.object({
-  baseRevision: z.number().int().nonnegative().describe(`Use ${toolNames.discoverWorkflow}'s revision exactly, or Number(surface.documentVersion) when its result is a SurfaceSnapshot. Do not increment it.`),
+  baseRevision: z.number().int().nonnegative().optional().describe(`Use ${toolNames.discoverWorkflow}'s revision exactly, or Number(surface.documentVersion) when its result is a SurfaceSnapshot. Omit only when the canvas is empty and every command creates a node or connection; the tool will use the current empty-canvas revision. Do not increment it.`),
   commands: z.array(commandSchema).min(1).max(20).describe("Atomic workflow edits. Every command must match one documented command type."),
   intent: z.string().max(500).optional().describe("Optional short explanation of the requested change."),
 }).strict();

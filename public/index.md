@@ -6,9 +6,9 @@ Live application: <https://2d-webmcp.netlify.app/>
 
 ## Agent workflow
 
-1. Call `discover_workflow` first unless the canvas is visibly empty and the task only creates new items; in that case, call `edit_workflow` directly with `baseRevision: 0`.
+1. Call `discover_workflow` first unless the canvas is visibly empty and the task only creates new items; in that case, call `edit_workflow` directly and omit `baseRevision`.
 2. Optionally call `inspect_workflow_items` for full details about selected nodes or connections.
-3. Copy the current revision, valid item IDs, and valid ports from discovery into one atomic `edit_workflow` request.
+3. For an existing canvas, copy the current revision, valid item IDs, and valid ports from discovery into one atomic `edit_workflow` request. For an empty canvas, use the node-type ports documented by `edit_workflow`.
 4. Use the returned `operationId` with `get_edit_result`, `show_edit_result`, or `undo_workflow_edit`.
 5. If an edit conflicts or reports stale input, call `discover_workflow` again before retrying.
 

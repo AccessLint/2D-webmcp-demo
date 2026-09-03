@@ -104,6 +104,21 @@ export function createToolHandlers(
     async [toolNames.editWorkflow](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);
       const parsed = applyInputSchema.parse(input);
+      const currentWorkflow = store.getState().workflow;
+      const canvasIsEmpty = currentWorkflow.nodes.length === 0 && currentWorkflow.edges.length === 0;
+      if (parsed.baseRevision === undefined && !canvasIsEmpty) {
+        throw new ToolError("BASE_REVISION_REQUIRED", "baseRevision is required when the canvas is not empty.");
+      }
+      const createsOnly = parsed.commands.every((command) => (
+        command.type === "createNode" || command.type === "connect"
+      ));
+      if (parsed.baseRevision === undefined && !createsOnly) {
+        throw new ToolError(
+          "BASE_REVISION_REQUIRED",
+          "baseRevision may be omitted only for an empty-canvas batch that creates nodes and connections.",
+        );
+      }
+      const baseRevision = parsed.baseRevision ?? currentWorkflow.revision;
       const explicitlyPositionedNodeIds = new Set(parsed.commands.flatMap((command) => {
         if (command.type === "createNode" && command.node.position !== undefined) return [command.node.id];
         if (command.type === "updateNode" && command.patch.position !== undefined) {
@@ -123,7 +138,7 @@ export function createToolHandlers(
       ));
       const incrementallyRevealedNodeIds = createdNodeIds.length > 1 ? createdNodeIds : [];
       const receipt = store.getState().apply(
-        parsed.baseRevision,
+        baseRevision,
         normalizeCommands(parsed.commands, store.getState().workflow.nodes),
         parsed.intent,
         {

@@ -1,4 +1,9 @@
-export type ToolErrorCode = "NOT_FOUND" | "TOOL_EXECUTION_FAILED" | "UNDO_NOT_AVAILABLE" | "UNDO_REVISION_CONFLICT";
+export type ToolErrorCode =
+  | "NOT_FOUND"
+  | "TOOL_EXECUTION_FAILED"
+  | "UNDO_NOT_AVAILABLE"
+  | "UNDO_REVISION_CONFLICT"
+  | "BASE_REVISION_REQUIRED";
 
 export class ToolError extends Error {
   constructor(readonly code: ToolErrorCode, message: string) {

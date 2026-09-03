@@ -1,9 +1,14 @@
 import { ZodError, type ZodIssue } from "zod";
+import { nodeDefinitions } from "../graph/nodeTypes";
 import type { ToolHandlers } from "./toolHandlers";
 import { jsonSchemas, workflowCommandTypes } from "./toolSchemas";
 import { ToolError } from "./errors";
 import { toolNames, type ToolName } from "./toolNames";
 import { fitToolOutput } from "./toolOutputs";
+
+const nodePortGuide = Object.entries(nodeDefinitions)
+  .map(([type, definition]) => `${type}: inputs [${definition.inputs.join(", ")}], outputs [${definition.outputs.join(", ")}]`)
+  .join("; ");
 
 function flattenIssues(
   issues: ZodIssue[],
@@ -142,7 +147,11 @@ function invocationDetails(tool: ToolName, input: unknown, result: unknown, star
     durationMs: Math.max(0, Math.round((performance.now() - startedAt) * 100) / 100),
     parameterNames,
     ...(unknownParameterCount > 0 ? { unknownParameterCount } : {}),
-    ...(typeof inputRecord.baseRevision === "number" ? { baseRevision: inputRecord.baseRevision } : {}),
+    ...(typeof inputRecord.baseRevision === "number"
+      ? { baseRevision: inputRecord.baseRevision }
+      : typeof resultRecord.baseRevision === "number"
+        ? { baseRevision: resultRecord.baseRevision }
+        : {}),
     ...(typeof resultRecord.resultingRevision === "number" ? { resultingRevision: resultRecord.resultingRevision } : {}),
     ...(typeof resultRecord.operationId === "string" ? { operationId: resultRecord.operationId } : {}),
   };
@@ -183,7 +192,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.discoverWorkflow,
       title: "Discover workflow",
-      description: `Call this first, once per task, when the canvas contains items or its state is uncertain. Skip it when the canvas is visibly empty and the task only creates new items; call ${toolNames.editWorkflow} directly with baseRevision 0. Call discovery again only when following an itemPage or problemPage nextCursor, after a conflict, or when recovery directs you to refresh current IDs and revision. Returns a compact page of item IDs, labels, revision, valid ports, page targets, and next steps. If it answers a request to list what is on the canvas, do not call this tool again or inspect every item.`,
+      description: `Call this first, once per task, when the canvas contains items or its state is uncertain. Skip it when the canvas is visibly empty and the task only creates new items; call ${toolNames.editWorkflow} directly and omit baseRevision. Call discovery again only when following an itemPage or problemPage nextCursor, after a conflict, or when recovery directs you to refresh current IDs and revision. Returns a compact page of item IDs, labels, revision, valid ports, page targets, and next steps. If it answers a request to list what is on the canvas, do not call this tool again or inspect every item.`,
       inputSchema: jsonSchemas.discovery,
       annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: handlers[toolNames.discoverWorkflow],
@@ -199,7 +208,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.editWorkflow,
       title: "Edit workflow",
-      description: `Call after ${toolNames.discoverWorkflow}, except when the canvas is visibly empty and the task only creates new items; then call this tool directly with baseRevision 0. Reuse existing IDs returned in itemPage. Before deciding an ID is absent, follow itemPage.nextCursor until it is null; one page is not proof of absence. Never create a node with an existing ID. Set baseRevision to discovery's exact revision, or 0 for a visibly empty fresh canvas. Do not increment it. Every command object needs a top-level type. Create with {type:"createNode",node:{id:"node-id",type:"action",label:"Node label"}}; node.label belongs directly on node, not inside properties. Never wrap a command as {createNode:{...}}. Connect with {type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}. Replace with {type:"replaceConnection",edgeId:"existing-edge-id",replacements:[{...edge}]}. Other shapes are {type:"updateNode",id,patch}, {type:"deleteNode",id}, and {type:"disconnect",edgeId}. Positions and empty properties may be omitted. Applies up to 20 commands atomically, cleans up the completed workflow layout, and reveals the resulting receipt. When visible is true, stop; do not call ${toolNames.getEditResult} unless the user explicitly asks for every itemized change. On conflict, rediscover before retrying.`,
+      description: `Call after ${toolNames.discoverWorkflow}, except when the canvas is visibly empty and the task only creates new items; then call this tool directly and omit baseRevision so it uses the current empty-canvas revision. Reuse existing IDs returned in itemPage. Before deciding an ID is absent, follow itemPage.nextCursor until it is null; one page is not proof of absence. Never create a node with an existing ID. Otherwise set baseRevision to discovery's exact revision. Do not increment it. Valid ports by node type are: ${nodePortGuide}. Every command object needs a top-level type. Create with {type:"createNode",node:{id:"node-id",type:"action",label:"Node label"}}; node.label belongs directly on node, not inside properties. Never wrap a command as {createNode:{...}}. Connect with {type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}. Replace with {type:"replaceConnection",edgeId:"existing-edge-id",replacements:[{...edge}]}. Other shapes are {type:"updateNode",id,patch}, {type:"deleteNode",id}, and {type:"disconnect",edgeId}. Positions and empty properties may be omitted. Applies up to 20 commands atomically, cleans up the completed workflow layout, and reveals the resulting receipt. When visible is true, stop; do not call ${toolNames.getEditResult} unless the user explicitly asks for every itemized change. On conflict, rediscover before retrying.`,
       inputSchema: jsonSchemas.apply,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.editWorkflow],

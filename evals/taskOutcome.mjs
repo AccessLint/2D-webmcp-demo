@@ -11,12 +11,13 @@ function inputFor(call) {
 function isCompletedEdit(call) {
   const input = inputFor(call);
   const result = call.result;
+  const baseRevision = Number.isInteger(input.baseRevision) ? input.baseRevision : result?.baseRevision;
   return call.functionName === "edit_workflow"
     && result?.status === "completed"
     && typeof result.operationId === "string"
-    && Number.isInteger(input.baseRevision)
-    && result.baseRevision === input.baseRevision
-    && result.resultingRevision === input.baseRevision + 1
+    && Number.isInteger(baseRevision)
+    && result.baseRevision === baseRevision
+    && result.resultingRevision === baseRevision + 1
     && Number.isInteger(result.changeCount)
     && result.changeCount > 0
     && (result.visible === true || (

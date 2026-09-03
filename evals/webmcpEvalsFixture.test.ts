@@ -127,7 +127,7 @@ describe("WebMCP eval fixture", () => {
     const inspection = call("inspect_workflow_items", {}, { objects: [{ kind: "node", id: "approve-request" }] });
     const refreshedDiscovery = call("discover_workflow");
     const successfulEdit = call("edit_workflow", completedEdit(1, 2), { baseRevision: 1, commands: [] });
-    const successfulCreate = call("edit_workflow", completedEdit(0, 3), { baseRevision: 0, commands: [] });
+    const successfulCreate = call("edit_workflow", completedEdit(0, 3), { commands: [] });
 
     expect(allPass(editCase!.expectedCall, [discovery, inspection, successfulEdit])).toBe(true);
     expect(allPass(editCase!.expectedCall, [

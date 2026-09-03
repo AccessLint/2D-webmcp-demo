@@ -9,6 +9,27 @@ import { createSalesWorkflow } from "./fixtures/salesWorkflow";
 const createSalesWorkflowStore = () => createWorkflowStore(createSalesWorkflow());
 
 describe("WebMCP tool boundary", () => {
+  it("creates directly on an empty canvas without requiring discovery", async () => {
+    const store = createWorkflowStore({ revision: 4, nodes: [], edges: [] });
+    const tools = createToolHandlers(store, {
+      focusChangeEntry: async (operationId) => ({ operationId, focusedIn: "change-history", visible: true }),
+      focusWorkflowNode: async () => ({ focused: true, visible: true }),
+      focusDomNode: async (selector) => ({ selector, tagName: "button", id: null, focusWhen: "window-focus-or-accessibility-interaction", queued: true }),
+    });
+
+    await expect(tools.edit_workflow({
+      commands: [{ type: "createNode", node: { id: "draft", type: "action", label: "Draft" } }],
+    })).resolves.toMatchObject({ status: "completed", baseRevision: 4, resultingRevision: 5 });
+  });
+
+  it("requires an explicit revision when the canvas is not empty", async () => {
+    const tools = createToolHandlers(createSalesWorkflowStore());
+
+    await expect(tools.edit_workflow({
+      commands: [{ type: "createNode", node: { id: "draft", type: "action", label: "Draft" } }],
+    })).rejects.toThrow("baseRevision is required when the canvas is not empty");
+  });
+
   it("omits workflow validation from compact discovery", () => {
     const workflow = createSalesWorkflow();
     workflow.edges = workflow.edges.filter((edge) => edge.id !== "edge-qualified-nurture");
@@ -337,7 +358,7 @@ describe("WebMCP tool boundary", () => {
     expect(registered.get("edit_workflow")?.description).toContain("When visible is true, stop");
     expect(registered.get("edit_workflow")?.description).toContain("itemPage.nextCursor");
     expect(registered.get("edit_workflow")?.description).toContain("reveals the resulting receipt");
-    expect(registered.get("edit_workflow")?.description).toContain("call this tool directly with baseRevision 0");
+    expect(registered.get("edit_workflow")?.description).toContain("omit baseRevision");
     expect(registered.get("focus_page_element")?.description).toContain("exactly one targetId");
     expect(registered.get("focus_page_element")?.description).toContain("Always call discover_workflow first");
     expect(registered.get("focus_page_element")?.description).toContain("Queue keyboard focus");
@@ -428,16 +449,22 @@ describe("WebMCP tool boundary", () => {
       },
     });
     expect(JSON.stringify(misplacedLabels).length).toBeLessThanOrEqual(1_500);
-    expect(registered.get("edit_workflow")?.inputSchema).toMatchObject({
+    const editInputSchema = registered.get("edit_workflow")?.inputSchema as {
+      properties?: Record<string, unknown>;
+      required?: string[];
+    };
+    expect(editInputSchema).toMatchObject({
       properties: {
-        baseRevision: expect.objectContaining({ type: "integer", minimum: 0 }),
+        baseRevision: expect.any(Object),
         commands: expect.objectContaining({ type: "array", minItems: 1, maxItems: 20 }),
       },
       additionalProperties: false,
     });
-    expect(JSON.stringify(registered.get("edit_workflow")?.inputSchema).length).toBeLessThan(4_500);
-    expect(JSON.stringify(registered.get("edit_workflow")?.inputSchema)).toContain('"nodeId"');
-    expect(JSON.stringify(registered.get("edit_workflow")?.inputSchema)).not.toContain("\\\\p{");
+    expect(editInputSchema.required).not.toContain("baseRevision");
+    expect(JSON.stringify(editInputSchema)).toContain('"minimum":0');
+    expect(JSON.stringify(editInputSchema).length).toBeLessThan(4_500);
+    expect(JSON.stringify(editInputSchema)).toContain('"nodeId"');
+    expect(JSON.stringify(editInputSchema)).not.toContain("\\\\p{");
     const applied = await registered.get("edit_workflow")!.execute({
       baseRevision: 0,
       commands: [{ type: "updateNode", id: "enrich-company", patch: { label: "Enrich company" } }],

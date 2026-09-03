@@ -315,6 +315,38 @@ test("accepts a completed edit that reveals its own receipt", () => {
   assert.equal(buildLatencyReport(report).byTaskType.edit.successfulAttempts, 1);
 });
 
+test("accepts a direct empty-canvas create whose revision is inferred by the tool", () => {
+  const operationId = "direct-create-operation";
+  const attempt = {
+    outcomeType: "approval-create",
+    taskType: "create",
+    results: [{
+      response: {
+        functionName: "edit_workflow",
+        args: { commands: [
+          { type: "createNode", node: { id: "draft", type: "action", label: "Draft request" } },
+          { type: "createNode", node: { id: "approve", type: "action", label: "Approve request" } },
+          { type: "connect", edge: {
+            id: "draft-approve",
+            source: { nodeId: "draft", port: "success" },
+            target: { nodeId: "approve", port: "input" },
+          } },
+        ] },
+        result: {
+          operationId,
+          status: "completed",
+          baseRevision: 4,
+          resultingRevision: 5,
+          changeCount: 3,
+          visible: true,
+        },
+      },
+    }],
+  };
+
+  assert.equal(hasVerifiedTaskOutcome(attempt, true), true);
+});
+
 test("does not reject a failed undo that leaves the completed edit in place", () => {
   const timing = { durationMs: 9_000, toolCallCount: 4, retryToolCallCount: 0, redundantToolCallCount: 1 };
   const editResult = {
