@@ -1,10 +1,12 @@
 import { useEffect } from "react";
-import { evalRuns, type EvalRun } from "../evals/evalRuns";
+import { evalRuns, latestEvalRun, type EvalRun } from "../evals/evalRuns";
 
 type Score = { passed: number; total: number };
 
 const percent = ({ passed, total }: Score) => (total === 0 ? 0 : (passed / total) * 100);
 const displayPercent = (score: Score) => `${percent(score).toFixed(1).replace(".0", "")}%`;
+const displaySeconds = (milliseconds: number) => `${(milliseconds / 1000).toFixed(2)} s`;
+const displayMilliseconds = (milliseconds: number) => `${Math.round(milliseconds)} ms`;
 
 const metrics: Array<{
   label: string;
@@ -107,8 +109,12 @@ function TrendMetric({ label, description, getScore }: (typeof metrics)[number])
 }
 
 export function EvalResultsPage() {
-  const latest = evalRuns.at(-1)!;
-  const smoke = latest.deterministicSmoke;
+  const latestLegacyRun = evalRuns.at(-1)!;
+  const smoke = latestLegacyRun.deterministicSmoke;
+  const duration = latestEvalRun.latency.durationMs;
+  const firstToolCall = latestEvalRun.latency.timeToFirstToolCallMs;
+  const toolExecution = latestEvalRun.latency.toolExecutionMs;
+  const toolCalls = latestEvalRun.latency.toolCallCount;
 
   useEffect(() => {
     const skipLink = document.querySelector<HTMLAnchorElement>("body > .skip-link");
@@ -142,24 +148,100 @@ export function EvalResultsPage() {
             right inputs, and finishes the job. I will keep publishing each comparable run here.
           </p>
           <div className="eval-status" role="status">
-            <strong>End-to-end evidence improved.</strong> The complex edit evidence reached
-            {` ${displayPercent(latest.scoreBreakdown.visibleEditEvidence)}`},
-            while exact-call matching is {displayPercent(latest.strictSteps)} because the agent made extra calls.
+            <strong>{displayPercent(latestEvalRun.outcomes.all)} of the latest journeys completed.</strong>
+            {` Median end-to-end latency was ${displaySeconds(duration.p50)}, and the median first tool call arrived in ${displaySeconds(firstToolCall.p50)}.`}
           </div>
         </header>
+
+        <section className="eval-section" aria-labelledby="latest-run-heading">
+          <div className="eval-section__heading">
+            <div>
+              <p className="eyebrow">Latest report</p>
+              <h2 id="latest-run-heading">Current fixture outcomes</h2>
+            </div>
+            <p>
+              {latestEvalRun.cases} creation and editing cases, each attempted {latestEvalRun.runsPerCase} times
+              with <code>{latestEvalRun.model}</code>.
+            </p>
+          </div>
+          <div className="eval-latest-grid">
+            <article className="eval-score-card">
+              <p>All journeys</p>
+              <strong>{displayPercent(latestEvalRun.outcomes.all)}</strong>
+              <span>{latestEvalRun.outcomes.all.passed} of {latestEvalRun.outcomes.all.total} attempts</span>
+              <small>Verified the requested workflow outcome, not only the expected call sequence.</small>
+            </article>
+            <article className="eval-score-card">
+              <p>Create journeys</p>
+              <strong>{displayPercent(latestEvalRun.outcomes.create)}</strong>
+              <span>{latestEvalRun.outcomes.create.passed} of {latestEvalRun.outcomes.create.total} attempts</span>
+              <small>Simple approval creation and a complex, multi-branch workflow.</small>
+            </article>
+            <article className="eval-score-card">
+              <p>Edit journeys</p>
+              <strong>{displayPercent(latestEvalRun.outcomes.edit)}</strong>
+              <span>{latestEvalRun.outcomes.edit.passed} of {latestEvalRun.outcomes.edit.total} attempts</span>
+              <small>Adding, rerouting, and paginated inspection-and-edit tasks.</small>
+            </article>
+          </div>
+          <div className="eval-evidence-links">
+            <a href={latestEvalRun.reportPath}>Open latest raw report</a>
+            <a href={latestEvalRun.latencyPath}>Open latency data (JSON)</a>
+          </div>
+          <p className="eval-note"><strong>What I learned:</strong> {latestEvalRun.note}</p>
+        </section>
+
+        <section className="eval-section" aria-labelledby="latency-heading">
+          <div className="eval-section__heading">
+            <div>
+              <p className="eyebrow">Latest latency</p>
+              <h2 id="latency-heading">How long successful journeys took</h2>
+            </div>
+            <p>Percentiles include the {latestEvalRun.outcomes.all.passed} verified successful attempts in the latest report.</p>
+          </div>
+          <div className="eval-latency-grid">
+            <article className="eval-latency-card">
+              <p>End to end</p>
+              <strong>{displaySeconds(duration.p50)}</strong>
+              <span>p50</span>
+              <small>p95 {displaySeconds(duration.p95)}</small>
+            </article>
+            <article className="eval-latency-card">
+              <p>First tool call</p>
+              <strong>{displaySeconds(firstToolCall.p50)}</strong>
+              <span>p50</span>
+              <small>p95 {displaySeconds(firstToolCall.p95)}</small>
+            </article>
+            <article className="eval-latency-card">
+              <p>Tool execution</p>
+              <strong>{displayMilliseconds(toolExecution.p50)}</strong>
+              <span>p50</span>
+              <small>p95 {displayMilliseconds(toolExecution.p95)}</small>
+            </article>
+            <article className="eval-latency-card">
+              <p>Tool calls</p>
+              <strong>{toolCalls.p50}</strong>
+              <span>median calls per attempt</span>
+              <small>p95 {toolCalls.p95} calls</small>
+            </article>
+          </div>
+          <p className="eval-note">
+            Duration percentiles exclude the six unsuccessful attempts. Tool-call counts cover all 50 attempts.
+          </p>
+        </section>
 
         <section className="eval-section" aria-labelledby="score-breakdown-heading">
           <div className="eval-section__heading">
             <div>
-              <p className="eyebrow">What each score means</p>
-              <h2 id="score-breakdown-heading">Score breakdown</h2>
+              <p className="eyebrow">Earlier fixture</p>
+              <h2 id="score-breakdown-heading">Legacy score breakdown</h2>
             </div>
             <p>The latest report was reviewed by outcome as well as by the evaluator’s strict step matcher.</p>
           </div>
           <div className="eval-score-breakdown">
             {scoreDimensions.map(({ label, description, getScore }) => {
               const baseline = getScore(evalRuns[0]);
-              const current = getScore(latest);
+              const current = getScore(latestLegacyRun);
               return (
                 <article className="eval-score-card" key={label}>
                   <p>{label}</p>
@@ -171,8 +253,8 @@ export function EvalResultsPage() {
             })}
           </div>
           <p className="eval-note">
-            These recorded comparisons used the fixture version current at the time. The active fixture at
-            <code>{latest.fixture}</code> now reflects the current node catalog and needs a fresh run.
+            These scores are retained as historical evidence. They used an earlier read, reveal, focus, and
+            complex-edit fixture, so they are not directly comparable with the latest creation-and-editing run.
           </p>
         </section>
 
@@ -180,7 +262,7 @@ export function EvalResultsPage() {
           <div className="eval-section__heading">
             <div>
               <p className="eyebrow">What happened</p>
-              <h2 id="model-outcomes-heading">Results over time</h2>
+              <h2 id="model-outcomes-heading">Legacy results over time</h2>
             </div>
             <p>Each task was attempted 10 times with GPT-5 mini. I checked successful results, not just call order.</p>
           </div>
@@ -189,12 +271,12 @@ export function EvalResultsPage() {
           </div>
           <p className="eval-note">
             <strong>Legacy complex-edit detail:</strong> completion rose from {displayPercent(evalRuns[0].complexEdit)}
-            to {displayPercent(latest.complexEdit)} successful attempts, and visible receipt evidence rose from
-            {` ${displayPercent(evalRuns[0].journeys.complexEditJourney)} to ${displayPercent(latest.journeys.complexEditJourney)}`}.
+            to {displayPercent(latestLegacyRun.complexEdit)} successful attempts, and visible receipt evidence rose from
+            {` ${displayPercent(evalRuns[0].journeys.complexEditJourney)} to ${displayPercent(latestLegacyRun.journeys.complexEditJourney)}`}.
           </p>
           <p className="eval-note">
-            <strong>Exact-call score:</strong> {displayPercent(evalRuns[0].strictSteps)} → {displayPercent(latest.strictSteps)}
-            ({evalRuns[0].strictSteps.passed} of {evalRuns[0].strictSteps.total} → {latest.strictSteps.passed} of {latest.strictSteps.total} comparisons).
+            <strong>Exact-call score:</strong> {displayPercent(evalRuns[0].strictSteps)} → {displayPercent(latestLegacyRun.strictSteps)}
+            ({evalRuns[0].strictSteps.passed} of {evalRuns[0].strictSteps.total} → {latestLegacyRun.strictSteps.passed} of {latestLegacyRun.strictSteps.total} comparisons).
             Extra or retried calls count against this diagnostic score,
             so it is not the same as task completion.
           </p>
@@ -235,6 +317,17 @@ export function EvalResultsPage() {
                 </tr>
               </thead>
               <tbody>
+                <tr>
+                  <th scope="row">{latestEvalRun.label}</th>
+                  <td data-label="Date"><time dateTime={latestEvalRun.recordedAt}>{new Date(latestEvalRun.recordedAt).toLocaleDateString("en-US")}</time></td>
+                  <td data-label="Model"><code>{latestEvalRun.model}</code></td>
+                  <td data-label="Matrix">{latestEvalRun.cases} cases × {latestEvalRun.runsPerCase} runs</td>
+                  <td data-label="Evidence">
+                    <a href={latestEvalRun.reportPath}>Raw report</a>
+                    <span aria-hidden="true"> · </span>
+                    <a href={latestEvalRun.latencyPath}>Latency JSON</a>
+                  </td>
+                </tr>
                 {evalRuns.map((run) => (
                   <tr key={run.id}>
                     <th scope="row">{run.label}</th>
@@ -247,7 +340,7 @@ export function EvalResultsPage() {
               </tbody>
             </table>
           </div>
-          <p className="eval-note"><strong>What I learned:</strong> {latest.note}</p>
+          <p className="eval-note"><strong>Legacy takeaway:</strong> {latestLegacyRun.note}</p>
         </section>
 
         <section className="eval-section" aria-labelledby="method-heading">
@@ -266,9 +359,9 @@ export function EvalResultsPage() {
             <li>Publish task completion, exact-call matching, failures, and the raw report.</li>
           </ol>
           <p className="eval-source">
-            Fixture: <a href="https://github.com/AccessLint/webmcp-proof/blob/f5df9d7/evals/webmcp-evals.json"><code>{latest.fixture}</code> at <code>f5df9d7</code></a>
+            Fixture: <a href="https://github.com/AccessLint/webmcp-proof/blob/main/evals/webmcp-evals.json"><code>{latestEvalRun.fixture}</code></a>
             <span aria-hidden="true"> · </span>
-            <span>{latest.backend}, {latest.browser}</span>
+            <span>{latestEvalRun.backend}, {latestEvalRun.browser}</span>
           </p>
         </section>
       </main>

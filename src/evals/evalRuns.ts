@@ -1,3 +1,5 @@
+import latestLatencyReport from "../../.evals/report-1788461611368-latency.json";
+
 export type EvalRun = {
   id: string;
   label: string;
@@ -25,6 +27,37 @@ export type EvalRun = {
   };
   complexEdit: { passed: number; total: number };
   note: string;
+};
+
+export const latestEvalRun = {
+  id: "2026-09-03-gpt-5-6-terra-current",
+  label: "Current fixture",
+  recordedAt: "2026-09-03T14:53:31-04:00",
+  model: latestLatencyReport.source.model,
+  backend: "Vercel",
+  browser: "Chrome Stable",
+  runsPerCase: latestLatencyReport.source.runs,
+  cases: latestLatencyReport.all.attempts / latestLatencyReport.source.runs,
+  fixture: latestLatencyReport.source.evalsFile,
+  reportPath: "/evals/reports/gpt-5.6-terra-current.html",
+  latencyPath: "/evals/reports/gpt-5.6-terra-current-latency.json",
+  outcomes: {
+    all: {
+      passed: latestLatencyReport.all.successfulAttempts,
+      total: latestLatencyReport.all.attempts,
+    },
+    create: {
+      passed: latestLatencyReport.byTaskType.create.successfulAttempts,
+      total: latestLatencyReport.byTaskType.create.attempts,
+    },
+    edit: {
+      passed: latestLatencyReport.byTaskType.edit.successfulAttempts,
+      total: latestLatencyReport.byTaskType.edit.attempts,
+    },
+  },
+  latency: latestLatencyReport.all.metrics,
+  note:
+    "Creation journeys completed in all 20 attempts. Edit journeys completed in 24 of 30 attempts, making edit reliability the next improvement target.",
 };
 
 export const evalRuns: EvalRun[] = [

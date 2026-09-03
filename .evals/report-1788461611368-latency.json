@@ -1,0 +1,207 @@
+{
+  "generatedAt": "2026-09-03T18:54:22.101Z",
+  "source": {
+    "model": "openai:gpt-5.6-terra",
+    "backend": "vercel",
+    "runs": 10,
+    "evalsFile": "evals/webmcp-evals.json"
+  },
+  "units": {
+    "duration": "milliseconds",
+    "successRate": "fraction"
+  },
+  "all": {
+    "attempts": 50,
+    "successfulAttempts": 44,
+    "timedSuccessfulAttempts": 44,
+    "successRate": 0.88,
+    "metrics": {
+      "durationMs": {
+        "count": 44,
+        "min": 7775.18,
+        "mean": 15087.85,
+        "p50": 12771.12,
+        "p95": 25770.63,
+        "max": 30167.52
+      },
+      "timeToFirstToolCallMs": {
+        "count": 44,
+        "min": 999.26,
+        "mean": 1754.31,
+        "p50": 1546.44,
+        "p95": 3062.01,
+        "max": 5395.16
+      },
+      "toolExecutionMs": {
+        "count": 44,
+        "min": 24.11,
+        "mean": 36.24,
+        "p50": 35.1,
+        "p95": 44.91,
+        "max": 47.42
+      },
+      "nonToolDurationMs": {
+        "count": 44,
+        "min": 7743.45,
+        "mean": 15051.62,
+        "p50": 12733.82,
+        "p95": 25728.64,
+        "max": 30120.73
+      },
+      "toolCallCount": {
+        "count": 50,
+        "min": 3,
+        "mean": 4.72,
+        "p50": 4,
+        "p95": 7,
+        "max": 8
+      },
+      "retryToolCallCount": {
+        "count": 50,
+        "min": 0,
+        "mean": 0.62,
+        "p50": 1,
+        "p95": 1,
+        "max": 1
+      },
+      "redundantToolCallCount": {
+        "count": 50,
+        "min": 0,
+        "mean": 0.14,
+        "p50": 0,
+        "p95": 1,
+        "max": 1
+      }
+    }
+  },
+  "byTaskType": {
+    "create": {
+      "attempts": 20,
+      "successfulAttempts": 20,
+      "timedSuccessfulAttempts": 20,
+      "successRate": 1,
+      "metrics": {
+        "durationMs": {
+          "count": 20,
+          "min": 7775.18,
+          "mean": 17482.36,
+          "p50": 16330.45,
+          "p95": 27309.3,
+          "max": 30167.52
+        },
+        "timeToFirstToolCallMs": {
+          "count": 20,
+          "min": 1206.5,
+          "mean": 1580.05,
+          "p50": 1546.44,
+          "p95": 1935.41,
+          "max": 2300.42
+        },
+        "toolExecutionMs": {
+          "count": 20,
+          "min": 30.23,
+          "mean": 38.01,
+          "p50": 37.15,
+          "p95": 44.91,
+          "max": 46.79
+        },
+        "nonToolDurationMs": {
+          "count": 20,
+          "min": 7743.45,
+          "mean": 17444.34,
+          "p50": 16293.3,
+          "p95": 27273.92,
+          "max": 30120.73
+        },
+        "toolCallCount": {
+          "count": 20,
+          "min": 3,
+          "mean": 4,
+          "p50": 4,
+          "p95": 5,
+          "max": 5
+        },
+        "retryToolCallCount": {
+          "count": 20,
+          "min": 0,
+          "mean": 0.9,
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "redundantToolCallCount": {
+          "count": 20,
+          "min": 0,
+          "mean": 0.1,
+          "p50": 0,
+          "p95": 1,
+          "max": 1
+        }
+      }
+    },
+    "edit": {
+      "attempts": 30,
+      "successfulAttempts": 24,
+      "timedSuccessfulAttempts": 24,
+      "successRate": 0.8,
+      "metrics": {
+        "durationMs": {
+          "count": 24,
+          "min": 9054.61,
+          "mean": 13092.43,
+          "p50": 12561.58,
+          "p95": 18018.34,
+          "max": 18716.62
+        },
+        "timeToFirstToolCallMs": {
+          "count": 24,
+          "min": 999.26,
+          "mean": 1899.52,
+          "p50": 1439.09,
+          "p95": 3792.23,
+          "max": 5395.16
+        },
+        "toolExecutionMs": {
+          "count": 24,
+          "min": 24.11,
+          "mean": 34.75,
+          "p50": 34.44,
+          "p95": 43.88,
+          "max": 47.42
+        },
+        "nonToolDurationMs": {
+          "count": 24,
+          "min": 9023.66,
+          "mean": 13057.68,
+          "p50": 12518.87,
+          "p95": 17983.74,
+          "max": 18685.45
+        },
+        "toolCallCount": {
+          "count": 30,
+          "min": 4,
+          "mean": 5.2,
+          "p50": 5,
+          "p95": 7,
+          "max": 8
+        },
+        "retryToolCallCount": {
+          "count": 30,
+          "min": 0,
+          "mean": 0.43,
+          "p50": 0,
+          "p95": 1,
+          "max": 1
+        },
+        "redundantToolCallCount": {
+          "count": 30,
+          "min": 0,
+          "mean": 0.17,
+          "p50": 0,
+          "p95": 1,
+          "max": 1
+        }
+      }
+    }
+  }
+}
