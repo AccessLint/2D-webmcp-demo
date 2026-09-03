@@ -164,20 +164,7 @@ export function createToolHandlers(
           store.getState().finishNodeReveal(receipt.operationId);
         }
       }
-      try {
-        const focusResult = await uiActions.focusChangeEntry(receipt.operationId, options?.signal);
-        return { ...receipt, ...focusResult };
-      } catch {
-        return {
-          ...receipt,
-          visible: false as const,
-          nextCall: {
-            tool: toolNames.showEditResult,
-            input: { operationId: receipt.operationId },
-            purpose: "Retry visible proof for the completed edit.",
-          },
-        };
-      }
+      return receipt;
     },
     async [toolNames.showWorkflowItem](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);

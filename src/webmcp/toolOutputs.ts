@@ -29,7 +29,7 @@ function compactDiscovery(result: UnknownRecord, input: unknown) {
     uiTargets,
     nextCalls: {
       inspect: "inspect_workflow_items: use itemPage IDs.",
-      edit: `edit_workflow baseRevision ${String(result.revision)}. Reuse itemPage IDs; no duplicates. Node positions are optional. A successful edit reveals its receipt.`,
+      edit: `edit_workflow baseRevision ${String(result.revision)}. Reuse itemPage IDs; no duplicates. Node positions are optional. A successful edit announces its receipt without moving focus.`,
     },
   } : {};
   const createOutput = () => ({

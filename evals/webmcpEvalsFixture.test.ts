@@ -19,7 +19,6 @@ const completedEdit = (baseRevision: number, changeCount: number) => ({
   baseRevision,
   resultingRevision: baseRevision + 1,
   changeCount,
-  visible: true,
 });
 const failedEdit = (baseRevision: number) => call(
   "edit_workflow",
@@ -41,7 +40,7 @@ const nonBrowserUiActions = {
 };
 
 describe("WebMCP eval fixture", () => {
-  it("accepts position-free creates and the nodeId update alias, then reveals the receipt", async () => {
+  it("accepts position-free creates and the nodeId update alias without focusing the receipt", async () => {
     const store = createWorkflowStore();
     const focusedOperations: string[] = [];
     const handlers = createToolHandlers(store, {
@@ -71,9 +70,9 @@ describe("WebMCP eval fixture", () => {
       ],
     });
 
-    expect(created).toMatchObject({ status: "completed", visible: true, focusedIn: "change-history" });
-    expect(updated).toMatchObject({ status: "completed", visible: true, focusedIn: "change-history" });
-    expect(focusedOperations).toEqual([created.operationId, updated.operationId]);
+    expect(created).toMatchObject({ status: "completed" });
+    expect(updated).toMatchObject({ status: "completed" });
+    expect(focusedOperations).toEqual([]);
     expect(store.getState().workflow.nodes).toEqual([
       expect.objectContaining({ id: "draft", position: { x: 100, y: 100 }, properties: {} }),
       expect.objectContaining({ id: "approve", label: "Approved", position: { x: 385, y: 100 }, properties: {} }),

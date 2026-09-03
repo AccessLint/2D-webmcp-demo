@@ -146,6 +146,8 @@ describe("WebMCP tool boundary", () => {
         ] },
       ],
     });
+    expect(focusedOperationId).toBeNull();
+    expect(store.getState().politeMessage).toBe(receipt.summary);
     expect(tools.get_edit_result({ operationId: receipt.operationId })).toMatchObject({
       operationId: receipt.operationId,
       summary: receipt.summary,
@@ -355,17 +357,17 @@ describe("WebMCP tool boundary", () => {
     expect(registered.get("edit_workflow")?.description).toContain("Never wrap a command");
     expect(registered.get("edit_workflow")?.description).toContain('source:{nodeId:"source-id",port:"success"}');
     expect(registered.get("edit_workflow")?.description).toContain("replacements:[{");
-    expect(registered.get("edit_workflow")?.description).toContain("When visible is true, stop");
+    expect(registered.get("edit_workflow")?.description).toContain("without moving keyboard focus");
     expect(registered.get("edit_workflow")?.description).toContain("itemPage.nextCursor");
-    expect(registered.get("edit_workflow")?.description).toContain("reveals the resulting receipt");
+    expect(registered.get("edit_workflow")?.description).toContain("announces the resulting receipt");
     expect(registered.get("edit_workflow")?.description).toContain("omit baseRevision");
     expect(registered.get("focus_page_element")?.description).toContain("exactly one targetId");
     expect(registered.get("focus_page_element")?.description).toContain("Always call discover_workflow first");
     expect(registered.get("focus_page_element")?.description).toContain("Queue keyboard focus");
     expect(registered.get("focus_page_element")?.description).toContain("window receives focus");
     expect(registered.get("show_workflow_item")?.description).toContain("select, show, reveal, or bring an item into view");
-    expect(registered.get("show_edit_result")?.description).toContain("visible false");
-    expect(registered.get("show_edit_result")?.description).toContain("Do not call it after an edit that returns visible true");
+    expect(registered.get("show_edit_result")?.description).toContain("explicitly asks");
+    expect(registered.get("show_edit_result")?.description).toContain("Do not call it automatically");
     expect(registered.get("discover_workflow")?.annotations).toEqual({
       readOnlyHint: true,
       untrustedContentHint: true,
@@ -475,9 +477,9 @@ describe("WebMCP tool boundary", () => {
       operationId: expect.any(String),
       changeCount: 0,
       changePage: { cursor: 0, nextCursor: null, items: [] },
-      visible: false,
-      nextCall: { tool: "show_edit_result", input: { operationId: expect.any(String) } },
     });
+    expect(applied).not.toHaveProperty("visible");
+    expect(applied).not.toHaveProperty("nextCall");
     expect(store.getState().invocations.find((invocation) => invocation.tool === "edit_workflow")).toMatchObject({
       outcome: "completed",
       baseRevision: 0,
@@ -502,7 +504,7 @@ describe("WebMCP tool boundary", () => {
         ]),
       },
       nextCalls: {
-        edit: expect.stringMatching(/Reuse itemPage IDs.*positions are optional.*reveals its receipt/),
+        edit: expect.stringMatching(/Reuse itemPage IDs.*positions are optional.*announces its receipt without moving focus/),
       },
     });
     expect(compactDiscovery.itemPage.items.length).toBeGreaterThanOrEqual(3);
@@ -777,9 +779,9 @@ describe("WebMCP tool boundary", () => {
       baseRevision: 0,
       resultingRevision: 1,
       changeCount: 20,
-      visible: true,
       changePage: { cursor: 0, nextCursor: expect.any(Number), items: expect.any(Array) },
     });
+    expect(result).not.toHaveProperty("visible");
     expect(JSON.stringify(result).length).toBeLessThanOrEqual(1_500);
     registration.unregister();
     delete document.modelContext;

@@ -19,11 +19,7 @@ function isCompletedEdit(call) {
     && result.baseRevision === baseRevision
     && result.resultingRevision === baseRevision + 1
     && Number.isInteger(result.changeCount)
-    && result.changeCount > 0
-    && (result.visible === true || (
-      result.nextCall?.tool === "show_edit_result"
-      && result.nextCall?.input?.operationId === result.operationId
-    ));
+    && result.changeCount > 0;
 }
 
 function labelValue(label) {
@@ -55,13 +51,6 @@ function createdGraphFrom(commands) {
       command.node,
     ])),
   };
-}
-
-function matchingReceiptWasShown(calls, editCall) {
-  return editCall.result?.visible === true || calls.some((call) => call.functionName === "show_edit_result"
-    && inputFor(call).operationId === editCall.result?.operationId
-    && call.result?.visible === true
-    && call.result?.status === "completed");
 }
 
 function isNotificationEdit(commands) {
@@ -198,7 +187,6 @@ export function hasVerifiedTaskOutcome(attempt, trajectorySuccessful) {
     && inputFor(call).operationId === editCall.result?.operationId
     && call.result?.status === "completed");
   if (wasUndone) return false;
-  if (!matchingReceiptWasShown(calls, editCall)) return false;
   const commands = inputFor(editCall).commands;
   const outcomeType = attempt.outcomeType || (attempt.taskType === "create"
     ? "approval-create"

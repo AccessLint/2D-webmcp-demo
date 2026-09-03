@@ -11,7 +11,6 @@ function completedEditAttempt({ outcomeType, taskType, baseRevision, commands })
     baseRevision,
     resultingRevision: baseRevision + 1,
     changeCount: commands.length,
-    nextCall: { tool: "show_edit_result", input: { operationId } },
   };
   return {
     outcomeType,
@@ -22,13 +21,6 @@ function completedEditAttempt({ outcomeType, taskType, baseRevision, commands })
           functionName: "edit_workflow",
           args: { baseRevision, commands },
           result: editResult,
-        },
-      },
-      {
-        response: {
-          functionName: "show_edit_result",
-          args: { operationId },
-          result: { operationId, status: "completed", visible: true },
         },
       },
     ],
@@ -206,7 +198,7 @@ test("excludes failed required trajectories from successful latency percentiles"
   assert.equal(result.byTaskType.create.metrics.toolCallCount.p50, 1);
 });
 
-test("requires a semantically valid notification edit and matching visible receipt", () => {
+test("requires a semantically valid notification edit", () => {
   const timing = { durationMs: 9_000, toolCallCount: 3, retryToolCallCount: 0, redundantToolCallCount: 0 };
   const editResult = {
     operationId: "op-1",
@@ -272,7 +264,7 @@ test("requires a semantically valid notification edit and matching visible recei
   assert.equal(buildLatencyReport(report).byTaskType.edit.successfulAttempts, 0);
 });
 
-test("accepts a completed edit that reveals its own receipt", () => {
+test("accepts a completed edit without receipt focus metadata", () => {
   const report = {
     results: {
       results: [
@@ -301,7 +293,6 @@ test("accepts a completed edit that reveals its own receipt", () => {
               baseRevision: 1,
               resultingRevision: 2,
               changeCount: 2,
-              visible: true,
             },
           },
           outcome: "pass",

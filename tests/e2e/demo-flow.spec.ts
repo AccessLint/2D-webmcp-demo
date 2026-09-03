@@ -12,26 +12,29 @@ async function seedSalesWorkflow(page: Page) {
   }, commands);
 }
 
-test("a WebMCP edit automatically reveals its receipt", async ({ page }) => {
+test("a WebMCP edit announces its receipt without moving focus", async ({ page }) => {
   await page.addInitScript(() => {
     const tools: Record<string, { execute: (input: unknown) => unknown }> = {};
     Object.defineProperty(document, "modelContext", { configurable: true, value: { registerTool(tool: { name: string; execute: (input: unknown) => unknown }) { tools[tool.name] = tool; } } });
     (window as unknown as { __workflowTools: typeof tools }).__workflowTools = tools;
   });
   await page.goto("/");
+  const copyPrompt = page.getByRole("button", { name: "Copy prompt" });
+  await copyPrompt.focus();
 
   const result = await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
     return await tools.edit_workflow.execute({
       baseRevision: 0,
       commands: [{ type: "createNode", node: { id: "draft", type: "action", label: "Draft" } }],
-    }) as { status: string; visible: boolean };
+    }) as { status: string };
   });
 
-  expect(result).toMatchObject({ status: "completed", visible: true });
+  expect(result).toMatchObject({ status: "completed" });
   const receiptHeading = page.getByRole("heading", { name: "Created Draft." });
-  await expect(receiptHeading).toBeVisible();
-  await expect(receiptHeading).toBeFocused();
+  await expect(receiptHeading).toBeAttached();
+  await expect(page.getByRole("status")).toContainText("Created Draft");
+  await expect(copyPrompt).toBeFocused();
   await expect(page.getByRole("row", { name: "Action node: Draft" })).toBeVisible();
 });
 
@@ -105,8 +108,9 @@ test("inferred recovery-route receipt can be focused, spot checked, and undone",
       commands: [
         { type: "connect", edge: { id: "edge-enrich-review", source: { nodeId: "enrich-company", port: "failure" }, target: { nodeId: "manual-review", port: "input" }, label: "Enrichment unavailable" } },
       ],
-    }) as { operationId: string; visible: boolean };
-    if (!receipt.visible) throw new Error("Change entry was not visible after edit.");
+    }) as { operationId: string };
+    const shown = await tools.show_edit_result.execute({ operationId: receipt.operationId }) as { visible: boolean };
+    if (!shown.visible) throw new Error("Change entry was not visible after focus.");
     return receipt.operationId;
   });
   await expect(page.getByRole("status")).toContainText("Changed 1 connection");

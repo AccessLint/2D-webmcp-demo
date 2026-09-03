@@ -146,7 +146,7 @@ describe("incremental agent node reveal", () => {
         { type: "createNode", node: { id: "first", type: "action", label: "First" } },
         { type: "createNode", node: { id: "second", type: "action", label: "Second" } },
       ],
-    })).resolves.toMatchObject({ status: "completed", visible: true });
+    })).resolves.toMatchObject({ status: "completed" });
 
     expect(store.getState().workflow.nodes).toHaveLength(2);
     expect(store.getState().nodeReveal).toBeNull();
