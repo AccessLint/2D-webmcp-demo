@@ -29,6 +29,19 @@ function labelValue(label) {
   return typeof label === "string" ? label : label?.value;
 }
 
+function edgeEndpoint(edge, side) {
+  const endpoint = edge?.[side];
+  return {
+    nodeId: typeof endpoint === "string" ? endpoint : endpoint?.nodeId,
+    port: edge?.[`${side}Port`] ?? (typeof endpoint === "object" ? endpoint?.port : undefined),
+  };
+}
+
+function replacementsFor(command) {
+  if (Array.isArray(command?.replacements)) return command.replacements;
+  return Array.isArray(command?.replacement) ? command.replacement : [command?.replacement].filter(Boolean);
+}
+
 function createdGraphFrom(commands) {
   if (!Array.isArray(commands) || commands.some((command) =>
     !["createNode", "connect"].includes(command?.type))) return null;
@@ -58,12 +71,14 @@ function isNotificationEdit(commands) {
   if (createdNodes.length !== 1 || connections.length !== 1) return false;
   const notification = createdNodes[0].node;
   const edge = connections[0].edge;
+  const source = edgeEndpoint(edge, "source");
+  const target = edgeEndpoint(edge, "target");
   return notification?.type === "action"
     && String(labelValue(notification.label) || "").toLowerCase() === "notify requester"
-    && edge?.source === "approve-request"
-    && edge.sourcePort === "success"
-    && edge.targetPort === "input"
-    && edge.target === notification.id;
+    && source.nodeId === "approve-request"
+    && source.port === "success"
+    && target.port === "input"
+    && target.nodeId === notification.id;
 }
 
 function isCreateApprovalEdit(commands) {
@@ -74,11 +89,13 @@ function isCreateApprovalEdit(commands) {
   const draft = nodeByLabel.get("draft request");
   const approve = nodeByLabel.get("approve request");
   const edge = connections[0].edge;
+  const source = edgeEndpoint(edge, "source");
+  const target = edgeEndpoint(edge, "target");
   return Boolean(draft && approve
-    && edge?.source === draft.id
-    && edge.sourcePort === "success"
-    && edge.target === approve.id
-    && edge.targetPort === "input");
+    && source.nodeId === draft.id
+    && source.port === "success"
+    && target.nodeId === approve.id
+    && target.port === "input");
 }
 
 function isComplexBranchCreate(commands) {
@@ -101,11 +118,13 @@ function isComplexBranchCreate(commands) {
   const nodeLabelById = new Map([...nodeByLabel].map(([label, node]) => [node.id, label]));
   const actualConnections = new Set(connections.map((command) => {
     const edge = command.edge;
+    const source = edgeEndpoint(edge, "source");
+    const target = edgeEndpoint(edge, "target");
     return [
-      nodeLabelById.get(edge?.source),
-      edge?.sourcePort,
-      nodeLabelById.get(edge?.target),
-      edge?.targetPort,
+      nodeLabelById.get(source.nodeId),
+      source.port,
+      nodeLabelById.get(target.nodeId),
+      target.port,
     ].join("|");
   }));
   const expectedConnections = [
@@ -128,16 +147,17 @@ function isComplexBranchCreate(commands) {
 function isConnectionReroute(commands) {
   if (!Array.isArray(commands) || commands.length !== 1) return false;
   const command = commands[0];
-  const replacement = command?.replacement;
+  const replacement = replacementsFor(command);
   if (command?.type !== "replaceConnection"
     || command.edgeId !== "edge-receive-archive"
-    || !Array.isArray(replacement)
     || replacement.length !== 1) return false;
   const edge = replacement[0];
-  return edge?.source === "receive-request"
-    && edge.sourcePort === "success"
-    && edge.target === "manual-review"
-    && edge.targetPort === "input";
+  const source = edgeEndpoint(edge, "source");
+  const target = edgeEndpoint(edge, "target");
+  return source.nodeId === "receive-request"
+    && source.port === "success"
+    && target.nodeId === "manual-review"
+    && target.port === "input";
 }
 
 function isPaginatedRoutingHubEdit(commands) {

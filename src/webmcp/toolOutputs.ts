@@ -197,7 +197,7 @@ function compactError(result: UnknownRecord) {
   const error = isRecord(result.error) ? result.error : {};
   const allIssues = Array.isArray(error.issues) ? error.issues : [];
   const issues = allIssues.slice(0, 5);
-  return {
+  const createOutput = () => ({
     ok: false,
     error: {
       code: error.code,
@@ -209,7 +209,13 @@ function compactError(result: UnknownRecord) {
       } : {}),
       recovery: error.recovery,
     },
-  };
+  });
+  let output = createOutput();
+  while (JSON.stringify(output).length > TOOL_OUTPUT_CHARACTER_BUDGET && issues.length > 1) {
+    issues.pop();
+    output = createOutput();
+  }
+  return output;
 }
 
 const receiptTools = new Set<ToolName>(["edit_workflow", "get_edit_result", "undo_workflow_edit"]);

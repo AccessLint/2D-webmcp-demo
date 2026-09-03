@@ -1,4 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function addActionNode(page: Page, name: string) {
+  await page.getByRole("textbox", { name: "New node name" }).fill(name);
+  await page.getByRole("button", { name: "Add node" }).click();
+  return page.getByRole("row", { name: `Action node: ${name}` });
+}
 
 test("canvas nodes use treegrid semantics and roving arrow-key navigation", async ({ page }) => {
   await page.goto("/");
@@ -37,21 +43,22 @@ test("canvas nodes use treegrid semantics and roving arrow-key navigation", asyn
 test("selected nodes move and cancel selection with the documented keyboard commands", async ({ page }) => {
   await page.goto("/");
 
-  const entryNode = page.getByRole("button", { name: "Node: New lead submitted" });
-  await entryNode.press("Enter");
-  await expect(entryNode).toHaveClass(/selected/);
+  const entryNode = await addActionNode(page, "New lead submitted");
+  await expect(entryNode).toHaveAttribute("aria-selected", "true");
 
-  await entryNode.press("ArrowRight");
+  const initialTransform = await entryNode.getAttribute("style");
+  await entryNode.press("Alt+ArrowRight");
 
-  await expect(entryNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 45, 220)");
+  await expect(entryNode).not.toHaveAttribute("style", initialTransform ?? "");
   await expect(page.locator("#react-flow__aria-live-1")).toHaveText("Moved selected node right.");
 
+  const movedTransform = await entryNode.getAttribute("style");
   await page.reload();
-  await expect(entryNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 45, 220)");
-  await expect(entryNode).toHaveClass(/selected/);
+  await expect(entryNode).toHaveAttribute("style", movedTransform ?? "");
+  await expect(entryNode).toHaveAttribute("aria-selected", "true");
 
   await entryNode.press("Escape");
-  await expect(entryNode).not.toHaveClass(/selected/);
+  await expect(entryNode).toHaveAttribute("aria-selected", "false");
 });
 
 test("connections are directly keyboard navigable without duplicate controls", async ({ page }) => {
@@ -94,24 +101,25 @@ test("connections are directly keyboard navigable without duplicate controls", a
 test("node selection is exposed as accessibility state", async ({ page }) => {
   await page.goto("/");
 
-  const entryNode = page.getByRole("button", { name: "Node: New lead submitted" });
+  const entryNode = await addActionNode(page, "New lead submitted");
+  const reviewNode = await addActionNode(page, "Manual review");
   const descriptionId = await entryNode.getAttribute("aria-describedby");
   expect(descriptionId).toBeTruthy();
   await expect(page.locator(`#${descriptionId}`)).toContainText("toggle selection");
 
-  await entryNode.click();
-  await expect(entryNode).toHaveAttribute("aria-pressed", "true");
+  await entryNode.focus();
+  await entryNode.press("Enter");
+  await expect(entryNode).toHaveAttribute("aria-selected", "true");
 
   await entryNode.press("Space");
-  await expect(entryNode).toHaveAttribute("aria-pressed", "false");
+  await expect(entryNode).toHaveAttribute("aria-selected", "false");
 
   await entryNode.press("Enter");
-  await expect(entryNode).toHaveAttribute("aria-pressed", "true");
+  await expect(entryNode).toHaveAttribute("aria-selected", "true");
 
   await entryNode.press("Escape");
-  await expect(entryNode).toHaveAttribute("aria-pressed", "false");
+  await expect(entryNode).toHaveAttribute("aria-selected", "false");
 
-  const reviewNode = page.getByRole("button", { name: "Action node: Manual review" });
   await reviewNode.press("Enter");
   await reviewNode.press("Delete");
   await expect(reviewNode).toHaveCount(0);
@@ -120,23 +128,26 @@ test("node selection is exposed as accessibility state", async ({ page }) => {
 test("the canvas application exposes its complete keyboard contract", async ({ page }) => {
   await page.goto("/");
 
-  const canvas = page.getByRole("application", { name: "Workflow canvas" });
+  const reviewNode = await addActionNode(page, "Manual review");
+  const canvas = page.getByRole("treegrid", { name: "Workflow canvas" });
   await expect(canvas).toHaveAttribute("aria-describedby", "workflow-canvas-instructions");
   await expect(page.locator("#workflow-canvas-instructions")).toContainText(
-    "Tab to a node. Press Enter or Space to toggle its selection. Use the Arrow keys to move it.",
+    "Tab once into the workflow tree grid, then use the Arrow keys to navigate between nodes.",
   );
   await expect(page.locator("#workflow-canvas-instructions")).toContainText(
-    "Press Escape to clear selection.",
+    "Hold Alt with an Arrow key to move a selected node, or add Shift to move it farther.",
+  );
+  await expect(page.locator("#workflow-canvas-instructions")).toContainText(
+    "Press Escape to cancel a connection or clear selection.",
   );
   await expect(page.locator("#workflow-canvas-instructions")).toContainText(
     "Tab to navigate to connections and canvas controls.",
   );
 
-  const reviewNode = page.getByRole("button", { name: "Action node: Manual review" });
-  await reviewNode.press("Space");
-  await expect(reviewNode).toHaveAttribute("aria-pressed", "true");
-  await reviewNode.press("Shift+ArrowRight");
-  await expect(reviewNode).toHaveCSS("transform", "matrix(1, 0, 0, 1, 780, 500)");
+  await expect(reviewNode).toHaveAttribute("aria-selected", "true");
+  const initialTransform = await reviewNode.getAttribute("style");
+  await reviewNode.press("Alt+Shift+ArrowRight");
+  await expect(reviewNode).not.toHaveAttribute("style", initialTransform ?? "");
   await reviewNode.press("Backspace");
   await expect(reviewNode).toHaveCount(0);
 });

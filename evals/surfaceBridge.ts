@@ -2,10 +2,12 @@ import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 import { createWorkflowStore } from "../src/state/workflowStore";
+import type { WorkflowState } from "../src/graph/model";
 import { createToolHandlers } from "../src/webmcp/toolHandlers";
 import { workflowToolDefinitions } from "../src/webmcp/registerTools";
 import { toolNames } from "../src/webmcp/toolNames";
 import { workflowSurfaceReceipt } from "../src/webmcp/surfaceReceipt";
+import { applyInputSchema, normalizeCommands } from "../src/webmcp/toolSchemas";
 import surfaceSnapshotJsonSchema from "../src/webmcp/schemas/surface-snapshot.v0.1.schema.json";
 import surfaceReceiptJsonSchema from "../src/webmcp/schemas/surface-receipt.v0.1.schema.json";
 import {
@@ -27,8 +29,8 @@ type BridgeRequest = {
 
 const exposedTools = new Set([toolNames.discoverWorkflow, toolNames.editWorkflow]);
 
-export function createSurfaceEvalSession() {
-  const store = createWorkflowStore();
+export function createSurfaceEvalSession(initial?: WorkflowState) {
+  const store = createWorkflowStore(initial);
   const handlers = createToolHandlers(store);
 
   return {
@@ -61,7 +63,8 @@ export function createSurfaceEvalSession() {
           },
         };
       }
-      const commands = (input as { commands: Parameters<typeof workflowSurfaceReceipt>[1] }).commands;
+      const parsed = applyInputSchema.parse(input);
+      const commands = normalizeCommands(parsed.commands);
       return {
         native,
         outputs: {

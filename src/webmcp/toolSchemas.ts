@@ -37,12 +37,14 @@ const creatableNodeSchema = nodeSchema.extend({
   position: positionSchema.optional().describe("Optional canvas position. Omit it to use deterministic automatic layout."),
   properties: propertiesSchema.default({}).describe("Optional node-specific scalar properties, up to 4. Omit when the node has no properties."),
 }).strict();
+const edgeEndpointSchema = z.object({
+  nodeId: idSchema,
+  port: portSchema,
+}).strict().describe("Workflow node and port endpoint.");
 const edgeSchema = z.object({
   id: idSchema,
-  source: idSchema.describe("Existing source node ID."),
-  sourcePort: portSchema.describe(`Valid output port returned for the source node by ${toolNames.discoverWorkflow}.`),
-  target: idSchema.describe("Existing target node ID."),
-  targetPort: portSchema.describe(`Valid input port returned for the target node by ${toolNames.discoverWorkflow}.`),
+  source: edgeEndpointSchema.describe(`Existing source node and a valid output port returned by ${toolNames.discoverWorkflow}.`),
+  target: edgeEndpointSchema.describe(`Existing target node and a valid input port returned by ${toolNames.discoverWorkflow}.`),
   label: z.string().max(120).regex(printableTextPattern).optional().describe("Optional human-readable connection label."),
 }).strict().describe("Complete workflow connection definition.");
 export const workflowCommandTypes = [
@@ -68,7 +70,11 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("deleteNode"), id: idSchema }).strict().describe("Delete an existing node and its attached connections."),
   z.object({ type: z.literal("connect"), edge: edgeSchema }).strict().describe("Create one new connection."),
   z.object({ type: z.literal("disconnect"), edgeId: idSchema }).strict().describe("Delete one existing connection."),
-  z.object({ type: z.literal("replaceConnection"), edgeId: idSchema, replacement: z.array(edgeSchema).max(10).describe("Connections that replace the existing edge atomically.") }).strict().describe("Replace one connection with up to ten new connections."),
+  z.object({
+    type: z.literal("replaceConnection"),
+    edgeId: idSchema,
+    replacements: z.array(edgeSchema).max(10).describe("Up to ten connections that replace the existing edge atomically."),
+  }).strict().describe("Replace one connection with up to ten new connections."),
 ]);
 export const applyInputSchema = z.object({
   baseRevision: z.number().int().nonnegative().describe(`Use ${toolNames.discoverWorkflow}'s revision exactly, or Number(surface.documentVersion) when its result is a SurfaceSnapshot. Do not increment it.`),
@@ -77,6 +83,17 @@ export const applyInputSchema = z.object({
 }).strict();
 
 const labelValue = (label: z.infer<typeof editableLabelSchema>) => typeof label === "string" ? label : label.value;
+
+function normalizeEdge(edge: z.infer<typeof edgeSchema>) {
+  return {
+    id: edge.id,
+    source: edge.source.nodeId,
+    sourcePort: edge.source.port,
+    target: edge.target.nodeId,
+    targetPort: edge.target.port,
+    ...(edge.label === undefined ? {} : { label: edge.label }),
+  };
+}
 
 function automaticPosition(existingNodes: WorkflowNode[], creationIndex: number) {
   if (existingNodes.length === 0) {
@@ -111,6 +128,15 @@ export function normalizeCommands(
           type: command.type,
           id: command.id ?? command.nodeId!,
           patch: label === undefined ? patch : { ...patch, label: labelValue(label) },
+        };
+      }
+      case "connect":
+        return { ...command, edge: normalizeEdge(command.edge) };
+      case "replaceConnection": {
+        return {
+          type: command.type,
+          edgeId: command.edgeId,
+          replacement: command.replacements.map(normalizeEdge),
         };
       }
       default:

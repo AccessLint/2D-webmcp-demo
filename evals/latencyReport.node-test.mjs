@@ -240,10 +240,8 @@ test("requires a semantically valid notification edit and matching visible recei
                 type: "connect",
                 edge: {
                   id: "notification",
-                  source: "approve-request",
-                  sourcePort: "success",
-                  target: "notify",
-                  targetPort: "input",
+                  source: { nodeId: "approve-request", port: "success" },
+                  target: { nodeId: "notify", port: "input" },
                 },
               },
             ],
@@ -291,7 +289,10 @@ test("accepts a completed edit that reveals its own receipt", () => {
               baseRevision: 1,
               commands: [
                 { type: "createNode", node: { id: "notify", type: "action", label: "Notify requester" } },
-                { type: "connect", edge: { source: "approve-request", sourcePort: "success", target: "notify", targetPort: "input" } },
+                { type: "connect", edge: {
+                  source: { nodeId: "approve-request", port: "success" },
+                  target: { nodeId: "notify", port: "input" },
+                } },
               ],
             },
             result: {
@@ -338,7 +339,7 @@ test("does not reject a failed undo that leaves the completed edit in place", ()
           functionName: "edit_workflow",
           args: { baseRevision: 1, commands: [
             { type: "createNode", node: { id: "notify", type: "action", label: "Notify requester" } },
-            { type: "connect", edge: { source: "approve-request", sourcePort: "success", target: "notify", targetPort: "input" } },
+            { type: "connect", edge: { source: { nodeId: "approve-request", port: "success" }, target: { nodeId: "notify", port: "input" } } },
           ] },
           result: editResult,
         }),
@@ -369,7 +370,7 @@ test("requires creation to replace the original graph with the requested topolog
       commands: [
         { type: "createNode", node: { id: "draft", label: "Draft request", type: "action" } },
         { type: "createNode", node: { id: "approve", label: "Approve request", type: "action" } },
-        { type: "connect", edge: { id: "approval", source: "draft", sourcePort: "success", target: "approve", targetPort: "input" } },
+        { type: "connect", edge: { id: "approval", source: { nodeId: "draft", port: "success" }, target: { nodeId: "approve", port: "input" } } },
       ],
     },
     result: {
@@ -415,7 +416,7 @@ test("requires every node and branch in the complex workflow", () => {
   });
   const edge = (id, source, sourcePort, target) => ({
     type: "connect",
-    edge: { id, source, sourcePort, target, targetPort: "input" },
+    edge: { id, source: { nodeId: source, port: sourcePort }, target: { nodeId: target, port: "input" } },
   });
   const commands = [
     node("intake", "input", "Report intake"),
@@ -495,13 +496,11 @@ test("requires the existing connection to be rerouted with replaceConnection", (
     {
       type: "replaceConnection",
       edgeId: "edge-receive-archive",
-      replacement: [
+      replacements: [
         {
           id: "edge-receive-review",
-          source: "receive-request",
-          sourcePort: "success",
-          target: "manual-review",
-          targetPort: "input",
+          source: { nodeId: "receive-request", port: "success" },
+          target: { nodeId: "manual-review", port: "input" },
         },
       ],
     },

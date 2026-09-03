@@ -3,11 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import App from "../src/app/App";
 import { workflowStore } from "../src/state/workflowStore";
+import { createSalesWorkflow } from "./fixtures/salesWorkflow";
 
 describe("clear canvas", () => {
   beforeEach(() => workflowStore.getState().reset());
 
   it("clears the canvas and can be undone", async () => {
+    workflowStore.setState({ workflow: createSalesWorkflow() });
     const user = userEvent.setup();
     render(<App />);
 

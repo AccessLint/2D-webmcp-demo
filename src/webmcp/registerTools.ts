@@ -36,12 +36,20 @@ const editCommandExamples = {
   },
   connect: {
     type: "connect",
-    edge: { id: "edge-new", source: "source-id", sourcePort: "success", target: "target-id", targetPort: "input" },
+    edge: {
+      id: "edge-new",
+      source: { nodeId: "source-id", port: "success" },
+      target: { nodeId: "target-id", port: "input" },
+    },
   },
   replaceConnection: {
     type: "replaceConnection",
     edgeId: "existing-edge-id",
-    replacement: [{ id: "edge-new", source: "source-id", sourcePort: "success", target: "target-id", targetPort: "input" }],
+    replacements: [{
+      id: "edge-new",
+      source: { nodeId: "source-id", port: "success" },
+      target: { nodeId: "target-id", port: "input" },
+    }],
   },
 } as const;
 
@@ -49,7 +57,7 @@ function recoveryFor(tool: ToolName, invalidInput: boolean, code?: string) {
   if (invalidInput && tool === toolNames.editWorkflow) {
     return {
       tool,
-      reason: "Correct the listed fields and retry. Every command needs a top-level type; never wrap it under a command name.",
+      reason: "Correct the listed fields and retry from commandExamples. Every command needs a top-level type; source and target each contain nodeId and port; replacements is always an array.",
       commandExamples: editCommandExamples,
     };
   }
@@ -187,7 +195,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.editWorkflow,
       title: "Edit workflow",
-      description: `Call after ${toolNames.discoverWorkflow}. Reuse existing IDs returned in itemPage. Before deciding an ID is absent, follow itemPage.nextCursor until it is null; one page is not proof of absence. Never create a node with an existing ID. Set baseRevision to discovery's exact revision. Do not increment it. Commands use these shapes: createNode {node:{id,type,label,position?}}, updateNode {id,patch} (nodeId aliases id), deleteNode {id}, connect {edge}, disconnect {edgeId}, replaceConnection {edgeId,replacement}. Positions and empty properties may be omitted. Edge endpoints are source and target. Applies up to 20 commands atomically and reveals the resulting receipt. On conflict, rediscover before retrying.`,
+      description: `Call after ${toolNames.discoverWorkflow}. Reuse existing IDs returned in itemPage. Before deciding an ID is absent, follow itemPage.nextCursor until it is null; one page is not proof of absence. Never create a node with an existing ID. Set baseRevision to discovery's exact revision. Do not increment it. Every command object needs a top-level type, for example {type:"createNode",node:{...}}. Never wrap a command as {createNode:{...}}. Connect with {type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}. Replace with {type:"replaceConnection",edgeId:"existing-edge-id",replacements:[{...edge}]}. Other shapes are {type:"updateNode",id,patch}, {type:"deleteNode",id}, and {type:"disconnect",edgeId}. Positions and empty properties may be omitted. Applies up to 20 commands atomically and reveals the resulting receipt. When visible is true, stop; do not call ${toolNames.getEditResult} unless the user explicitly asks for every itemized change. On conflict, rediscover before retrying.`,
       inputSchema: jsonSchemas.apply,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.editWorkflow],

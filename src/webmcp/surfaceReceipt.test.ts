@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createSeedWorkflow } from "../graph/seedWorkflow";
 import { createWorkflowStore } from "../state/workflowStore";
+import { createSalesWorkflow } from "../../tests/fixtures/salesWorkflow";
 import { workflowSurfaceReceipt } from "./surfaceReceipt";
 
 describe("workflowSurfaceReceipt", () => {
   it("projects a successful native edit into the shared receipt contract", () => {
-    const store = createWorkflowStore(createSeedWorkflow());
+    const store = createWorkflowStore(createSalesWorkflow());
     const commands = [{ type: "updateNode" as const, id: "enrich-company", patch: { label: "Enrich company v2" } }];
     const nativeReceipt = store.getState().apply(0, commands, "Rename the item");
 
@@ -24,7 +24,7 @@ describe("workflowSurfaceReceipt", () => {
   });
 
   it("projects a revision conflict without inventing effects or undo", () => {
-    const store = createWorkflowStore(createSeedWorkflow());
+    const store = createWorkflowStore(createSalesWorkflow());
     const commands = [{ type: "updateNode" as const, id: "enrich-company", patch: { label: "Enrich company v2" } }];
     const nativeReceipt = store.getState().apply(99, commands);
 
@@ -39,7 +39,7 @@ describe("workflowSurfaceReceipt", () => {
   });
 
   it("attributes relationships removed by a cascading node delete to that command", () => {
-    const store = createWorkflowStore(createSeedWorkflow());
+    const store = createWorkflowStore(createSalesWorkflow());
     store.getState().apply(0, [{
       type: "connect",
       edge: {

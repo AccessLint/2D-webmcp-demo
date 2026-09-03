@@ -1,4 +1,28 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function seedSalesWorkflow(page: Page) {
+  await page.evaluate(async () => {
+    const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
+    await tools.edit_workflow.execute({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "new-lead", type: "node", label: "New lead submitted" } },
+        { type: "createNode", node: { id: "enrich-company", type: "action", label: "Enrich company" } },
+        { type: "createNode", node: { id: "qualified-lead", type: "condition", label: "Qualified lead?" } },
+        { type: "createNode", node: { id: "create-opportunity", type: "action", label: "Create CRM opportunity" } },
+        { type: "createNode", node: { id: "add-to-nurture", type: "action", label: "Add to nurture campaign" } },
+        { type: "createNode", node: { id: "manual-review", type: "action", label: "Manual review" } },
+        { type: "createNode", node: { id: "complete", type: "action", label: "Complete" } },
+        { type: "connect", edge: { id: "edge-lead-enrich", source: { nodeId: "new-lead", port: "next" }, target: { nodeId: "enrich-company", port: "input" } } },
+        { type: "connect", edge: { id: "edge-enrich-qualified", source: { nodeId: "enrich-company", port: "success" }, target: { nodeId: "qualified-lead", port: "input" } } },
+        { type: "connect", edge: { id: "edge-qualified-opportunity", source: { nodeId: "qualified-lead", port: "yes" }, target: { nodeId: "create-opportunity", port: "input" }, label: "Qualified" } },
+        { type: "connect", edge: { id: "edge-qualified-nurture", source: { nodeId: "qualified-lead", port: "no" }, target: { nodeId: "add-to-nurture", port: "input" }, label: "Nurture" } },
+        { type: "connect", edge: { id: "edge-opportunity-end", source: { nodeId: "create-opportunity", port: "success" }, target: { nodeId: "complete", port: "input" } } },
+        { type: "connect", edge: { id: "edge-nurture-end", source: { nodeId: "add-to-nurture", port: "success" }, target: { nodeId: "complete", port: "input" } } },
+      ],
+    });
+  });
+}
 
 test("a WebMCP edit automatically reveals its receipt", async ({ page }) => {
   await page.addInitScript(() => {
@@ -36,12 +60,14 @@ test("canvas refits after becoming measurable", async ({ page }) => {
     observer.observe(document, { childList: true, subtree: true });
   });
   await page.goto("/");
+  await page.getByRole("textbox", { name: "New node name" }).fill("Enrich company");
+  await page.getByRole("button", { name: "Add node" }).click();
   await page.waitForTimeout(500);
   const canvasBox = await page.locator(".canvas-shell").evaluate((element) => element.getBoundingClientRect().toJSON());
-  const nodeBox = await page.getByTestId("rf__node-enrich-company").evaluate((element) => element.getBoundingClientRect().toJSON());
+  const enrichCompany = page.getByRole("row", { name: "Action node: Enrich company" });
+  const nodeBox = await enrichCompany.evaluate((element) => element.getBoundingClientRect().toJSON());
   expect(nodeBox.x).toBeGreaterThanOrEqual(canvasBox.x);
   expect(nodeBox.x + nodeBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width);
-  const enrichCompany = page.getByRole("button", { name: "Action node: Enrich company" });
   await expect(enrichCompany).toHaveAttribute("tabindex", "0");
   await enrichCompany.focus();
   await expect(enrichCompany).toBeFocused();
@@ -54,9 +80,9 @@ test("nodes can be added and renamed from the editing panel", async ({ page }) =
   await page.getByRole("textbox", { name: "New node name" }).fill("Checkpoint");
   await page.getByRole("button", { name: "Add node" }).click();
 
-  const createdNode = page.getByRole("button", { name: "Node: Checkpoint" });
+  const createdNode = page.getByRole("row", { name: "Node: Checkpoint" });
   await expect(createdNode).toBeVisible();
-  await expect(createdNode).toHaveAttribute("aria-pressed", "true");
+  await expect(createdNode).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("status")).toContainText("Created Checkpoint");
 
   const renameInput = page.getByRole("textbox", { name: "Selected node name" });
@@ -64,7 +90,7 @@ test("nodes can be added and renamed from the editing panel", async ({ page }) =
   await renameInput.fill("Approval checkpoint");
   await page.getByRole("button", { name: "Rename node" }).click();
 
-  await expect(page.getByRole("button", { name: "Node: Approval checkpoint" })).toBeVisible();
+  await expect(page.getByRole("row", { name: "Node: Approval checkpoint" })).toBeVisible();
   await expect(page.getByRole("status")).toContainText(
     "Renamed Checkpoint to Approval checkpoint",
   );
@@ -77,6 +103,7 @@ test("inferred recovery-route receipt can be focused, spot checked, and undone",
     (window as unknown as { __workflowTools: typeof tools }).__workflowTools = tools;
   });
   await page.goto("/");
+  await seedSalesWorkflow(page);
   await expect(page.getByTestId("rf__node-enrich-company")).toBeVisible();
   await page.locator(".canvas-shell").evaluate((element) => { (element as HTMLElement).style.height = "1200px"; });
   const viewport = page.viewportSize()!;
@@ -85,10 +112,10 @@ test("inferred recovery-route receipt can be focused, spot checked, and undone",
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
     const receipt = await tools.edit_workflow.execute({
-      baseRevision: 0,
+      baseRevision: 1,
       intent: "Keep leads from disappearing when enrichment is unavailable",
       commands: [
-        { type: "connect", edge: { id: "edge-enrich-review", source: "enrich-company", sourcePort: "failure", target: "manual-review", targetPort: "input", label: "Enrichment unavailable" } },
+        { type: "connect", edge: { id: "edge-enrich-review", source: { nodeId: "enrich-company", port: "failure" }, target: { nodeId: "manual-review", port: "input" }, label: "Enrichment unavailable" } },
       ],
     }) as { operationId: string; visible: boolean };
     if (!receipt.visible) throw new Error("Change entry was not visible after edit.");

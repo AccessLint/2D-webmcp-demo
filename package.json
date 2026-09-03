@@ -6,12 +6,12 @@
   "scripts": {
     "dev": "vite",
     "postinstall": "patch-package",
-    "eval:browser": "webmcp-evals browser --chrome-channel chrome --url http://127.0.0.1:4173 --evals evals/webmcp-evals.json --backend vercel --model openai:gpt-5.6-terra --runs 10 --max-steps 8 --reporter console json html && npm run eval:latency",
+    "eval:browser": "node evals/runBrowserEvals.mjs",
     "eval:latency": "node evals/summarizeLatency.mjs",
     "eval:latency:check": "node evals/checkLatency.mjs",
     "eval:surface-bridge": "node evals/runSurfaceBridge.mjs",
     "build": "tsc -b && vite build && vite build --config vite.worker.config.ts",
-    "test": "vitest run && node --test evals/latencyReport.node-test.mjs",
+    "test": "vitest run && node --test evals/*.node-test.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "lint": "eslint ."

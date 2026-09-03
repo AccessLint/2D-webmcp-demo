@@ -11,13 +11,11 @@ describe("accessible workflow editor", () => {
 
   it("renders the workflow canvas and change history surfaces without duplicate connection controls", () => {
     render(<App />);
-    expect(screen.getByRole("heading", { name: "Verifiable workflow editing with WebMCP" })).toBeInTheDocument();
-    expect(screen.getByText(/This demo shows an agent editing the same workflow/)).toBeInTheDocument();
-    expect(screen.getByText(/accessibility for screen reader users is a primary design goal/)).toBeInTheDocument();
-    expect(screen.getByText(/leads disappear whenever company enrichment is unavailable/)).toBeInTheDocument();
-    expect(screen.getByText(/just three types—Node, Action, and Condition/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "2D WebMCP - Agent-friendly, accessible canvas editor" })).toBeInTheDocument();
+    expect(screen.getByText(/Work with a mouse, keyboard, or AI agent/)).toBeInTheDocument();
+    expect(screen.getByText(/create a software bug triage workflow/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy prompt" })).toBeInTheDocument();
-    expect(screen.getByRole("treegrid", { name: /Workflow canvas/ })).toBeInTheDocument();
+    expect(screen.getByRole("treegrid", { name: /Workflow canvas/ })).toHaveAttribute("aria-rowcount", "0");
     expect(screen.queryByRole("heading", { name: "Workflow outline" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Workflow connections" })).not.toBeInTheDocument();
   });

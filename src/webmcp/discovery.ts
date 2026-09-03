@@ -11,7 +11,7 @@ export function workflowSummary(state: WorkflowState) {
   const exampleNode = state.nodes.find((node) => incomingNodeIds.has(node.id)) ?? state.nodes[0];
   const surfaceSnapshot = workflowSurfaceSnapshot(state);
   return {
-    schemaVersion: "1" as const,
+    schemaVersion: "2" as const,
     revision: state.revision,
     nodes: state.nodes.length,
     edges: state.edges.length,
@@ -22,7 +22,12 @@ export function workflowSummary(state: WorkflowState) {
     authoring: {
       nodeTypes: Object.entries(nodeDefinitions).map(([type, definition]) => ({ type, title: definition.title, inputs: [...definition.inputs], outputs: [...definition.outputs] })),
       nodes: state.nodes.map((node) => ({ id: node.id, type: node.type, label: node.label, inputs: [...nodeDefinitions[node.type].inputs], outputs: [...nodeDefinitions[node.type].outputs] })),
-      edges: state.edges.map(({ id, source, sourcePort, target, targetPort, label }) => ({ id, source, sourcePort, target, targetPort, ...(label ? { label } : {}) })),
+      edges: state.edges.map(({ id, source, sourcePort, target, targetPort, label }) => ({
+        id,
+        source: { nodeId: source, port: sourcePort },
+        target: { nodeId: target, port: targetPort },
+        ...(label ? { label } : {}),
+      })),
       uiTargets: uiTargetList,
     },
     recommendedNextCalls: [

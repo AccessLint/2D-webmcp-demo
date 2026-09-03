@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createWorkflowStore } from "../src/state/workflowStore";
+import { createSalesWorkflow } from "../tests/fixtures/salesWorkflow";
 import { createSurfaceEvalSession } from "./surfaceBridge";
 import { genericEditorResult, genericEditorSnapshot } from "./genericEditorBaseline";
 
 describe("generic editor eval baseline", () => {
   it("returns only the generic editor data needed to inspect and continue", () => {
-    const store = createWorkflowStore();
+    const store = createWorkflowStore(createSalesWorkflow());
 
     expect(genericEditorSnapshot(store.getState().workflow)).toEqual({
       revision: 0,
@@ -30,7 +31,7 @@ describe("generic editor eval baseline", () => {
   });
 
   it("returns the minimal conventional result for a successful edit", () => {
-    const store = createWorkflowStore();
+    const store = createWorkflowStore(createSalesWorkflow());
     const result = store.getState().apply(0, [
       { type: "updateNode", id: "enrich-company", patch: { label: "Enrich company v2" } },
     ]);
@@ -42,7 +43,7 @@ describe("generic editor eval baseline", () => {
   });
 
   it("exposes the generic result through the eval bridge", async () => {
-    const session = createSurfaceEvalSession();
+    const session = createSurfaceEvalSession(createSalesWorkflow());
     const tools = session.listTools();
 
     expect(tools.find((tool) => tool.name === "discover_workflow")?.outputSchemas.genericEditor)

@@ -44,7 +44,7 @@ describe("WebMCP tool boundary", () => {
     });
     const discovery = tools.discover_workflow({});
     expect(discovery).toMatchObject({
-      schemaVersion: "1",
+      schemaVersion: "2",
       revision: 0,
       nodes: 7,
       edges: 6,
@@ -98,7 +98,7 @@ describe("WebMCP tool boundary", () => {
           { id: "enrich-company", type: "action", label: "Enrich company", inputs: ["input"], outputs: ["success", "failure"] },
         ]),
         edges: expect.arrayContaining([
-          { id: "edge-enrich-qualified", source: "enrich-company", sourcePort: "success", target: "qualified-lead", targetPort: "input" },
+          { id: "edge-enrich-qualified", source: { nodeId: "enrich-company", port: "success" }, target: { nodeId: "qualified-lead", port: "input" } },
         ]),
         uiTargets: expect.arrayContaining([
           { id: "canvas.zoom-in", label: "Zoom In", selector: "button[aria-label='Zoom In']" },
@@ -119,9 +119,9 @@ describe("WebMCP tool boundary", () => {
       intent: "Add Notify sales after Create CRM opportunity",
       commands: [
         { type: "createNode", node: { id: "notify-sales", type: "action", label: "Notify sales", position: { x: 900, y: 100 }, properties: {} } },
-        { type: "replaceConnection", edgeId: "edge-opportunity-end", replacement: [
-          { id: "edge-opportunity-notify", source: "create-opportunity", sourcePort: "success", target: "notify-sales", targetPort: "input" },
-          { id: "edge-notify-complete", source: "notify-sales", sourcePort: "success", target: "complete", targetPort: "input" },
+        { type: "replaceConnection", edgeId: "edge-opportunity-end", replacements: [
+          { id: "edge-opportunity-notify", source: { nodeId: "create-opportunity", port: "success" }, target: { nodeId: "notify-sales", port: "input" } },
+          { id: "edge-notify-complete", source: { nodeId: "notify-sales", port: "success" }, target: { nodeId: "complete", port: "input" } },
         ] },
       ],
     });
@@ -192,6 +192,78 @@ describe("WebMCP tool boundary", () => {
     expect(store.getState().workflow.nodes.find((node) => node.id === "new-action")?.properties).toEqual({});
   });
 
+  it("normalizes the canonical nested edge contract at the WebMCP boundary", async () => {
+    const store = createWorkflowStore();
+    const tools = createToolHandlers(store);
+
+    const created = await tools.edit_workflow({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "first", type: "action", label: "First" } },
+        { type: "createNode", node: { id: "second", type: "action", label: "Second" } },
+        {
+          type: "connect",
+          edge: {
+            id: "first-second",
+            source: { nodeId: "first", port: "success" },
+            target: { nodeId: "second", port: "input" },
+          },
+        },
+      ],
+    });
+    expect(created).toMatchObject({ status: "completed", changes: expect.any(Array) });
+    expect(created.changes).toHaveLength(3);
+    expect(store.getState().workflow.edges).toEqual([{
+      id: "first-second",
+      source: "first",
+      sourcePort: "success",
+      target: "second",
+      targetPort: "input",
+    }]);
+
+    const replaced = await tools.edit_workflow({
+      baseRevision: 1,
+      commands: [{
+        type: "replaceConnection",
+        edgeId: "first-second",
+        replacements: [{
+          id: "second-first",
+          source: { nodeId: "second", port: "success" },
+          target: { nodeId: "first", port: "input" },
+        }],
+      }],
+    });
+    expect(replaced).toMatchObject({ status: "completed", changes: expect.any(Array) });
+    expect(replaced.changes).toHaveLength(2);
+    expect(store.getState().workflow.edges).toEqual([{
+      id: "second-first",
+      source: "second",
+      sourcePort: "success",
+      target: "first",
+      targetPort: "input",
+    }]);
+
+    await expect(tools.edit_workflow({
+      baseRevision: 2,
+      commands: [{
+        type: "connect",
+        edge: { id: "flat-edge", source: "first", sourcePort: "success", target: "second", targetPort: "input" },
+      }],
+    })).rejects.toThrow();
+    await expect(tools.edit_workflow({
+      baseRevision: 2,
+      commands: [{
+        type: "replaceConnection",
+        edgeId: "second-first",
+        replacement: [{
+          id: "singular-field",
+          source: { nodeId: "first", port: "success" },
+          target: { nodeId: "second", port: "input" },
+        }],
+      }],
+    })).rejects.toThrow();
+  });
+
   it("preserves a typed command failure and recovery guidance in the receipt", async () => {
     const tools = createToolHandlers(createWorkflowStore());
     const receipt = await tools.edit_workflow({
@@ -249,7 +321,12 @@ describe("WebMCP tool boundary", () => {
     expect(registered.get("discover_workflow")?.description).toContain("recovery directs");
     expect(registered.get("inspect_workflow_items")?.description).toContain("does not select or reveal");
     expect(registered.get("edit_workflow")?.description).toContain("Do not increment it");
-    expect(registered.get("edit_workflow")?.description).toContain("Commands use these shapes");
+    expect(registered.get("edit_workflow")?.description).toContain("Every command object needs a top-level type");
+    expect(registered.get("edit_workflow")?.description).toContain('{type:"createNode",node:{...}}');
+    expect(registered.get("edit_workflow")?.description).toContain("Never wrap a command");
+    expect(registered.get("edit_workflow")?.description).toContain('source:{nodeId:"source-id",port:"success"}');
+    expect(registered.get("edit_workflow")?.description).toContain("replacements:[{");
+    expect(registered.get("edit_workflow")?.description).toContain("When visible is true, stop");
     expect(registered.get("edit_workflow")?.description).toContain("itemPage.nextCursor");
     expect(registered.get("edit_workflow")?.description).toContain("reveals the resulting receipt");
     expect(registered.get("focus_page_element")?.description).toContain("exactly one targetId");
@@ -318,7 +395,7 @@ describe("WebMCP tool boundary", () => {
             replaceConnection: expect.objectContaining({
               type: "replaceConnection",
               edgeId: expect.any(String),
-              replacement: expect.any(Array),
+              replacements: expect.any(Array),
             }),
           },
         },
@@ -483,6 +560,34 @@ describe("WebMCP tool boundary", () => {
       },
     });
     expect(JSON.stringify(manyInvalidCommands).length).toBeLessThanOrEqual(1_500);
+    const manyWrappedCommands = await registered.get("edit_workflow")!.execute({
+      baseRevision: 0,
+      commands: Array.from({ length: 20 }, (_, index) => ({
+        createNode: {
+          node: { id: `wrapped-${String(index)}`, type: "action", label: `Wrapped ${String(index)}` },
+        },
+      })),
+    });
+    expect(manyWrappedCommands).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_INPUT",
+        issueCount: 20,
+        issues: expect.arrayContaining([expect.objectContaining({
+          path: ["commands", 0, "type"],
+          message: expect.stringContaining("command's type field"),
+        })]),
+        issuesTruncated: true,
+        recovery: {
+          tool: "edit_workflow",
+          reason: expect.stringContaining("top-level type"),
+          commandExamples: {
+            createNode: expect.objectContaining({ type: "createNode" }),
+          },
+        },
+      },
+    });
+    expect(JSON.stringify(manyWrappedCommands).length).toBeLessThanOrEqual(1_500);
     const oversizedError = registered.get("discover_workflow")!.execute({ ["x".repeat(2_000)]: true });
     expect(oversizedError).toMatchObject({ ok: false, error: { code: "OUTPUT_TOO_LARGE" } });
     expect(JSON.stringify(oversizedError).length).toBeLessThanOrEqual(1_500);
@@ -562,10 +667,8 @@ describe("WebMCP tool boundary", () => {
           type: "connect",
           edge: {
             id: `edge-isolated-${String(index)}-complete`,
-            source: `isolated-${String(index)}`,
-            sourcePort: "yes",
-            target: "complete",
-            targetPort: "input",
+            source: { nodeId: `isolated-${String(index)}`, port: "yes" },
+            target: { nodeId: "complete", port: "input" },
           },
         }]).flat(),
     }) as { operationId: string; changePage: { nextCursor: number | null } };
@@ -582,6 +685,39 @@ describe("WebMCP tool boundary", () => {
     });
     expect(nextPage).not.toHaveProperty("validation");
     expect(JSON.stringify(nextPage).length).toBeLessThanOrEqual(1_500);
+    registration.unregister();
+    delete document.modelContext;
+  });
+
+  it("returns a completed compact receipt for a maximum-size valid edit", async () => {
+    const registered = new Map<string, WebMCPTool>();
+    const modelContext = Object.assign(new EventTarget(), {
+      registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
+    });
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+    const registration = registerWorkflowTools(createToolHandlers(createWorkflowStore(), {
+      focusChangeEntry: async (operationId) => ({ operationId, focusedIn: "change-history", visible: true }),
+      focusWorkflowNode: async () => ({ focused: true, visible: true }),
+      focusDomNode: async (selector) => ({ selector, tagName: "div", id: null, focusWhen: "window-focus-or-accessibility-interaction", queued: true }),
+    }));
+
+    const result = await registered.get("edit_workflow")!.execute({
+      baseRevision: 0,
+      commands: Array.from({ length: 20 }, (_, index) => ({
+        type: "createNode",
+        node: { id: `node-${String(index)}`, type: "action", label: `Node ${String(index)}` },
+      })),
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      baseRevision: 0,
+      resultingRevision: 1,
+      changeCount: 20,
+      visible: true,
+      changePage: { cursor: 0, nextCursor: expect.any(Number), items: expect.any(Array) },
+    });
+    expect(JSON.stringify(result).length).toBeLessThanOrEqual(1_500);
     registration.unregister();
     delete document.modelContext;
   });

@@ -33,10 +33,8 @@
               "type": "connect",
               "edge": {
                 "id": "edge-draft-approve",
-                "source": "draft-request",
-                "sourcePort": "success",
-                "target": "approve-request",
-                "targetPort": "input"
+                "source": { "nodeId": "draft-request", "port": "success" },
+                "target": { "nodeId": "approve-request", "port": "input" }
               }
             }
           ]
@@ -195,10 +193,8 @@
               "type": "connect",
               "edge": {
                 "id": "edge-receive-archive",
-                "source": "receive-request",
-                "sourcePort": "success",
-                "target": "archive-request",
-                "targetPort": "input"
+                "source": { "nodeId": "receive-request", "port": "success" },
+                "target": { "nodeId": "archive-request", "port": "input" }
               }
             }
           ]
@@ -326,60 +322,48 @@
               "type": "connect",
               "edge": {
                 "id": "edge-queue-hub",
-                "source": "queue-intake",
-                "sourcePort": "success",
-                "target": "routing-hub",
-                "targetPort": "input"
+                "source": { "nodeId": "queue-intake", "port": "success" },
+                "target": { "nodeId": "routing-hub", "port": "input" }
               }
             },
             {
               "type": "connect",
               "edge": {
                 "id": "edge-validate-hub",
-                "source": "validate-request",
-                "sourcePort": "success",
-                "target": "routing-hub",
-                "targetPort": "input"
+                "source": { "nodeId": "validate-request", "port": "success" },
+                "target": { "nodeId": "routing-hub", "port": "input" }
               }
             },
             {
               "type": "connect",
               "edge": {
                 "id": "edge-score-hub",
-                "source": "score-request",
-                "sourcePort": "success",
-                "target": "routing-hub",
-                "targetPort": "input"
+                "source": { "nodeId": "score-request", "port": "success" },
+                "target": { "nodeId": "routing-hub", "port": "input" }
               }
             },
             {
               "type": "connect",
               "edge": {
                 "id": "edge-hub-a",
-                "source": "routing-hub",
-                "sourcePort": "success",
-                "target": "route-a",
-                "targetPort": "input"
+                "source": { "nodeId": "routing-hub", "port": "success" },
+                "target": { "nodeId": "route-a", "port": "input" }
               }
             },
             {
               "type": "connect",
               "edge": {
                 "id": "edge-hub-b",
-                "source": "routing-hub",
-                "sourcePort": "success",
-                "target": "route-b",
-                "targetPort": "input"
+                "source": { "nodeId": "routing-hub", "port": "success" },
+                "target": { "nodeId": "route-b", "port": "input" }
               }
             },
             {
               "type": "connect",
               "edge": {
                 "id": "edge-hub-c",
-                "source": "routing-hub",
-                "sourcePort": "success",
-                "target": "route-c",
-                "targetPort": "input"
+                "source": { "nodeId": "routing-hub", "port": "success" },
+                "target": { "nodeId": "route-c", "port": "input" }
               }
             }
           ]

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createSeedWorkflow } from "../src/graph/seedWorkflow";
 import { evaluateRecoveryIntent } from "./recoveryIntent";
+import { createSalesWorkflow } from "../tests/fixtures/salesWorkflow";
 
 function withRecoveryRoute(target = "manual-review") {
-  const before = createSeedWorkflow();
+  const before = createSalesWorkflow();
   const after = structuredClone(before);
   after.revision = 1;
   after.edges.push({
