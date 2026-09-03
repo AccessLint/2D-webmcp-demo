@@ -328,6 +328,7 @@ describe("WebMCP tool boundary", () => {
       },
       additionalProperties: false,
     });
+    expect(JSON.stringify(registered.get("edit_workflow")?.inputSchema)).not.toContain("\\\\p{");
     const applied = registered.get("edit_workflow")!.execute({
       baseRevision: 0,
       commands: [{ type: "updateNode", id: "enrich-company", patch: { label: "Enrich company" } }],

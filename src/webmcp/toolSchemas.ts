@@ -5,7 +5,8 @@ import { uiTargetIds } from "./uiTargets";
 import { toolNames } from "./toolNames";
 
 const identifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
-const printableTextPattern = /^[^\p{Cc}]*$/u;
+// eslint-disable-next-line no-control-regex -- Intentionally reject the portable C0/C1 control-character ranges.
+const printableTextPattern = /^[^\x00-\x1F\x7F-\x9F]*$/;
 const idSchema = z.string().min(1).max(64).regex(identifierPattern).describe("Stable application ID copied from discovery output or supplied for a new object.");
 const labelSchema = z.string().min(1).max(120).regex(printableTextPattern);
 const portSchema = z.string().min(1).max(40).regex(identifierPattern);
