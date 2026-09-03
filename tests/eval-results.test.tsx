@@ -26,18 +26,9 @@ describe("evaluation results", () => {
     expect(screen.getByRole("status")).toHaveTextContent("88% of the latest journeys completed");
   });
 
-  it("separates successful outcomes from edit reliability and exact-call matching", () => {
+  it("does not show the legacy score breakdown", () => {
     render(<EvalResultsPage />);
 
-    const breakdown = screen.getByRole("region", { name: "Legacy score breakdown" });
-    const taskCompletion = within(breakdown).getByText("Task completion").closest("article")!;
-    expect(within(taskCompletion).getByText("94%")).toBeInTheDocument();
-    const editValidity = within(breakdown).getByText("First-attempt edit validity").closest("article")!;
-    expect(within(editValidity).getByText("60%")).toBeInTheDocument();
-    const visibleEvidence = within(breakdown).getByText("Visible edit evidence").closest("article")!;
-    expect(within(visibleEvidence).getByText("100%")).toBeInTheDocument();
-    const exactCalls = within(breakdown).getByText("Exact-call matching").closest("article")!;
-    expect(within(exactCalls).getByText("39.9%")).toBeInTheDocument();
-    expect(within(breakdown).getByText(/not directly comparable/i)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Legacy score breakdown" })).not.toBeInTheDocument();
   });
 });

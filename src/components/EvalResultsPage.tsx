@@ -40,33 +40,6 @@ const metrics: Array<{
   },
 ];
 
-const scoreDimensions: Array<{
-  label: string;
-  description: string;
-  getScore: (run: EvalRun) => Score;
-}> = [
-  {
-    label: "Task completion",
-    description: "Reached the requested end state, including recovery after an invalid call.",
-    getScore: (run) => run.scoreBreakdown.taskCompletion,
-  },
-  {
-    label: "First-attempt edit validity",
-    description: "Sent a schema-valid complex edit before needing corrective feedback.",
-    getScore: (run) => run.scoreBreakdown.firstAttemptEditValidity,
-  },
-  {
-    label: "Visible edit evidence",
-    description: "Finished the edit by bringing its receipt into view for review.",
-    getScore: (run) => run.scoreBreakdown.visibleEditEvidence,
-  },
-  {
-    label: "Exact-call matching",
-    description: "Matched each expected tool call and input exactly; extra calls lower this diagnostic.",
-    getScore: (run) => run.strictSteps,
-  },
-];
-
 function TrendMetric({ label, description, getScore }: (typeof metrics)[number]) {
   const baseline = getScore(evalRuns[0]);
   const latest = getScore(evalRuns.at(-1)!);
@@ -227,34 +200,6 @@ export function EvalResultsPage() {
           </div>
           <p className="eval-note">
             Duration percentiles exclude the six unsuccessful attempts. Tool-call counts cover all 50 attempts.
-          </p>
-        </section>
-
-        <section className="eval-section" aria-labelledby="score-breakdown-heading">
-          <div className="eval-section__heading">
-            <div>
-              <p className="eyebrow">Earlier fixture</p>
-              <h2 id="score-breakdown-heading">Legacy score breakdown</h2>
-            </div>
-            <p>The latest report was reviewed by outcome as well as by the evaluator’s strict step matcher.</p>
-          </div>
-          <div className="eval-score-breakdown">
-            {scoreDimensions.map(({ label, description, getScore }) => {
-              const baseline = getScore(evalRuns[0]);
-              const current = getScore(latestLegacyRun);
-              return (
-                <article className="eval-score-card" key={label}>
-                  <p>{label}</p>
-                  <strong>{displayPercent(current)}</strong>
-                  <span>Baseline {displayPercent(baseline)}</span>
-                  <small>{description}</small>
-                </article>
-              );
-            })}
-          </div>
-          <p className="eval-note">
-            These scores are retained as historical evidence. They used an earlier read, reveal, focus, and
-            complex-edit fixture, so they are not directly comparable with the latest creation-and-editing run.
           </p>
         </section>
 
