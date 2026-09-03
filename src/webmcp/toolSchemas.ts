@@ -34,7 +34,7 @@ const nodeSchema = z.object({
   properties: propertiesSchema.describe("Up to 4 node-specific scalar properties; names and string values are length-limited."),
 }).strict().describe("Complete workflow node definition.");
 const creatableNodeSchema = nodeSchema.extend({
-  position: positionSchema.optional().describe("Optional canvas position. Omit it to use deterministic automatic layout."),
+  position: positionSchema.optional().describe("Optional initial canvas position. A successful edit applies deterministic automatic layout to the completed workflow."),
   properties: propertiesSchema.default({}).describe("Optional node-specific scalar properties, up to 4. Omit when the node has no properties."),
 }).strict();
 const edgeEndpointSchema = z.object({

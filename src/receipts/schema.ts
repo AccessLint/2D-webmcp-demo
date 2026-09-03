@@ -24,6 +24,7 @@ export type ChangeReceipt = {
   affected: ApplicationReference[];
   changes: WorkflowChange[];
   undo: { available: boolean; operationId?: string };
+  layout?: { action: "auto-layout"; affectedNodeIds: string[] };
   failure?: { code: BatchFailureCode; message: string };
   recovery?: { tool: typeof toolNames.discoverWorkflow; input: Record<string, never>; currentRevision: number; then: typeof toolNames.editWorkflow };
 };
@@ -52,6 +53,10 @@ export const changeReceiptSchema: z.ZodType<ChangeReceipt> = z.object({
     after: z.unknown().optional(),
   })) as z.ZodType<WorkflowChange[]>,
   undo: z.object({ available: z.boolean(), operationId: z.string().optional() }),
+  layout: z.object({
+    action: z.literal("auto-layout"),
+    affectedNodeIds: z.array(z.string()),
+  }).optional(),
   failure: z.object({
     code: z.enum(["REVISION_CONFLICT", "INVALID_COMMAND", "NOT_FOUND", "ALREADY_EXISTS"]),
     message: z.string(),

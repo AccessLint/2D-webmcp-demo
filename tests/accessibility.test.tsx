@@ -102,6 +102,43 @@ describe("accessible workflow editor", () => {
     });
   });
 
+  it("offers an undoable auto layout control for cleaning up node spacing", async () => {
+    workflowStore.setState({
+      workflow: {
+        revision: 0,
+        nodes: [
+          { id: "start", type: "start", label: "Start", position: { x: 40, y: 40 }, properties: {} },
+          { id: "done", type: "end", label: "Done", position: { x: 40, y: 40 }, properties: {} },
+        ],
+        edges: [{
+          id: "start-done",
+          source: "start",
+          sourcePort: "next",
+          target: "done",
+          targetPort: "input",
+        }],
+      },
+      selected: null,
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Auto layout" }));
+
+    expect(workflowStore.getState().workflow.nodes.map((node) => node.position)).toEqual([
+      { x: 100, y: 100 },
+      { x: 385, y: 100 },
+    ]);
+    expect(workflowStore.getState().workflow.revision).toBe(1);
+    expect(screen.getByRole("status")).toHaveTextContent("Auto layout arranged 2 nodes");
+
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(workflowStore.getState().workflow.nodes.map((node) => node.position)).toEqual([
+      { x: 40, y: 40 },
+      { x: 40, y: 40 },
+    ]);
+  });
+
   it("offers and creates the priority workflow node types", async () => {
     const user = userEvent.setup();
     render(<App />);

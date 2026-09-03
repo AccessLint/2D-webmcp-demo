@@ -129,6 +129,7 @@ export function createToolHandlers(
         {
           autoLayoutNodeIds,
           initiallyHiddenNodeIds: incrementallyRevealedNodeIds,
+          cleanUpLayout: true,
         },
       );
       if (receipt.status === "completed" && incrementallyRevealedNodeIds.length > 0) {

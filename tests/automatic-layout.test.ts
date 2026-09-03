@@ -36,6 +36,39 @@ const connect = (
 });
 
 describe("automatic workflow layout", () => {
+  it("cleans up the whole graph when edit_workflow completes", async () => {
+    const store = createWorkflowStore({
+      revision: 0,
+      nodes: [
+        { id: "start", type: "start", label: "Start", position: { x: 40, y: 40 }, properties: {} },
+        { id: "review", type: "action", label: "Review", position: { x: 40, y: 40 }, properties: {} },
+        { id: "done", type: "end", label: "Done", position: { x: 40, y: 40 }, properties: {} },
+      ],
+      edges: [
+        { id: "start-review", source: "start", sourcePort: "next", target: "review", targetPort: "input" },
+        { id: "review-done", source: "review", sourcePort: "success", target: "done", targetPort: "input" },
+      ],
+    });
+    const tools = createToolHandlers(store, uiActions);
+
+    const receipt = await tools.edit_workflow({
+      baseRevision: 0,
+      commands: [{ type: "updateNode", id: "review", patch: { label: "Review request" } }],
+    });
+
+    expect(Object.fromEntries(
+      store.getState().workflow.nodes.map((node) => [node.id, node.position]),
+    )).toEqual({
+      start: { x: 100, y: 100 },
+      review: { x: 385, y: 100 },
+      done: { x: 670, y: 100 },
+    });
+    expect(receipt.layout).toEqual({
+      action: "auto-layout",
+      affectedNodeIds: ["start", "review", "done"],
+    });
+  });
+
   it("lays out a position-free chain in flow order rather than command order", async () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store, uiActions);
@@ -96,7 +129,7 @@ describe("automatic workflow layout", () => {
     });
   });
 
-  it("uses explicitly positioned neighbors as anchors without moving them", async () => {
+  it("cleans up explicitly positioned neighbors with the rest of the graph", async () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store, uiActions);
 
@@ -115,9 +148,9 @@ describe("automatic workflow layout", () => {
       store.getState().workflow.nodes.map((node) => [node.id, node.position]),
     );
     expect(positions).toEqual({
-      request: { x: 100, y: 220 },
-      review: { x: 400, y: 220 },
-      complete: { x: 700, y: 220 },
+      request: { x: 100, y: 100 },
+      review: { x: 385, y: 100 },
+      complete: { x: 670, y: 100 },
     });
   });
 
@@ -150,7 +183,7 @@ describe("automatic workflow layout", () => {
     });
   });
 
-  it("preserves a position explicitly assigned later in the same batch", async () => {
+  it("normalizes a position explicitly assigned earlier in the same batch", async () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store, uiActions);
 
@@ -162,7 +195,7 @@ describe("automatic workflow layout", () => {
       ],
     });
 
-    expect(store.getState().workflow.nodes[0].position).toEqual({ x: 640, y: 360 });
+    expect(store.getState().workflow.nodes[0].position).toEqual({ x: 100, y: 100 });
   });
 
   it("centers a join between all of its incoming paths", async () => {
@@ -190,7 +223,7 @@ describe("automatic workflow layout", () => {
     expect(positions.continue.y).not.toBe(positions.join.y);
   });
 
-  it("centers an automatic join between manually positioned predecessors", async () => {
+  it("centers a join after cleaning up manually positioned predecessors", async () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store, uiActions);
 
@@ -207,8 +240,11 @@ describe("automatic workflow layout", () => {
       ],
     });
 
-    const join = store.getState().workflow.nodes.find((node) => node.id === "join")!;
-    expect(join.position.y).toBeCloseTo((100 + 300 + 900) / 3);
+    const positions = Object.fromEntries(
+      store.getState().workflow.nodes.map((node) => [node.id, node.position]),
+    );
+    expect(positions.join).toEqual({ x: 385, y: 211 });
+    expect(new Set([positions.top.y, positions.middle.y, positions.bottom.y]).size).toBe(3);
   });
 
   it("stacks branches when connections are added after automatic node creation", async () => {
@@ -241,7 +277,7 @@ describe("automatic workflow layout", () => {
     });
   });
 
-  it("does not reflow an automatically created node after an explicit move", async () => {
+  it("cleans up an explicit move as part of the same edit", async () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store, uiActions);
 
@@ -259,6 +295,8 @@ describe("automatic workflow layout", () => {
         { type: "updateNode", id: "decision", patch: { position: { x: 900, y: 500 } } },
       ],
     });
+    expect(store.getState().workflow.nodes.find((node) => node.id === "decision")?.position)
+      .toEqual({ x: 100, y: 100 });
     await tools.edit_workflow({
       baseRevision: 2,
       commands: [
@@ -267,8 +305,14 @@ describe("automatic workflow layout", () => {
       ],
     });
 
-    const decision = store.getState().workflow.nodes.find((node) => node.id === "decision")!;
-    expect(decision.position).toEqual({ x: 900, y: 500 });
+    const positions = Object.fromEntries(
+      store.getState().workflow.nodes.map((node) => [node.id, node.position]),
+    );
+    expect(positions).toEqual({
+      decision: { x: 100, y: 155.5 },
+      approved: { x: 385, y: 100 },
+      rejected: { x: 385, y: 211 },
+    });
   });
 
   it("restores automatic layout ownership when an explicit move is undone", async () => {

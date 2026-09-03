@@ -76,6 +76,14 @@ function compactReceipt(result: UnknownRecord, input: unknown) {
       items: compactChanges,
     },
     undo: result.undo,
+    ...(isRecord(result.layout) ? {
+      layout: {
+        action: result.layout.action,
+        affectedNodeCount: Array.isArray(result.layout.affectedNodeIds)
+          ? result.layout.affectedNodeIds.length
+          : 0,
+      },
+    } : {}),
     ...(isRecord(result.nextCall) ? { nextCall: result.nextCall } : {}),
     ...(result.failure ? { failure: result.failure } : {}),
     ...(result.recovery ? { recovery: result.recovery } : {}),

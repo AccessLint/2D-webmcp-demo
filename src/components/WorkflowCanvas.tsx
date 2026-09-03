@@ -218,6 +218,7 @@ export function WorkflowCanvas() {
   const selected = useWorkflowStore((state) => state.selected);
   const focusRequest = useWorkflowStore((state) => state.focusRequest);
   const apply = useWorkflowStore((state) => state.apply);
+  const autoLayout = useWorkflowStore((state) => state.autoLayout);
   const clear = useWorkflowStore((state) => state.clear);
   const select = useWorkflowStore((state) => state.select);
   const connectionSource = useWorkflowStore((state) => state.connectionSource);
@@ -512,6 +513,11 @@ export function WorkflowCanvas() {
     }], `Rename ${selectedNode.label} to ${label}`);
   };
 
+  const cleanUpLayout = () => {
+    autoLayout();
+    fitCanvas();
+  };
+
   return (
     <>
       <section className="node-editor" aria-labelledby="node-editor-heading">
@@ -520,7 +526,15 @@ export function WorkflowCanvas() {
           <div className="node-editor__heading-actions">
             <span>{workflow.nodes.length} nodes</span>
             <button
-              className="node-editor__clear"
+              className="node-editor__secondary-action"
+              type="button"
+              disabled={workflow.nodes.length === 0 || nodeReveal !== null}
+              onClick={cleanUpLayout}
+            >
+              Auto layout
+            </button>
+            <button
+              className="node-editor__secondary-action"
               type="button"
               disabled={workflow.nodes.length === 0 && workflow.edges.length === 0}
               onClick={clear}

@@ -42,6 +42,7 @@ export type WorkflowNodeReveal = { operationId: string; pendingNodeIds: string[]
 export type WorkflowApplyOptions = {
   autoLayoutNodeIds?: readonly string[];
   initiallyHiddenNodeIds?: readonly string[];
+  cleanUpLayout?: boolean;
 };
 
 export type WorkflowStore = {
@@ -58,6 +59,7 @@ export type WorkflowStore = {
   assertiveMessage: string;
   invocations: Invocation[];
   apply: (baseRevision: number, commands: WorkflowCommand[], intent?: string, options?: WorkflowApplyOptions) => ChangeReceipt;
+  autoLayout: () => ChangeReceipt | null;
   revealNode: (operationId: string, nodeId: string) => void;
   finishNodeReveal: (operationId: string) => void;
   undo: (operationId: string) => ChangeReceipt;
@@ -105,7 +107,7 @@ function createInitialState(workflow: WorkflowState) {
     invocations: [],
   } satisfies Omit<
     WorkflowStore,
-    "apply" | "revealNode" | "finishNodeReveal" | "undo" | "select" | "setConnectionSource" | "reportStatus" | "reportError" | "clear" | "reset" | "logInvocation"
+    "apply" | "autoLayout" | "revealNode" | "finishNodeReveal" | "undo" | "select" | "setConnectionSource" | "reportStatus" | "reportError" | "clear" | "reset" | "logInvocation"
   >;
 }
 
@@ -139,6 +141,30 @@ function createFailedReceipt(
   };
 }
 
+function receiptStateAfterLayout(
+  before: WorkflowState,
+  commandState: WorkflowState,
+  laidOutState: WorkflowState,
+  commands: readonly WorkflowCommand[],
+): WorkflowState {
+  const directlyChangedNodeIds = new Set(commands.flatMap((command) => {
+    if (command.type === "createNode") return [command.node.id];
+    if (command.type === "updateNode" || command.type === "deleteNode") return [command.id];
+    return [];
+  }));
+  const beforeNodes = new Map(before.nodes.map((node) => [node.id, node]));
+  const laidOutNodes = new Map(laidOutState.nodes.map((node) => [node.id, node]));
+  return {
+    ...commandState,
+    nodes: commandState.nodes.map((node) => {
+      const previous = beforeNodes.get(node.id);
+      const wasChangedByCommand = directlyChangedNodeIds.has(node.id)
+        && (!previous || JSON.stringify(previous) !== JSON.stringify(node));
+      return wasChangedByCommand ? laidOutNodes.get(node.id) ?? node : node;
+    }),
+  };
+}
+
 export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<WorkflowStore> {
   return createStore<WorkflowStore>((set, get) => ({
     ...createInitialState(initial),
@@ -162,14 +188,31 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
         currentNodeIds: currentState.autoLayoutNodeIds,
         newNodeIds: options?.autoLayoutNodeIds ?? [],
       });
-      const nextWorkflow = layoutWorkflow(result.state, layoutPlan.movableNodeIds);
-      const receipt = createReceipt({ before, after: nextWorkflow, intent });
+      const allNodeIds = result.state.nodes.map((node) => node.id);
+      const nextWorkflow = layoutWorkflow(
+        result.state,
+        options?.cleanUpLayout ? allNodeIds : layoutPlan.movableNodeIds,
+      );
+      const laidOutNodeIds = nextWorkflow.nodes.flatMap((node, index) => {
+        const beforeLayout = result.state.nodes[index];
+        return node.position.x !== beforeLayout.position.x || node.position.y !== beforeLayout.position.y
+          ? [node.id]
+          : [];
+      });
+      const receipt = createReceipt({
+        before,
+        after: receiptStateAfterLayout(before, result.state, nextWorkflow, commands),
+        intent,
+        layout: laidOutNodeIds.length > 0
+          ? { action: "auto-layout", affectedNodeIds: laidOutNodeIds }
+          : undefined,
+      });
       const initiallyHiddenNodeIds = [...new Set(options?.initiallyHiddenNodeIds ?? [])]
         .filter((id) => nextWorkflow.nodes.some((node) => node.id === id));
       set((current) => ({
         workflow: nextWorkflow,
         history: [receipt, ...current.history],
-        autoLayoutNodeIds: layoutPlan.ownedNodeIds,
+        autoLayoutNodeIds: options?.cleanUpLayout ? allNodeIds : layoutPlan.ownedNodeIds,
         snapshots: [
           ...current.snapshots,
           {
@@ -186,6 +229,53 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
         politeMessage: receipt.summary,
         assertiveMessage: "",
       }));
+      return receipt;
+    },
+    autoLayout: () => {
+      const current = get();
+      const nodeIds = current.workflow.nodes.map((node) => node.id);
+      if (nodeIds.length === 0) return null;
+
+      const laidOut = layoutWorkflow(current.workflow, nodeIds);
+      const laidOutNodeIds = laidOut.nodes.flatMap((node, index) => {
+        const before = current.workflow.nodes[index];
+        return node.position.x !== before.position.x || node.position.y !== before.position.y
+          ? [node.id]
+          : [];
+      });
+      if (laidOutNodeIds.length === 0) {
+        set({
+          autoLayoutNodeIds: nodeIds,
+          politeMessage: "Workflow layout is already clean.",
+          assertiveMessage: "",
+        });
+        return null;
+      }
+
+      const nextWorkflow = { ...laidOut, revision: current.workflow.revision + 1 };
+      const receipt = createReceipt({
+        before: current.workflow,
+        after: nextWorkflow,
+        intent: "Auto layout",
+        layout: { action: "auto-layout", affectedNodeIds: laidOutNodeIds },
+      });
+      set({
+        workflow: nextWorkflow,
+        history: [receipt, ...current.history],
+        autoLayoutNodeIds: nodeIds,
+        snapshots: [
+          ...current.snapshots,
+          {
+            operationId: receipt.operationId,
+            state: structuredClone(current.workflow),
+            autoLayoutNodeIds: [...current.autoLayoutNodeIds],
+            resultingRevision: nextWorkflow.revision,
+          },
+        ],
+        connectionSource: reconcileConnectionSource(nextWorkflow, current.connectionSource),
+        politeMessage: `Auto layout arranged ${laidOutNodeIds.length} ${laidOutNodeIds.length === 1 ? "node" : "nodes"}.`,
+        assertiveMessage: "",
+      });
       return receipt;
     },
     revealNode: (operationId, nodeId) => {

@@ -137,7 +137,8 @@ describe("WebMCP eval fixture", () => {
       inspection,
       successfulEdit,
     ])).toBe(false);
-    expect(allPass(createCase!.expectedCall, [discovery, successfulCreate])).toBe(true);
+    expect(allPass(createCase!.expectedCall, [successfulCreate])).toBe(true);
+    expect(allPass(createCase!.expectedCall, [discovery, successfulCreate])).toBe(false);
     expect(allPass(createCase!.expectedCall, [
       discovery,
       failedEdit(0),
@@ -215,7 +216,8 @@ describe("WebMCP eval fixture", () => {
 
     const complexCase = byOutcome.get("complex-branch-create")!;
     const complexEdit = call("edit_workflow", completedEdit(0, 20), { baseRevision: 0, commands: [] });
-    expect(allPass(complexCase.expectedCall, [discovery, complexEdit])).toBe(true);
+    expect(allPass(complexCase.expectedCall, [complexEdit])).toBe(true);
+    expect(allPass(complexCase.expectedCall, [discovery, complexEdit])).toBe(false);
     expect(allPass(complexCase.expectedCall, [
       discovery,
       failedEdit(0),

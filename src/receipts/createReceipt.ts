@@ -32,6 +32,7 @@ export function createReceipt(input: {
   operationId?: string;
   intent?: string;
   undo?: boolean;
+  layout?: ChangeReceipt["layout"];
 }): ChangeReceipt {
   const changes = diffWorkflow(input.before, input.after, input.undo);
   const operationId = input.operationId ?? crypto.randomUUID();
@@ -47,5 +48,6 @@ export function createReceipt(input: {
     affected: changes.map((change) => change.object).filter((reference, index, all) => all.findIndex((item) => item.kind === reference.kind && item.id === reference.id) === index),
     changes,
     undo: { available: !input.undo, operationId: !input.undo ? operationId : undefined },
+    ...(input.layout ? { layout: input.layout } : {}),
   };
 }

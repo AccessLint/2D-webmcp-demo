@@ -6,9 +6,9 @@ Agent-friendly, screen reader accessible flow diagram editor demonstrating human
 
 | Tool | Use it to |
 | --- | --- |
-| `discover_workflow` | Start here once per task. Get a compact, paginated list of item IDs with labels for nodes, plus the current revision, valid ports, named page targets, and next steps. |
+| `discover_workflow` | Start here once per task unless the canvas is visibly empty and the task only creates items. Get a compact, paginated list of item IDs with labels for nodes, plus the current revision, valid ports, named page targets, and next steps. |
 | `inspect_workflow_items` | After discovery, read compact summaries, properties, or paginated relationships for specific nodes or connections without changing the visible selection. |
-| `edit_workflow` | After discovery, atomically apply up to 20 typed workflow commands, automatically lay out nodes without positions, and reveal the resulting receipt. |
+| `edit_workflow` | After discovery—or directly with revision 0 on a visibly empty fresh canvas—atomically apply up to 20 typed workflow commands, clean up the completed workflow layout, and reveal the resulting receipt. |
 | `show_workflow_item` | Select a node or connection and bring it into view. Nodes also receive keyboard focus. |
 | `focus_page_element` | After discovery, queue keyboard focus for one named page target ID returned by it. |
 | `get_edit_result` | Retrieve paginated changes for an operation returned by an edit or undo. |

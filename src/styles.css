@@ -35,7 +35,7 @@ main { padding: 24px; }
 .node-editor input, .node-editor select { min-width: 0; height: 40px; padding: 8px 10px; border: 1px solid #40515c; border-radius: 3px; color: var(--ink); background: #0b141c; }
 .node-editor select { min-width: 112px; }
 .node-editor button { min-height: 40px; padding: 8px 12px; border: 1px solid var(--lime); border-radius: 3px; color: #121810; background: var(--lime); cursor: pointer; font-size: .75rem; font-weight: 700; }
-.node-editor .node-editor__clear { min-height: 34px; padding: 6px 10px; border-color: #40515c; color: var(--ink); background: transparent; }
+.node-editor .node-editor__secondary-action { min-height: 34px; padding: 6px 10px; border-color: #40515c; color: var(--ink); background: transparent; }
 .canvas-shell { height: min(76vh, 820px); min-height: 560px; background: #09121a; }
 .flow-node { width: 190px; min-height: 74px; padding: 14px 17px; border: 1px solid #40515d; border-radius: 6px; background: #14212b; box-shadow: 0 8px 28px rgba(0,0,0,.2); display: flex; flex-direction: column; justify-content: center; gap: 5px; line-height: 1.25; }
 .react-flow__node:focus-visible { outline: none; }

@@ -323,7 +323,7 @@ describe("WebMCP tool boundary", () => {
       "discover_workflow", "inspect_workflow_items", "edit_workflow", "show_workflow_item",
       "focus_page_element", "get_edit_result", "show_edit_result", "undo_workflow_edit",
     ]);
-    expect(registered.get("discover_workflow")?.description).toContain("Call this first");
+    expect(registered.get("discover_workflow")?.description).toContain("Skip it when the canvas is visibly empty");
     expect(registered.get("discover_workflow")?.description).toContain("do not call this tool again");
     expect(registered.get("discover_workflow")?.description).toContain("recovery directs");
     expect(registered.get("inspect_workflow_items")?.description).toContain("does not select or reveal");
@@ -337,6 +337,7 @@ describe("WebMCP tool boundary", () => {
     expect(registered.get("edit_workflow")?.description).toContain("When visible is true, stop");
     expect(registered.get("edit_workflow")?.description).toContain("itemPage.nextCursor");
     expect(registered.get("edit_workflow")?.description).toContain("reveals the resulting receipt");
+    expect(registered.get("edit_workflow")?.description).toContain("call this tool directly with baseRevision 0");
     expect(registered.get("focus_page_element")?.description).toContain("exactly one targetId");
     expect(registered.get("focus_page_element")?.description).toContain("Always call discover_workflow first");
     expect(registered.get("focus_page_element")?.description).toContain("Queue keyboard focus");

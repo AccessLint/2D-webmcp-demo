@@ -94,10 +94,6 @@
     ],
     "expectedCall": [
       {
-        "functionName": "discover_workflow",
-        "arguments": {}
-      },
-      {
         "functionName": "edit_workflow",
         "arguments": {
           "baseRevision": 0,
@@ -128,10 +124,6 @@
       }
     ],
     "expectedCall": [
-      {
-        "functionName": "discover_workflow",
-        "arguments": {}
-      },
       {
         "functionName": "edit_workflow",
         "arguments": {

@@ -65,11 +65,12 @@ export function workflowSurfaceReceipt(receipt: ChangeReceipt, commands: Workflo
     },
     verification: receipt.status === "completed" ? "native-diff" as const : "native-result" as const,
     summary: receipt.summary,
-    ...(receipt.failure || receipt.recovery ? {
+    ...(receipt.failure || receipt.recovery || receipt.layout ? {
       extensions: {
         [workflowExtension]: {
           ...(receipt.failure ? { failure: receipt.failure } : {}),
           ...(receipt.recovery ? { recovery: receipt.recovery } : {}),
+          ...(receipt.layout ? { layout: receipt.layout } : {}),
         },
       },
     } : {}),
