@@ -214,6 +214,7 @@ function toFlowEdge(
 
 export function WorkflowCanvas() {
   const workflow = useWorkflowStore((state) => state.workflow);
+  const nodeReveal = useWorkflowStore((state) => state.nodeReveal);
   const selected = useWorkflowStore((state) => state.selected);
   const focusRequest = useWorkflowStore((state) => state.focusRequest);
   const apply = useWorkflowStore((state) => state.apply);
@@ -227,13 +228,25 @@ export function WorkflowCanvas() {
   const shell = useRef<HTMLDivElement | null>(null);
   const fitFrame = useRef<number | null>(null);
   const activeNodeId = useRef<string | null>(null);
-  const treeRows = useMemo(
-    () => treeGridRows(workflow.nodes, workflow.edges),
-    [workflow.edges, workflow.nodes],
+  const hiddenNodeIds = useMemo(
+    () => new Set(nodeReveal?.pendingNodeIds ?? []),
+    [nodeReveal?.pendingNodeIds],
   );
-  const rovingNodeId = workflow.nodes.some((node) => node.id === activeNodeId.current)
+  const visibleNodes = useMemo(
+    () => workflow.nodes.filter((node) => !hiddenNodeIds.has(node.id)),
+    [hiddenNodeIds, workflow.nodes],
+  );
+  const visibleEdges = useMemo(
+    () => workflow.edges.filter((edge) => !hiddenNodeIds.has(edge.source) && !hiddenNodeIds.has(edge.target)),
+    [hiddenNodeIds, workflow.edges],
+  );
+  const treeRows = useMemo(
+    () => treeGridRows(visibleNodes, visibleEdges),
+    [visibleEdges, visibleNodes],
+  );
+  const rovingNodeId = visibleNodes.some((node) => node.id === activeNodeId.current)
     ? activeNodeId.current
-    : selected?.kind === "node" && workflow.nodes.some((node) => node.id === selected.id)
+    : selected?.kind === "node" && visibleNodes.some((node) => node.id === selected.id)
       ? selected.id
       : treeRows[0]?.node.id ?? null;
   const nodes = useMemo(
@@ -243,12 +256,12 @@ export function WorkflowCanvas() {
     [connectionSource, rovingNodeId, selected, treeRows],
   );
   const nodeLabels = useMemo(
-    () => new Map(workflow.nodes.map((node) => [node.id, node.label])),
-    [workflow.nodes],
+    () => new Map(visibleNodes.map((node) => [node.id, node.label])),
+    [visibleNodes],
   );
   const edges = useMemo(
-    () => workflow.edges.map((edge) => toFlowEdge(edge, selected, nodeLabels)),
-    [nodeLabels, workflow.edges, selected],
+    () => visibleEdges.map((edge) => toFlowEdge(edge, selected, nodeLabels)),
+    [nodeLabels, selected, visibleEdges],
   );
   const selectedNode = selected?.kind === "node"
     ? workflow.nodes.find((node) => node.id === selected.id) ?? null
@@ -264,6 +277,10 @@ export function WorkflowCanvas() {
       });
     });
   }, []);
+
+  useEffect(() => {
+    if (nodeReveal) fitCanvas();
+  }, [fitCanvas, nodeReveal]);
 
   useEffect(() => {
     const element = shell.current;
@@ -334,8 +351,8 @@ export function WorkflowCanvas() {
     nodeRows.setAttribute("aria-label", "Workflow canvas");
     nodeRows.setAttribute("aria-describedby", "workflow-canvas-instructions");
     nodeRows.setAttribute("aria-colcount", "1");
-    nodeRows.setAttribute("aria-rowcount", String(workflow.nodes.length));
-  }, [workflow.nodes.length]);
+    nodeRows.setAttribute("aria-rowcount", String(visibleNodes.length));
+  }, [visibleNodes.length]);
 
   const onNodesChange = useCallback((changes: NodeChange<WorkflowFlowNode>[]) => {
     const selectedNode = changes.find(

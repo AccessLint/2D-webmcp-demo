@@ -20,6 +20,44 @@ import { toPublicWorkflowEdge } from "./edgeContract";
 import { ToolError } from "./errors";
 import { toolNames } from "./toolNames";
 
+type ToolHandlerOptions = {
+  waitForNodeReveal?: (signal?: AbortSignal) => Promise<void>;
+};
+
+const NODE_REVEAL_INTERVAL_MS = 180;
+
+const nextFrame = (signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
+  signal?.throwIfAborted();
+  const frame = requestAnimationFrame(() => {
+    signal?.removeEventListener("abort", onAbort);
+    resolve();
+  });
+  const onAbort = () => {
+    cancelAnimationFrame(frame);
+    reject(signal?.reason ?? new DOMException("The operation was aborted.", "AbortError"));
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
+});
+
+const wait = (milliseconds: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
+  signal?.throwIfAborted();
+  const timeout = window.setTimeout(() => {
+    signal?.removeEventListener("abort", onAbort);
+    resolve();
+  }, milliseconds);
+  const onAbort = () => {
+    window.clearTimeout(timeout);
+    reject(signal?.reason ?? new DOMException("The operation was aborted.", "AbortError"));
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
+});
+
+const waitForNodeReveal = async (signal?: AbortSignal) => {
+  if (typeof document === "undefined" || !document.querySelector(".canvas-shell")) return;
+  await nextFrame(signal);
+  await wait(NODE_REVEAL_INTERVAL_MS, signal);
+};
+
 function requireNode(state: WorkflowState, id: string): WorkflowNode {
   const node = state.nodes.find((item) => item.id === id);
   if (!node) throw new ToolError("NOT_FOUND", `Node ${id} no longer exists.`);
@@ -30,6 +68,10 @@ function requireEdge(state: WorkflowState, id: string): WorkflowEdge {
   const edge = state.edges.find((item) => item.id === id);
   if (!edge) throw new ToolError("NOT_FOUND", `Edge ${id} no longer exists.`);
   return edge;
+}
+
+function isAbortError(error: unknown, signal?: AbortSignal) {
+  return signal?.aborted || (error instanceof DOMException && error.name === "AbortError");
 }
 
 function inspectNode(state: WorkflowState, id: string) {
@@ -53,7 +95,11 @@ function inspectEdge(state: WorkflowState, id: string) {
   };
 }
 
-export function createToolHandlers(store: StoreApi<WorkflowStore>, uiActions: UiActions = browserUiActions) {
+export function createToolHandlers(
+  store: StoreApi<WorkflowStore>,
+  uiActions: UiActions = browserUiActions,
+  handlerOptions: ToolHandlerOptions = {},
+) {
   const checkAbort = (options?: { signal: AbortSignal }) => options?.signal?.throwIfAborted();
   return {
     [toolNames.discoverWorkflow](input: unknown, options?: { signal: AbortSignal }) {
@@ -86,12 +132,36 @@ export function createToolHandlers(store: StoreApi<WorkflowStore>, uiActions: Ui
           ? [command.node.id]
           : []
       ));
+      const createdNodeIds = parsed.commands.flatMap((command) => (
+        command.type === "createNode" ? [command.node.id] : []
+      ));
+      const incrementallyRevealedNodeIds = createdNodeIds.length > 1 ? createdNodeIds : [];
       const receipt = store.getState().apply(
         parsed.baseRevision,
         normalizeCommands(parsed.commands, store.getState().workflow.nodes),
         parsed.intent,
-        { autoLayoutNodeIds },
+        {
+          autoLayoutNodeIds,
+          initiallyHiddenNodeIds: incrementallyRevealedNodeIds,
+        },
       );
+      if (receipt.status === "completed" && incrementallyRevealedNodeIds.length > 0) {
+        try {
+          const nodeReveal = store.getState().nodeReveal;
+          const pendingNodeIds = nodeReveal?.operationId === receipt.operationId
+            ? [...nodeReveal.pendingNodeIds]
+            : [];
+          for (const nodeId of pendingNodeIds) {
+            if (store.getState().nodeReveal?.operationId !== receipt.operationId) break;
+            store.getState().revealNode(receipt.operationId, nodeId);
+            await (handlerOptions.waitForNodeReveal ?? waitForNodeReveal)(options?.signal);
+          }
+        } catch (error) {
+          if (isAbortError(error, options?.signal)) throw error;
+        } finally {
+          store.getState().finishNodeReveal(receipt.operationId);
+        }
+      }
       try {
         const focusResult = await uiActions.focusChangeEntry(receipt.operationId, options?.signal);
         return { ...receipt, ...focusResult };

@@ -32,12 +32,17 @@ export class WorkflowUndoError extends Error {
 export type WorkflowSnapshot = { operationId: string; state: WorkflowState; resultingRevision: number };
 export type WorkflowSelection = { kind: "node" | "edge"; id: string };
 export type WorkflowConnectionSource = { nodeId: string; port: string };
-export type WorkflowApplyOptions = { autoLayoutNodeIds?: readonly string[] };
+export type WorkflowNodeReveal = { operationId: string; pendingNodeIds: string[] };
+export type WorkflowApplyOptions = {
+  autoLayoutNodeIds?: readonly string[];
+  initiallyHiddenNodeIds?: readonly string[];
+};
 
 export type WorkflowStore = {
   workflow: WorkflowState;
   history: ChangeReceipt[];
   snapshots: WorkflowSnapshot[];
+  nodeReveal: WorkflowNodeReveal | null;
   selected: WorkflowSelection | null;
   connectionSource: WorkflowConnectionSource | null;
   returnFocusId: string | null;
@@ -46,6 +51,8 @@ export type WorkflowStore = {
   assertiveMessage: string;
   invocations: Invocation[];
   apply: (baseRevision: number, commands: WorkflowCommand[], intent?: string, options?: WorkflowApplyOptions) => ChangeReceipt;
+  revealNode: (operationId: string, nodeId: string) => void;
+  finishNodeReveal: (operationId: string) => void;
   undo: (operationId: string) => ChangeReceipt;
   select: (selection: WorkflowSelection | null, returnFocusId?: string, focusInspector?: boolean) => void;
   setConnectionSource: (source: WorkflowConnectionSource | null) => void;
@@ -78,6 +85,7 @@ function createInitialState(workflow: WorkflowState) {
     workflow: structuredClone(workflow),
     history: [],
     snapshots: [],
+    nodeReveal: null,
     selected: workflow.nodes.some((node) => node.id === DEFAULT_SELECTION.id)
       ? DEFAULT_SELECTION
       : null,
@@ -89,7 +97,7 @@ function createInitialState(workflow: WorkflowState) {
     invocations: [],
   } satisfies Omit<
     WorkflowStore,
-    "apply" | "undo" | "select" | "setConnectionSource" | "reportStatus" | "reportError" | "clear" | "reset" | "logInvocation"
+    "apply" | "revealNode" | "finishNodeReveal" | "undo" | "select" | "setConnectionSource" | "reportStatus" | "reportError" | "clear" | "reset" | "logInvocation"
   >;
 }
 
@@ -133,6 +141,7 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
         const receipt = createFailedReceipt(before, baseRevision, result, intent);
         set((current) => ({
           history: [receipt, ...current.history],
+          nodeReveal: null,
           assertiveMessage: `${receipt.summary} ${result.message}`,
         }));
         return receipt;
@@ -140,6 +149,8 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
 
       const nextWorkflow = layoutWorkflow(result.state, options?.autoLayoutNodeIds ?? []);
       const receipt = createReceipt({ before, after: nextWorkflow, intent });
+      const initiallyHiddenNodeIds = [...new Set(options?.initiallyHiddenNodeIds ?? [])]
+        .filter((id) => nextWorkflow.nodes.some((node) => node.id === id));
       set((current) => ({
         workflow: nextWorkflow,
         history: [receipt, ...current.history],
@@ -151,11 +162,27 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
             resultingRevision: nextWorkflow.revision,
           },
         ],
+        nodeReveal: initiallyHiddenNodeIds.length > 0
+          ? { operationId: receipt.operationId, pendingNodeIds: initiallyHiddenNodeIds }
+          : null,
         connectionSource: reconcileConnectionSource(nextWorkflow, current.connectionSource),
         politeMessage: receipt.summary,
         assertiveMessage: "",
       }));
       return receipt;
+    },
+    revealNode: (operationId, nodeId) => {
+      const current = get();
+      if (current.nodeReveal?.operationId !== operationId) return;
+      set({
+        nodeReveal: {
+          ...current.nodeReveal,
+          pendingNodeIds: current.nodeReveal.pendingNodeIds.filter((id) => id !== nodeId),
+        },
+      });
+    },
+    finishNodeReveal: (operationId) => {
+      if (get().nodeReveal?.operationId === operationId) set({ nodeReveal: null });
     },
     undo: (operationId) => {
       const current = get();
@@ -182,6 +209,7 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
             : item),
         ],
         snapshots: current.snapshots.filter((item) => item.operationId !== operationId),
+        nodeReveal: null,
         connectionSource: reconcileConnectionSource(restored, current.connectionSource),
         politeMessage: receipt.summary,
       });
@@ -219,6 +247,7 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
           },
         ],
         selected: null,
+        nodeReveal: null,
         connectionSource: null,
         returnFocusId: null,
         politeMessage: "Cleared the canvas.",
