@@ -215,11 +215,7 @@
       },
       {
         "functionName": "inspect_workflow_items",
-        "arguments": {
-          "objects": [
-            { "kind": "workflow-edge", "id": "edge-receive-archive" }
-          ]
-        }
+        "arguments": {}
       },
       {
         "functionName": "edit_workflow",
@@ -231,7 +227,6 @@
           "status": "completed",
           "baseRevision": 1,
           "resultingRevision": 2,
-          "changeCount": 2,
           "operationId": { "$type": "string" },
           "visible": true
         }

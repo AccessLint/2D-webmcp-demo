@@ -18,8 +18,13 @@ export const domFocusWhen = "window-focus-or-accessibility-interaction" as const
 let cancelPendingDomFocusRequest: (() => void) | null = null;
 let domFocusRequestGeneration = 0;
 
-async function waitForElement<ElementType extends Element>(find: () => ElementType | null, unavailableMessage: string, signal?: AbortSignal) {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+async function waitForElement<ElementType extends Element>(
+  find: () => ElementType | null,
+  unavailableMessage: string,
+  signal?: AbortSignal,
+  maxFrames = 30,
+) {
+  for (let attempt = 0; attempt < maxFrames; attempt += 1) {
     signal?.throwIfAborted();
     const element = find();
     if (element) return element;
@@ -52,7 +57,12 @@ export type UiActions = {
 
 export const browserUiActions: UiActions = {
   async focusChangeEntry(operationId, signal) {
-    const heading = await waitForElement(() => document.getElementById(changeHeadingId(operationId)), `Change entry ${operationId} is not available in the app UI.`, signal);
+    const heading = await waitForElement(
+      () => document.getElementById(changeHeadingId(operationId)),
+      `Change entry ${operationId} is not available in the app UI.`,
+      signal,
+      120,
+    );
     signal?.throwIfAborted();
     const entry = heading.closest("article") ?? heading;
     entry.scrollIntoView({ behavior: "instant", block: "center" });

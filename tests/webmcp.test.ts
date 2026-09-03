@@ -329,7 +329,8 @@ describe("WebMCP tool boundary", () => {
     expect(registered.get("inspect_workflow_items")?.description).toContain("does not select or reveal");
     expect(registered.get("edit_workflow")?.description).toContain("Do not increment it");
     expect(registered.get("edit_workflow")?.description).toContain("Every command object needs a top-level type");
-    expect(registered.get("edit_workflow")?.description).toContain('{type:"createNode",node:{...}}');
+    expect(registered.get("edit_workflow")?.description).toContain('node:{id:"node-id",type:"action",label:"Node label"}');
+    expect(registered.get("edit_workflow")?.description).toContain("not inside properties");
     expect(registered.get("edit_workflow")?.description).toContain("Never wrap a command");
     expect(registered.get("edit_workflow")?.description).toContain('source:{nodeId:"source-id",port:"success"}');
     expect(registered.get("edit_workflow")?.description).toContain("replacements:[{");
@@ -409,6 +410,23 @@ describe("WebMCP tool boundary", () => {
       },
     });
     expect(JSON.stringify(invalidEdit).length).toBeLessThanOrEqual(1_500);
+    const misplacedLabels = await registered.get("edit_workflow")!.execute({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "draft", type: "action", properties: { label: "Draft" } } },
+        { type: "createNode", node: { id: "approve", type: "action", properties: { label: "Approve" } } },
+      ],
+    });
+    expect(misplacedLabels).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_INPUT",
+        issues: expect.arrayContaining([
+          expect.objectContaining({ path: ["commands", 0, "node", "label"] }),
+        ]),
+      },
+    });
+    expect(JSON.stringify(misplacedLabels).length).toBeLessThanOrEqual(1_500);
     expect(registered.get("edit_workflow")?.inputSchema).toMatchObject({
       properties: {
         baseRevision: expect.objectContaining({ type: "integer", minimum: 0 }),

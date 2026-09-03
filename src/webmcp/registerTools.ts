@@ -5,18 +5,22 @@ import { ToolError } from "./errors";
 import { toolNames, type ToolName } from "./toolNames";
 import { fitToolOutput } from "./toolOutputs";
 
-function flattenIssues(issues: ZodIssue[]): Array<{ path: Array<string | number>; code: string; message: string }> {
+function flattenIssues(
+  issues: ZodIssue[],
+  parentPath: Array<string | number> = [],
+): Array<{ path: Array<string | number>; code: string; message: string }> {
   return issues.flatMap((issue) => {
+    const path = [...parentPath, ...issue.path.map((part) => typeof part === "symbol"
+      ? part.description ?? String(part)
+      : part)];
     if (issue.code === "invalid_union" && issue.errors.length > 0) {
-      return issue.errors.flatMap((branch) => flattenIssues(branch));
+      return issue.errors.flatMap((branch) => flattenIssues(branch, path));
     }
     const invalidCommandType = issue.code === "invalid_union"
       && "discriminator" in issue
       && issue.discriminator === "type";
     return [{
-      path: issue.path.map((part) => typeof part === "symbol"
-        ? part.description ?? String(part)
-        : part),
+      path,
       code: issue.code,
       message: invalidCommandType
         ? `Expected command type to be one of: ${workflowCommandTypes.join(", ")}. Put it in the command's type field.`
@@ -57,7 +61,7 @@ function recoveryFor(tool: ToolName, invalidInput: boolean, code?: string) {
   if (invalidInput && tool === toolNames.editWorkflow) {
     return {
       tool,
-      reason: "Correct the listed fields and retry from commandExamples. Every command needs a top-level type; source and target each contain nodeId and port; replacements is always an array.",
+      reason: "Correct the listed fields and retry from commandExamples. Every command needs a top-level type; node.label belongs directly on node, not inside properties; source and target each contain nodeId and port; replacements is always an array.",
       commandExamples: editCommandExamples,
     };
   }
@@ -195,7 +199,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.editWorkflow,
       title: "Edit workflow",
-      description: `Call after ${toolNames.discoverWorkflow}. Reuse existing IDs returned in itemPage. Before deciding an ID is absent, follow itemPage.nextCursor until it is null; one page is not proof of absence. Never create a node with an existing ID. Set baseRevision to discovery's exact revision. Do not increment it. Every command object needs a top-level type, for example {type:"createNode",node:{...}}. Never wrap a command as {createNode:{...}}. Connect with {type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}. Replace with {type:"replaceConnection",edgeId:"existing-edge-id",replacements:[{...edge}]}. Other shapes are {type:"updateNode",id,patch}, {type:"deleteNode",id}, and {type:"disconnect",edgeId}. Positions and empty properties may be omitted. Applies up to 20 commands atomically and reveals the resulting receipt. When visible is true, stop; do not call ${toolNames.getEditResult} unless the user explicitly asks for every itemized change. On conflict, rediscover before retrying.`,
+      description: `Call after ${toolNames.discoverWorkflow}. Reuse existing IDs returned in itemPage. Before deciding an ID is absent, follow itemPage.nextCursor until it is null; one page is not proof of absence. Never create a node with an existing ID. Set baseRevision to discovery's exact revision. Do not increment it. Every command object needs a top-level type. Create with {type:"createNode",node:{id:"node-id",type:"action",label:"Node label"}}; node.label belongs directly on node, not inside properties. Never wrap a command as {createNode:{...}}. Connect with {type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}. Replace with {type:"replaceConnection",edgeId:"existing-edge-id",replacements:[{...edge}]}. Other shapes are {type:"updateNode",id,patch}, {type:"deleteNode",id}, and {type:"disconnect",edgeId}. Positions and empty properties may be omitted. Applies up to 20 commands atomically and reveals the resulting receipt. When visible is true, stop; do not call ${toolNames.getEditResult} unless the user explicitly asks for every itemized change. On conflict, rediscover before retrying.`,
       inputSchema: jsonSchemas.apply,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.editWorkflow],
