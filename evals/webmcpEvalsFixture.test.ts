@@ -8,9 +8,10 @@ describe("WebMCP eval fixture", () => {
 
     expect(evalCases.length).toBeGreaterThan(0);
     for (const evalCase of evalCases) {
+      expect(["create", "edit", "read", "interaction"]).toContain(evalCase.taskType);
       expect(evalCase.messages.some((message) => message.role === "user" && message.content.length > 0)).toBe(true);
       expect(evalCase.expectedCall.length).toBeGreaterThan(0);
-      for (const call of evalCase.expectedCall) {
+      for (const call of [...(evalCase.setupCalls ?? []), ...evalCase.expectedCall]) {
         expect(registeredTools.has(call.functionName)).toBe(true);
         expect(call.arguments).toBeTypeOf("object");
       }

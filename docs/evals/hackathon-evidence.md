@@ -10,7 +10,7 @@ The live application exposed eight WebMCP tools to Chrome. The evaluation suite 
 4. Move keyboard focus to the named **Zoom In** target.
 5. Reveal the **Enrich company** node on the canvas.
 
-The model-backed run used `openai:gpt-5-mini`, the Vercel backend, stable Chrome, and 10 runs per case. It predates the current node catalog; the active `evals/webmcp-evals.json` fixture now uses an outcome-oriented recovery request and has not yet been rerun.
+The model-backed run used `openai:gpt-5-mini`, the Vercel backend, stable Chrome, and 10 runs per case. It predates the empty-canvas authoring experience; the active `evals/webmcp-evals.json` fixture now includes separate, semantically checked creation and editing tasks and has not yet been rerun.
 
 ## Results currently available
 

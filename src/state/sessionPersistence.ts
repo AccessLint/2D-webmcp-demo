@@ -5,7 +5,7 @@ const SESSION_KEY = "workflow-evidence-session-v6-empty-canvas";
 
 type PersistedWorkflowSession = Pick<
   WorkflowStore,
-  "workflow" | "history" | "snapshots" | "reviewed" | "selected" | "invocations"
+  "workflow" | "history" | "snapshots" | "selected" | "invocations"
 >;
 
 function isPersistedWorkflowSession(value: unknown): value is Partial<PersistedWorkflowSession> {
@@ -24,7 +24,6 @@ function sessionSnapshot(state: WorkflowStore): PersistedWorkflowSession {
     workflow: state.workflow,
     history: state.history,
     snapshots: state.snapshots,
-    reviewed: state.reviewed,
     selected: state.selected,
     invocations: state.invocations,
   };
@@ -38,7 +37,14 @@ export function installSessionPersistence(store: StoreApi<WorkflowStore>): void 
     if (savedSession) {
       const parsedSession: unknown = JSON.parse(savedSession);
       if (isPersistedWorkflowSession(parsedSession)) {
-        store.setState(parsedSession);
+        const current = store.getState();
+        store.setState({
+          workflow: parsedSession.workflow ?? current.workflow,
+          history: parsedSession.history ?? current.history,
+          snapshots: parsedSession.snapshots ?? current.snapshots,
+          selected: parsedSession.selected ?? current.selected,
+          invocations: parsedSession.invocations ?? current.invocations,
+        });
       }
     }
 

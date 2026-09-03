@@ -4,7 +4,7 @@
 
 ## One-line Summary
 
-A WebMCP-powered workflow canvas that lets agents make complex 2D edits while giving blind users deterministic, screen-reader-accessible evidence they can inspect, reveal, review, and undo.
+A WebMCP-powered workflow canvas that lets agents make complex 2D edits while giving blind users deterministic, screen-reader-accessible evidence they can inspect, reveal, and undo.
 
 ## Problem
 
@@ -14,7 +14,7 @@ The users who benefit most from AI-mediated access often have the hardest time o
 
 ## Solution
 
-This project demonstrates a proof-first interaction pattern for agent-authored changes in a 2D workflow editor. Human UI actions and eight WebMCP tools share one authoritative graph model. Each atomic edit produces an application-authored receipt describing the affected objects, revision, validation result, and undo capability. Separate tools can focus the receipt, reveal a workflow object, or queue focus for a named page control.
+This project demonstrates a proof-first interaction pattern for agent-authored changes in a 2D workflow editor. Human UI actions and eight WebMCP tools share one authoritative graph model. Each atomic edit produces an application-authored receipt describing the affected objects, revision, and undo capability. Separate tools can focus the receipt, reveal a workflow object, or queue focus for a named page control.
 
 The result is a collaboration loop in which an agent handles spatial complexity while the user retains a fast, accessible path to verification and control.
 
@@ -41,14 +41,14 @@ Codex helped inspect and refine the WebMCP boundary, create deterministic and pr
 - Revision preconditions and atomic command batches that prevent stale or partial graph edits.
 - Deterministic, application-authored change receipts rather than agent-authored claims.
 - Screen-reader announcements and verified focus transfer to receipts, workflow nodes, and named page controls.
-- Keyboard-only review, mark-reviewed, reveal, and undo workflow.
+- Keyboard-only reveal and undo workflow.
 - Compact browser-facing responses with bounded pagination, structured recovery guidance, and privacy-limited invocation telemetry.
 - Deterministic unit, integration, accessibility, and Playwright coverage.
 - Repeated model-backed WebMCP evaluation cases and live-browser smoke tests.
 
 ## Architecture
 
-- `src/graph`: workflow domain model, commands, references, selectors, and validation.
+- `src/graph`: workflow domain model, commands, references, and selectors.
 - `src/state`: atomic transactions, revisions, receipts, UI state, and session persistence.
 - `src/receipts`: deterministic evidence generation and accessible receipt DOM behavior.
 - `src/webmcp`: schemas, bounded outputs, tool handlers, registration, browser actions, and focus handoff.
@@ -62,9 +62,9 @@ Codex helped inspect and refine the WebMCP boundary, create deterministic and pr
 1. Open the public demo in Chrome with WebMCP enabled or ChatGPT's in-app browser.
 2. Start from a fresh tab at workflow revision 0.
 3. Ask: “We’ve had leads disappear whenever company enrichment is unavailable. Update the workflow so those leads are not lost and can be handled by the sales operations team. Show me what changed.”
-4. Verify the application-authored receipt reads: “Changed 1 connection. Workflow validation passed.”
+4. Verify the application-authored receipt reads: “Changed 1 connection.”
 5. Ask the agent to show where failed enrichment is handled, then to focus the Zoom In control.
-6. Use only the keyboard to reveal, mark reviewed, and undo the change.
+6. Use only the keyboard to reveal and undo the change.
 
 ### Automated checks
 
@@ -100,7 +100,7 @@ TODO: Confirm the video is public, under three minutes, includes audio, and show
 
 1. Initial workflow canvas with the seven named nodes.
 2. Completed recovery edit with the new failure route visible.
-3. Change History receipt showing the deterministic summary, validation status, reveal, review, and undo controls.
+3. Change History receipt showing the deterministic summary, reveal, and undo controls.
 4. Keyboard focus visible on the Manual review node or Zoom In control.
 5. Evaluation evidence page showing the deterministic 9/9 smoke result and the model-baseline methodology.
 

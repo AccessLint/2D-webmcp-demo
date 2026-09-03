@@ -95,12 +95,12 @@ function recoveryError(tool: ToolName, error: unknown) {
 }
 
 const parameterNamesByTool: Record<ToolName, readonly string[]> = {
-  discover_workflow: ["cursor", "limit", "problemCursor", "problemLimit"],
+  discover_workflow: ["cursor", "limit"],
   inspect_workflow_items: ["objects", "detail", "cursor", "limit"],
   edit_workflow: ["baseRevision", "commands", "intent"],
   show_workflow_item: ["kind", "id"],
   focus_page_element: ["targetId", "selector"],
-  get_edit_result: ["operationId", "changeCursor", "changeLimit", "problemCursor", "problemLimit"],
+  get_edit_result: ["operationId", "changeCursor", "changeLimit"],
   show_edit_result: ["operationId"],
   undo_workflow_edit: ["operationId"],
 };
@@ -211,7 +211,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.getEditResult,
       title: "Get edit result",
-      description: `Retrieve paginated changes and validation problems for an operationId returned by ${toolNames.editWorkflow} or ${toolNames.undoWorkflowEdit}.`,
+      description: `Retrieve paginated changes for an operationId returned by ${toolNames.editWorkflow} or ${toolNames.undoWorkflowEdit}.`,
       inputSchema: jsonSchemas.getEditResult,
       annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: handlers[toolNames.getEditResult],

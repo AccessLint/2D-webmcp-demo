@@ -9,7 +9,7 @@ import { createSalesWorkflow } from "./fixtures/salesWorkflow";
 const createSalesWorkflowStore = () => createWorkflowStore(createSalesWorkflow());
 
 describe("WebMCP tool boundary", () => {
-  it("preserves a requested validation problem when compacting discovery", () => {
+  it("omits workflow validation from compact discovery", () => {
     const workflow = createSalesWorkflow();
     workflow.edges = workflow.edges.filter((edge) => edge.id !== "edge-qualified-nurture");
 
@@ -17,20 +17,9 @@ describe("WebMCP tool boundary", () => {
       "discover_workflow",
       {},
       workflowSummary(workflow),
-    ) as {
-      validation: {
-        problemCount: number;
-        problemPage: { nextCursor: number | null; items: Array<{ code: string }> };
-      };
-    };
+    ) as Record<string, unknown>;
 
-    expect(compact.validation).toMatchObject({
-      problemCount: 1,
-      problemPage: {
-        nextCursor: null,
-        items: [{ code: "UNCONNECTED_REQUIRED_OUTPUT" }],
-      },
-    });
+    expect(compact).not.toHaveProperty("validation");
     expect(JSON.stringify(compact).length).toBeLessThanOrEqual(1_500);
   });
 
@@ -382,19 +371,13 @@ describe("WebMCP tool boundary", () => {
       nextCalls: {
         edit: expect.stringMatching(/connect.*source.*sourcePort.*target.*targetPort/),
       },
-      validation: {
-        valid: true,
-        problemCount: 0,
-        problemPage: { cursor: 0, nextCursor: null, items: [] },
-      },
     });
-    expect(compactDiscovery.itemPage.items).toHaveLength(3);
-    expect(compactDiscovery.itemPage.nextCursor).toBe(3);
+    expect(compactDiscovery.itemPage.items.length).toBeGreaterThanOrEqual(3);
+    expect(compactDiscovery.itemPage.nextCursor).toBe(compactDiscovery.itemPage.items.length);
     expect(JSON.stringify(compactDiscovery).length).toBeLessThanOrEqual(1_500);
-    const discoveryPage = registered.get("discover_workflow")!.execute({ limit: 1, problemLimit: 1 });
+    const discoveryPage = registered.get("discover_workflow")!.execute({ limit: 1 });
     expect(discoveryPage).toMatchObject({
       itemPage: { cursor: 0, nextCursor: 1, items: [expect.any(Object)] },
-      validation: { problemPage: { cursor: 0, nextCursor: null, items: [] } },
     });
     const compactInspection = registered.get("inspect_workflow_items")!.execute({
       objects: [{ kind: "workflow-node", id: "enrich-company" }],
@@ -552,7 +535,7 @@ describe("WebMCP tool boundary", () => {
     delete document.modelContext;
   });
 
-  it("pages compact receipt changes and validation problems without losing details", () => {
+  it("pages compact receipt changes without validation metadata", () => {
     const store = createSalesWorkflowStore();
     const registered = new Map<string, WebMCPTool>();
     const modelContext = Object.assign(new EventTarget(), {
@@ -582,27 +565,19 @@ describe("WebMCP tool boundary", () => {
             targetPort: "input",
           },
         }]).flat(),
-    }) as { operationId: string; changePage: { nextCursor: number | null }; validation: { problemPage: { nextCursor: number | null } } };
+    }) as { operationId: string; changePage: { nextCursor: number | null } };
 
     expect(edit.changePage.nextCursor).toBe(3);
-    expect(edit.validation.problemPage.nextCursor).toBe(2);
+    expect(edit).not.toHaveProperty("validation");
     const nextPage = registered.get("get_edit_result")!.execute({
       operationId: edit.operationId,
       changeCursor: 3,
       changeLimit: 5,
-      problemCursor: 2,
-      problemLimit: 3,
     });
     expect(nextPage).toMatchObject({
       changePage: { cursor: 3, nextCursor: 8, items: expect.arrayContaining([expect.objectContaining({ id: "isolated-5" })]) },
-      validation: {
-        problemPage: {
-          cursor: 2,
-          nextCursor: 5,
-          items: expect.arrayContaining([expect.objectContaining({ code: expect.any(String), message: expect.any(String) })]),
-        },
-      },
     });
+    expect(nextPage).not.toHaveProperty("validation");
     expect(JSON.stringify(nextPage).length).toBeLessThanOrEqual(1_500);
     registration.unregister();
     delete document.modelContext;

@@ -2,11 +2,11 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import App from "../src/app/App";
-import { validateWorkflow } from "../src/graph/validation";
 import { createReceipt } from "../src/receipts/createReceipt";
 import { workflowStore } from "../src/state/workflowStore";
+import { createSalesWorkflow } from "./fixtures/salesWorkflow";
 
-describe("accessible workflow review", () => {
+describe("accessible workflow editor", () => {
   beforeEach(() => workflowStore.getState().reset());
 
   it("renders the workflow canvas and change history surfaces without duplicate connection controls", () => {
@@ -139,6 +139,10 @@ describe("accessible workflow review", () => {
   });
 
   it("renames the selected node without changing its identity or connections", async () => {
+    workflowStore.setState({
+      workflow: createSalesWorkflow(),
+      selected: { kind: "node", id: "enrich-company" },
+    });
     const user = userEvent.setup();
     render(<App />);
 
@@ -164,6 +168,7 @@ describe("accessible workflow review", () => {
   });
 
   it("creates one concise receipt for the demo and exposes spot-check controls", async () => {
+    workflowStore.setState({ workflow: createSalesWorkflow() });
     const user = userEvent.setup();
     workflowStore.getState().apply(0, [
       { type: "createNode", node: { id: "notify-sales", type: "action", label: "Notify sales", position: { x: 900, y: 100 }, properties: {} } },
@@ -175,18 +180,20 @@ describe("accessible workflow review", () => {
     render(<App />);
     expect(screen.getByRole("status")).toHaveTextContent("Created Notify sales and changed 3 connections");
     expect(screen.getByRole("heading", { name: "Most recent change" })).toBeInTheDocument();
-    const receiptHeading = screen.getByRole("heading", { name: "Created Notify sales and changed 3 connections. Workflow validation passed." });
+    const receiptHeading = screen.getByRole("heading", { name: "Created Notify sales and changed 3 connections." });
     expect(receiptHeading).toBeInTheDocument();
     const receipt = within(receiptHeading.closest("article")!);
     expect(receipt.queryByText("Agent intent", { exact: false })).not.toBeInTheDocument();
     expect(receipt.queryByText("Exact changes")).not.toBeInTheDocument();
-    expect(receipt.getByRole("button", { name: "Mark reviewed" })).toBeInTheDocument();
+    expect(receipt.queryByRole("button", { name: "Mark reviewed" })).not.toBeInTheDocument();
+    expect(receipt.queryByText(/reviewed/i)).not.toBeInTheDocument();
     expect(receipt.getByRole("button", { name: "Undo" })).toBeInTheDocument();
     await user.click(receipt.getByRole("button", { name: "Reveal Notify sales" }));
     expect(workflowStore.getState().selected).toEqual({ kind: "node", id: "notify-sales" });
   });
 
-  it("shows validation errors and removed objects without dead reveal controls", () => {
+  it("shows removed objects without dead reveal controls", () => {
+    workflowStore.setState({ workflow: createSalesWorkflow() });
     const before = workflowStore.getState().workflow;
     const after = {
       ...before,
@@ -194,10 +201,10 @@ describe("accessible workflow review", () => {
       nodes: before.nodes.filter((node) => node.id !== "complete"),
       edges: before.edges.filter((edge) => edge.source !== "complete" && edge.target !== "complete"),
     };
-    const receipt = createReceipt({ before, after, validation: validateWorkflow(after), intent: "Remove completion" });
+    const receipt = createReceipt({ before, after, intent: "Remove completion" });
     workflowStore.setState({ workflow: after, history: [receipt] });
     render(<App />);
-    const receiptHeading = screen.getByRole("heading", { name: "Changed 1 node and changed 2 connections. Workflow validation passed." });
+    const receiptHeading = screen.getByRole("heading", { name: "Changed 1 node and changed 2 connections." });
     const receiptRegion = within(receiptHeading.closest("article")!);
     expect(receiptRegion.getByText("Deleted Complete")).toBeInTheDocument();
     expect(receiptRegion.queryByRole("button", { name: "Reveal Complete" })).not.toBeInTheDocument();
@@ -205,6 +212,7 @@ describe("accessible workflow review", () => {
   });
 
   it("shows only the most recent receipt", () => {
+    workflowStore.setState({ workflow: createSalesWorkflow() });
     const before = workflowStore.getState().workflow;
     const withTemporary = {
       ...before,
@@ -212,12 +220,12 @@ describe("accessible workflow review", () => {
       nodes: [...before.nodes, { id: "temporary", type: "action" as const, label: "Temporary", position: { x: 400, y: 400 }, properties: {} }],
     };
     const after = { ...withTemporary, revision: 2, nodes: withTemporary.nodes.filter((node) => node.id !== "temporary") };
-    const created = createReceipt({ before, after: withTemporary, validation: validateWorkflow(withTemporary) });
-    const deleted = createReceipt({ before: withTemporary, after, validation: validateWorkflow(after) });
+    const created = createReceipt({ before, after: withTemporary });
+    const deleted = createReceipt({ before: withTemporary, after });
     workflowStore.setState({ workflow: after, history: [deleted, created] });
     render(<App />);
-    expect(screen.queryByRole("heading", { name: "Created Temporary. Workflow validation passed." })).not.toBeInTheDocument();
-    const deletedHeading = screen.getByRole("heading", { name: "Changed 1 node. Workflow validation passed." });
+    expect(screen.queryByRole("heading", { name: "Created Temporary." })).not.toBeInTheDocument();
+    const deletedHeading = screen.getByRole("heading", { name: "Changed 1 node." });
     expect(within(deletedHeading.closest("article")!).getByText("Deleted Temporary")).toBeInTheDocument();
   });
 });

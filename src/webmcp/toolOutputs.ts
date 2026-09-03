@@ -17,10 +17,6 @@ function compactDiscovery(result: UnknownRecord, input: unknown) {
   const parsedInput = isRecord(input) ? input : {};
   const cursor = typeof parsedInput.cursor === "number" ? parsedInput.cursor : 0;
   const requestedLimit = typeof parsedInput.limit === "number" ? parsedInput.limit : 8;
-  const problemCursor = typeof parsedInput.problemCursor === "number" ? parsedInput.problemCursor : 0;
-  const problemLimit = typeof parsedInput.problemLimit === "number" ? parsedInput.problemLimit : 2;
-  const validation = isRecord(result.validation) ? result.validation : {};
-  const problems = Array.isArray(validation.problems) ? validation.problems.filter(isRecord) : [];
   const nodeTypes = Array.isArray(authoring.nodeTypes)
     ? authoring.nodeTypes.filter(isRecord).map(({ type, inputs, outputs }) => ({ type, inputs, outputs }))
     : [];
@@ -28,28 +24,10 @@ function compactDiscovery(result: UnknownRecord, input: unknown) {
     ? authoring.uiTargets.filter(isRecord).map(({ id, label }) => ({ id, label }))
     : [];
   const pageItems = allItems.slice(cursor, cursor + requestedLimit);
-  const problemItems = problems.slice(problemCursor, problemCursor + problemLimit).map((problem) => {
-    const target = isRecord(problem.target) ? problem.target : undefined;
-    return {
-      code: problem.code,
-      severity: problem.severity,
-      message: problem.message,
-      ...(target ? { target: { kind: target.kind, id: target.id } } : {}),
-    };
-  });
   const createOutput = () => ({
     schemaVersion: result.schemaVersion,
     revision: result.revision,
     counts: { nodes: result.nodes, edges: result.edges },
-    validation: {
-      valid: validation.valid,
-      problemCount: problems.length,
-      problemPage: {
-        cursor: problemCursor,
-        nextCursor: problemCursor + problemItems.length < problems.length ? problemCursor + problemItems.length : null,
-        items: problemItems,
-      },
-    },
     nodeTypes,
     uiTargets,
     itemPage: {
@@ -64,9 +42,8 @@ function compactDiscovery(result: UnknownRecord, input: unknown) {
   });
 
   let output = createOutput();
-  while (JSON.stringify(output).length > TOOL_OUTPUT_CHARACTER_BUDGET && (pageItems.length > 1 || problemItems.length > 1)) {
-    if (pageItems.length > 1) pageItems.pop();
-    else if (problemItems.length > 1) problemItems.pop();
+  while (JSON.stringify(output).length > TOOL_OUTPUT_CHARACTER_BUDGET && pageItems.length > 1) {
+    pageItems.pop();
     output = createOutput();
   }
   return output;
@@ -77,22 +54,9 @@ function compactReceipt(result: UnknownRecord, input: unknown) {
   const changes = Array.isArray(result.changes) ? result.changes.filter(isRecord) : [];
   const changeCursor = typeof parsedInput.changeCursor === "number" ? parsedInput.changeCursor : 0;
   const changeLimit = typeof parsedInput.changeLimit === "number" ? parsedInput.changeLimit : 3;
-  const problemCursor = typeof parsedInput.problemCursor === "number" ? parsedInput.problemCursor : 0;
-  const problemLimit = typeof parsedInput.problemLimit === "number" ? parsedInput.problemLimit : 2;
   const compactChanges = changes.slice(changeCursor, changeCursor + changeLimit).map((change) => {
     const object = isRecord(change.object) ? change.object : {};
     return { action: change.action, kind: object.kind, id: object.id };
-  });
-  const validation = isRecord(result.validation) ? result.validation : {};
-  const problems = Array.isArray(validation.problems) ? validation.problems.filter(isRecord) : [];
-  const compactProblems = problems.slice(problemCursor, problemCursor + problemLimit).map((problem) => {
-    const target = isRecord(problem.target) ? problem.target : undefined;
-    return {
-      code: problem.code,
-      severity: problem.severity,
-      message: problem.message,
-      ...(target ? { target: { kind: target.kind, id: target.id } } : {}),
-    };
   });
   const createOutput = () => ({
     schemaVersion: result.schemaVersion,
@@ -107,15 +71,6 @@ function compactReceipt(result: UnknownRecord, input: unknown) {
       nextCursor: changeCursor + compactChanges.length < changes.length ? changeCursor + compactChanges.length : null,
       items: compactChanges,
     },
-    validation: {
-      valid: validation.valid,
-      problemCount: problems.length,
-      problemPage: {
-        cursor: problemCursor,
-        nextCursor: problemCursor + compactProblems.length < problems.length ? problemCursor + compactProblems.length : null,
-        items: compactProblems,
-      },
-    },
     undo: result.undo,
     ...(result.status === "completed" && typeof result.operationId === "string" ? {
       nextCall: {
@@ -128,9 +83,8 @@ function compactReceipt(result: UnknownRecord, input: unknown) {
     ...(result.recovery ? { recovery: result.recovery } : {}),
   });
   let output = createOutput();
-  while (JSON.stringify(output).length > TOOL_OUTPUT_CHARACTER_BUDGET && (compactChanges.length > 1 || compactProblems.length > 1)) {
-    if (compactProblems.length > 1) compactProblems.pop();
-    else compactChanges.pop();
+  while (JSON.stringify(output).length > TOOL_OUTPUT_CHARACTER_BUDGET && compactChanges.length > 1) {
+    compactChanges.pop();
     output = createOutput();
   }
   return output;

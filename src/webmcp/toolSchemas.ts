@@ -103,14 +103,10 @@ export const operationInputSchema = z.object({ operationId: z.string().min(1).ma
 export const getEditResultInputSchema = operationInputSchema.extend({
   changeCursor: z.number().int().nonnegative().optional().describe("Zero-based change cursor; omit for the first page."),
   changeLimit: z.number().int().min(1).max(5).optional().describe("Changes to return, from 1 to 5."),
-  problemCursor: z.number().int().nonnegative().optional().describe("Zero-based validation problem cursor."),
-  problemLimit: z.number().int().min(1).max(3).optional().describe("Validation problems to return, from 1 to 3."),
 }).strict();
 export const discoveryInputSchema = z.object({
   cursor: z.number().int().nonnegative().optional().describe("Zero-based item cursor; omit on the first discovery call."),
   limit: z.number().int().min(1).max(8).optional().describe("Number of compact item references to return, from 1 to 8."),
-  problemCursor: z.number().int().nonnegative().optional().describe("Zero-based validation problem cursor."),
-  problemLimit: z.number().int().min(1).max(3).optional().describe("Validation problems to return, from 1 to 3."),
 }).strict();
 
 const jsonSchemaFor = (schema: z.ZodType) => {

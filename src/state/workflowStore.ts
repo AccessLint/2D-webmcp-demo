@@ -3,7 +3,6 @@ import { useStore } from "zustand";
 import { executeBatch, type WorkflowCommand } from "../graph/commands";
 import type { WorkflowState } from "../graph/model";
 import { nodeDefinitions } from "../graph/nodeTypes";
-import { validateWorkflow } from "../graph/validation";
 import { createReceipt } from "../receipts/createReceipt";
 import type { ChangeReceipt } from "../receipts/schema";
 import { toolNames } from "../webmcp/toolNames";
@@ -37,7 +36,6 @@ export type WorkflowStore = {
   workflow: WorkflowState;
   history: ChangeReceipt[];
   snapshots: WorkflowSnapshot[];
-  reviewed: string[];
   selected: WorkflowSelection | null;
   connectionSource: WorkflowConnectionSource | null;
   returnFocusId: string | null;
@@ -51,7 +49,6 @@ export type WorkflowStore = {
   setConnectionSource: (source: WorkflowConnectionSource | null) => void;
   reportStatus: (message: string) => void;
   reportError: (message: string) => void;
-  markReviewed: (operationId: string) => void;
   clear: () => ChangeReceipt;
   reset: () => void;
   logInvocation: (invocation: InvocationInput) => void;
@@ -79,7 +76,6 @@ function createInitialState(workflow: WorkflowState) {
     workflow: structuredClone(workflow),
     history: [],
     snapshots: [],
-    reviewed: [],
     selected: workflow.nodes.some((node) => node.id === DEFAULT_SELECTION.id)
       ? DEFAULT_SELECTION
       : null,
@@ -91,7 +87,7 @@ function createInitialState(workflow: WorkflowState) {
     invocations: [],
   } satisfies Omit<
     WorkflowStore,
-    "apply" | "undo" | "select" | "setConnectionSource" | "reportStatus" | "reportError" | "markReviewed" | "clear" | "reset" | "logInvocation"
+    "apply" | "undo" | "select" | "setConnectionSource" | "reportStatus" | "reportError" | "clear" | "reset" | "logInvocation"
   >;
 }
 
@@ -101,7 +97,6 @@ function createFailedReceipt(
   result: Extract<ReturnType<typeof executeBatch>, { ok: false }>,
   intent?: string,
 ): ChangeReceipt {
-  const validation = validateWorkflow(workflow);
   return {
     schemaVersion: "0.1",
     operationId: crypto.randomUUID(),
@@ -115,8 +110,6 @@ function createFailedReceipt(
     intent,
     affected: [],
     changes: [],
-    validation,
-    warnings: validation.problems.filter((problem) => problem.severity === "warning"),
     undo: { available: false },
     failure: { code: result.code, message: result.message },
     recovery: {
@@ -143,7 +136,7 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
         return receipt;
       }
 
-      const receipt = createReceipt({ before, after: result.state, validation: result.validation, intent });
+      const receipt = createReceipt({ before, after: result.state, intent });
       set((current) => ({
         workflow: result.state,
         history: [receipt, ...current.history],
@@ -175,7 +168,6 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
       const receipt = createReceipt({
         before: current.workflow,
         after: restored,
-        validation: validateWorkflow(restored),
         undo: true,
       });
       set({
@@ -200,11 +192,6 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
     setConnectionSource: (connectionSource) => set({ connectionSource }),
     reportStatus: (politeMessage) => set({ politeMessage }),
     reportError: (assertiveMessage) => set({ assertiveMessage }),
-    markReviewed: (operationId) => set((current) => ({
-      reviewed: current.reviewed.includes(operationId)
-        ? current.reviewed
-        : [...current.reviewed, operationId],
-    })),
     clear: () => {
       const current = get();
       const cleared = {
@@ -215,7 +202,6 @@ export function createWorkflowStore(initial = createEmptyWorkflow()): StoreApi<W
       const receipt = createReceipt({
         before: current.workflow,
         after: cleared,
-        validation: validateWorkflow(cleared),
         intent: "Clear canvas",
       });
       set({

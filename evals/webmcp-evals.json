@@ -1,6 +1,7 @@
 [
   {
     "name": "Discover the current workflow before answering",
+    "taskType": "read",
     "messages": [
       {
         "role": "user",
@@ -16,12 +17,53 @@
     ]
   },
   {
-    "name": "Inspect Enrich company relationships",
+    "name": "Add a notification step to an approval workflow",
+    "taskType": "edit",
+    "setupCalls": [
+      {
+        "functionName": "edit_workflow",
+        "arguments": {
+          "baseRevision": 0,
+          "commands": [
+            {
+              "type": "createNode",
+              "node": {
+                "id": "draft-request",
+                "type": "action",
+                "label": "Draft request",
+                "position": { "x": 100, "y": 200 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "createNode",
+              "node": {
+                "id": "approve-request",
+                "type": "action",
+                "label": "Approve request",
+                "position": { "x": 400, "y": 200 },
+                "properties": {}
+              }
+            },
+            {
+              "type": "connect",
+              "edge": {
+                "id": "edge-draft-approve",
+                "source": "draft-request",
+                "sourcePort": "success",
+                "target": "approve-request",
+                "targetPort": "input"
+              }
+            }
+          ]
+        }
+      }
+    ],
     "messages": [
       {
         "role": "user",
         "type": "message",
-        "content": "What is connected immediately after Enrich company? Inspect the workflow rather than guessing."
+        "content": "Add a Notify requester action after Approve request in the existing workflow. Keep the current steps and connection intact, then show me what changed."
       }
     ],
     "expectedCall": [
@@ -30,25 +72,39 @@
         "arguments": {}
       },
       {
-        "functionName": "inspect_workflow_items",
+        "functionName": "edit_workflow",
         "arguments": {
-          "objects": [
-            {
-              "kind": "workflow-node",
-              "id": "enrich-company"
-            }
-          ]
+          "baseRevision": 1,
+          "commands": {
+            "$type": "array"
+          }
+        },
+        "result": {
+          "status": "completed",
+          "validation": { "valid": true },
+          "changeCount": { "$gte": 1 }
         }
+      },
+      {
+        "functionName": "show_edit_result",
+        "arguments": {
+          "operationId": {
+            "$type": "string"
+          }
+        },
+        "result": { "status": "completed", "visible": true },
+        "optional": false
       }
     ]
   },
   {
-    "name": "Recover leads from an unavailable enrichment service",
+    "name": "Create a new approval workflow",
+    "taskType": "create",
     "messages": [
       {
         "role": "user",
         "type": "message",
-        "content": "We’ve had leads disappear whenever company enrichment is unavailable. Update the workflow so those leads are not lost and can be handled by the sales operations team. Show me what changed."
+        "content": "Create a new approval workflow containing Draft request followed by Approve request. Show me what changed."
       }
     ],
     "expectedCall": [
@@ -63,6 +119,11 @@
           "commands": {
             "$type": "array"
           }
+        },
+        "result": {
+          "status": "completed",
+          "validation": { "valid": true },
+          "changeCount": { "$gte": 1 }
         }
       },
       {
@@ -72,12 +133,13 @@
             "$type": "string"
           }
         },
-        "optional": false
+        "result": { "status": "completed", "visible": true }
       }
     ]
   },
   {
     "name": "Focus the named Zoom In target",
+    "taskType": "interaction",
     "messages": [
       {
         "role": "user",
@@ -94,29 +156,6 @@
         "functionName": "focus_page_element",
         "arguments": {
           "targetId": "canvas.zoom-in"
-        }
-      }
-    ]
-  },
-  {
-    "name": "Infer which step belongs to sales operations",
-    "messages": [
-      {
-        "role": "user",
-        "type": "message",
-        "content": "Show me the step owned by sales operations."
-      }
-    ],
-    "expectedCall": [
-      {
-        "functionName": "discover_workflow",
-        "arguments": {}
-      },
-      {
-        "functionName": "show_workflow_item",
-        "arguments": {
-          "kind": "workflow-node",
-          "id": "manual-review"
         }
       }
     ]

@@ -25,8 +25,6 @@ function unavailableLabel(receipt: ChangeReceipt, reference: ApplicationReferenc
 type ChangeCardProps = {
   receipt: ChangeReceipt;
   workflow: WorkflowState;
-  reviewed: boolean;
-  onMarkReviewed: () => void;
   onReveal: (reference: ApplicationReference) => void;
   onUndo: () => void;
 };
@@ -34,8 +32,6 @@ type ChangeCardProps = {
 function ChangeCard({
   receipt,
   workflow,
-  reviewed,
-  onMarkReviewed,
   onReveal,
   onUndo,
 }: ChangeCardProps) {
@@ -51,23 +47,11 @@ function ChangeCard({
     >
       <div className="change-topline">
         <span className={`status-pill status-pill--${receipt.status}`}>{receipt.status}</span>
-        <span className="review-state">{reviewed ? "Reviewed" : "Unreviewed"}</span>
       </div>
 
       <h3 tabIndex={-1} id={changeHeadingId(receipt.operationId)}>
         {receipt.summary}
       </h3>
-
-      {receipt.validation.problems.length > 0 ? (
-        <div className={`problems${receipt.validation.valid ? "" : " problems--error"}`}>
-          <h4>{receipt.validation.valid ? "Warnings" : "Needs attention"}</h4>
-          <ul>
-            {receipt.validation.problems.map((problem, index) => (
-              <li key={`${problem.code}-${index}`}>{problem.message}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       <div className="change-footer">
         {affectedObjects.length > 0 ? (
@@ -87,14 +71,11 @@ function ChangeCard({
           </div>
         ) : null}
 
-        <div className="change-actions">
-          <button onClick={onMarkReviewed} disabled={reviewed}>
-            {reviewed ? "Reviewed" : "Mark reviewed"}
-          </button>
-          {receipt.undo.available ? (
+        {receipt.undo.available ? (
+          <div className="change-actions">
             <button className="undo-button" onClick={onUndo}>Undo</button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
     </article>
   );
@@ -103,9 +84,7 @@ function ChangeCard({
 export function ChangeHistory() {
   const history = useWorkflowStore((state) => state.history);
   const workflow = useWorkflowStore((state) => state.workflow);
-  const reviewed = useWorkflowStore((state) => state.reviewed);
   const select = useWorkflowStore((state) => state.select);
-  const markReviewed = useWorkflowStore((state) => state.markReviewed);
   const undo = useWorkflowStore((state) => state.undo);
   const reportError = useWorkflowStore((state) => state.reportError);
 
@@ -142,8 +121,6 @@ export function ChangeHistory() {
           <ChangeCard
             receipt={latestReceipt}
             workflow={workflow}
-            reviewed={reviewed.includes(latestReceipt.operationId)}
-            onMarkReviewed={() => markReviewed(latestReceipt.operationId)}
             onReveal={reveal}
             onUndo={() => runUndo(latestReceipt.operationId)}
           />

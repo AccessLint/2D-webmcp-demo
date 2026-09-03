@@ -1,6 +1,5 @@
 import { z } from "zod";
 import type { ApplicationReference, WorkflowEdge, WorkflowNode } from "../graph/model";
-import type { ValidationResult } from "../graph/validation";
 import type { BatchFailureCode } from "../graph/commands";
 import { toolNames } from "../webmcp/toolNames";
 
@@ -24,8 +23,6 @@ export type ChangeReceipt = {
   intent?: string;
   affected: ApplicationReference[];
   changes: WorkflowChange[];
-  validation: ValidationResult;
-  warnings: ValidationResult["problems"];
   undo: { available: boolean; operationId?: string };
   failure?: { code: BatchFailureCode; message: string };
   recovery?: { tool: typeof toolNames.discoverWorkflow; input: Record<string, never>; currentRevision: number; then: typeof toolNames.editWorkflow };
@@ -54,18 +51,9 @@ export const changeReceiptSchema: z.ZodType<ChangeReceipt> = z.object({
     before: z.unknown().optional(),
     after: z.unknown().optional(),
   })) as z.ZodType<WorkflowChange[]>,
-  validation: z.object({
-    valid: z.boolean(),
-    problems: z.array(z.object({
-      code: z.string(), severity: z.enum(["error", "warning"]), message: z.string(), target: referenceSchema.optional(),
-    })),
-  }),
-  warnings: z.array(z.object({
-    code: z.string(), severity: z.enum(["error", "warning"]), message: z.string(), target: referenceSchema.optional(),
-  })),
   undo: z.object({ available: z.boolean(), operationId: z.string().optional() }),
   failure: z.object({
-    code: z.enum(["REVISION_CONFLICT", "INVALID_COMMAND", "NOT_FOUND", "ALREADY_EXISTS", "VALIDATION_FAILED"]),
+    code: z.enum(["REVISION_CONFLICT", "INVALID_COMMAND", "NOT_FOUND", "ALREADY_EXISTS"]),
     message: z.string(),
   }).optional(),
   recovery: z.object({

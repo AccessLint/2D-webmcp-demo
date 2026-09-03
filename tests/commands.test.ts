@@ -47,4 +47,27 @@ describe("workflow transactions", () => {
     expect(updated).toMatchObject({ ok: false, status: "failed" });
     expect(before.nodes.find((node) => node.id === "abnormal-review")?.label).toBe("Clinician reviews and escalates abnormal results");
   });
+
+  it("does not apply global workflow validation to an otherwise valid command batch", () => {
+    const before = {
+      revision: 0,
+      nodes: [
+        { id: "one", type: "action" as const, label: "One", position: { x: 0, y: 0 }, properties: {} },
+        { id: "two", type: "action" as const, label: "Two", position: { x: 200, y: 0 }, properties: {} },
+      ],
+      edges: [
+        { id: "one-two", source: "one", sourcePort: "success", target: "two", targetPort: "input" },
+      ],
+    };
+
+    const result = executeBatch(before, {
+      baseRevision: 0,
+      commands: [{
+        type: "connect",
+        edge: { id: "two-one", source: "two", sourcePort: "success", target: "one", targetPort: "input" },
+      }],
+    });
+
+    expect(result).toMatchObject({ ok: true, state: { revision: 1 } });
+  });
 });

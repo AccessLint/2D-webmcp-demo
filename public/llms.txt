@@ -7,7 +7,7 @@ Agents using the live application should call `discover_workflow` before any oth
 ## Documentation
 
 - [Application overview](https://2d-webmcp.netlify.app/index.md): Architecture, WebMCP tools, recommended agent workflow, and verification commands.
-- [Judge smoke test](https://raw.githubusercontent.com/AccessLint/webmcp-proof/main/docs/TESTING.md): A three-minute keyboard, screen-reader, agent-editing, receipt-review, and undo walkthrough.
+- [Judge smoke test](https://raw.githubusercontent.com/AccessLint/webmcp-proof/main/docs/TESTING.md): A three-minute keyboard, screen-reader, agent-editing, receipt, and undo walkthrough.
 
 ## Source references
 

@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "postinstall": "patch-package",
+    "eval:browser": "webmcp-evals browser --chrome-channel chrome --url http://127.0.0.1:4173 --evals evals/webmcp-evals.json --backend vercel --model openai:gpt-5-mini --runs 10 --max-steps 8 --reporter console json html && npm run eval:latency",
+    "eval:latency": "node evals/summarizeLatency.mjs",
     "eval:surface-bridge": "node evals/runSurfaceBridge.mjs",
     "build": "tsc -b && vite build && vite build --config vite.worker.config.ts",
-    "test": "vitest run",
+    "test": "vitest run && node --test evals/latencyReport.node-test.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "lint": "eslint ."
@@ -21,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",
+    "@openai/sites-vite-plugin": "^0.2.0",
     "@playwright/test": "^1.55.0",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
@@ -28,16 +32,17 @@
     "@types/node": "^24.3.0",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
-    "@openai/sites-vite-plugin": "^0.2.0",
     "@vitejs/plugin-react": "^5.0.2",
     "eslint": "^9.34.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
     "jsdom": "^26.1.0",
+    "patch-package": "8.0.1",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.41.0",
     "vite": "^8.0.0",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0",
+    "webmcp-evals": "0.0.4"
   }
 }

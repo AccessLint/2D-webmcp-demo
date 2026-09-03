@@ -73,7 +73,7 @@ test("inferred recovery-route receipt can be focused, spot checked, and undone",
     return receipt.operationId;
   });
   await expect(page.getByRole("status")).toContainText("Changed 1 connection");
-  const receiptHeading = page.getByRole("heading", { name: "Changed 1 connection. Workflow validation passed." });
+  const receiptHeading = page.getByRole("heading", { name: "Changed 1 connection." });
   await expect(receiptHeading).toBeVisible();
   await expect(receiptHeading).toBeFocused();
   await expect(page.locator(".react-flow__edge")).toHaveCount(7);

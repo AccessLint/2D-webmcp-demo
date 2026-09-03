@@ -1,13 +1,11 @@
 import type { WorkflowState } from "../graph/model";
 import { nodeDefinitions } from "../graph/nodeTypes";
 import { nodeReference } from "../graph/references";
-import { validateWorkflow } from "../graph/validation";
 import { uiTargetList } from "./uiTargets";
 import { toolNames } from "./toolNames";
 import { surfaceSchemaDescriptor, workflowSurfaceSnapshot } from "./surfaceSnapshot";
 
 export function workflowSummary(state: WorkflowState) {
-  const validation = validateWorkflow(state);
   const incomingNodeIds = new Set(state.edges.map((edge) => edge.target));
   const outgoingNodeIds = new Set(state.edges.map((edge) => edge.source));
   const exampleNode = state.nodes.find((node) => incomingNodeIds.has(node.id)) ?? state.nodes[0];
@@ -19,7 +17,6 @@ export function workflowSummary(state: WorkflowState) {
     edges: state.edges.length,
     entryPoints: state.nodes.filter((node) => !incomingNodeIds.has(node.id)).map(nodeReference),
     terminalNodes: state.nodes.filter((node) => !outgoingNodeIds.has(node.id)).map(nodeReference),
-    validation,
     surfaceSchema: surfaceSchemaDescriptor,
     surfaceSnapshot,
     authoring: {

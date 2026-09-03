@@ -1,6 +1,5 @@
 import type { WorkflowEdge, WorkflowNode, WorkflowState } from "./model";
 import { nodeDefinitions } from "./nodeTypes";
-import { validateWorkflow, type ValidationResult } from "./validation";
 
 const MAX_COMMANDS_PER_BATCH = 20;
 
@@ -13,13 +12,12 @@ export type WorkflowCommand =
   | { type: "replaceConnection"; edgeId: string; replacement: WorkflowEdge[] };
 
 type BatchInput = { baseRevision: number; commands: WorkflowCommand[] };
-type BatchSuccess = { ok: true; state: WorkflowState; validation: ValidationResult };
+type BatchSuccess = { ok: true; state: WorkflowState };
 export type BatchFailureCode =
   | "REVISION_CONFLICT"
   | "INVALID_COMMAND"
   | "NOT_FOUND"
-  | "ALREADY_EXISTS"
-  | "VALIDATION_FAILED";
+  | "ALREADY_EXISTS";
 type BatchFailure = { ok: false; status: "failed" | "conflict"; code: BatchFailureCode; message: string };
 export type BatchResult = BatchSuccess | BatchFailure;
 
@@ -63,16 +61,8 @@ export function executeBatch(state: WorkflowState, input: BatchInput): BatchResu
     );
   }
 
-  const validation = validateWorkflow(draft);
-  if (!validation.valid) {
-    const errors = validation.problems
-      .filter((problem) => problem.severity === "error")
-      .map((problem) => problem.message);
-    return failedBatch("VALIDATION_FAILED", errors.join(" "));
-  }
-
   draft.revision = state.revision + 1;
-  return { ok: true, state: draft, validation };
+  return { ok: true, state: draft };
 }
 
 function findNode(state: WorkflowState, id: string) {

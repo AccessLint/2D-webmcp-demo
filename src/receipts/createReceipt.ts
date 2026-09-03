@@ -1,6 +1,5 @@
 import type { WorkflowState } from "../graph/model";
 import { edgeReference, nodeReference } from "../graph/references";
-import type { ValidationResult } from "../graph/validation";
 import { summarizeChanges } from "./summarizeReceipt";
 import type { ChangeReceipt, WorkflowChange } from "./schema";
 
@@ -30,7 +29,6 @@ export function diffWorkflow(before: WorkflowState, after: WorkflowState, restor
 export function createReceipt(input: {
   before: WorkflowState;
   after: WorkflowState;
-  validation: ValidationResult;
   operationId?: string;
   intent?: string;
   undo?: boolean;
@@ -44,12 +42,10 @@ export function createReceipt(input: {
     baseRevision: input.before.revision,
     resultingRevision: input.after.revision,
     status: "completed",
-    summary: summarizeChanges(changes, input.validation.valid, input.undo),
+    summary: summarizeChanges(changes, input.undo),
     intent: input.intent,
     affected: changes.map((change) => change.object).filter((reference, index, all) => all.findIndex((item) => item.kind === reference.kind && item.id === reference.id) === index),
     changes,
-    validation: input.validation,
-    warnings: input.validation.problems.filter((problem) => problem.severity === "warning"),
     undo: { available: !input.undo, operationId: !input.undo ? operationId : undefined },
   };
 }

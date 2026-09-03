@@ -1,6 +1,6 @@
 import type { WorkflowChange } from "./schema";
 
-export function summarizeChanges(changes: WorkflowChange[], valid: boolean, undo = false) {
+export function summarizeChanges(changes: WorkflowChange[], undo = false) {
   const nodes = changes.filter((change) => change.object.kind === "workflow-node");
   const connections = changes.filter((change) => change.object.kind === "workflow-edge");
   const createdNode = nodes.find((change) => change.action === "created")?.object.label;
@@ -30,5 +30,5 @@ export function summarizeChanges(changes: WorkflowChange[], valid: boolean, undo
     parts.push(`${verb} ${connections.length} ${connections.length === 1 ? "connection" : "connections"}`);
   }
   const lead = parts.length ? parts.join(" and ") : "Updated workflow";
-  return `${lead}. Workflow validation ${valid ? "passed" : "has errors"}.`;
+  return `${lead}.`;
 }

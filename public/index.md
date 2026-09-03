@@ -1,6 +1,6 @@
 # 2D WebMCP Demo
 
-The 2D WebMCP Demo is an accessible browser-based node editor for verifiable agent actions. Human interface controls and WebMCP tools operate on one authoritative workflow graph. Each successful transaction produces a deterministic, inspectable change receipt that can be revealed, reviewed, or undone.
+The 2D WebMCP Demo is an accessible browser-based node editor for verifiable agent actions. Human interface controls and WebMCP tools operate on one authoritative workflow graph. Each successful transaction produces a deterministic, inspectable change receipt that can be revealed or undone.
 
 Live application: <https://2d-webmcp.netlify.app/>
 
@@ -16,7 +16,7 @@ For page focus, prefer a named `targetId`, such as `canvas.zoom-in`. CSS selecto
 
 ## WebMCP tools
 
-- `discover_workflow`: Return the revision, valid IDs and ports, named page targets, validation state, a draft `SurfaceSnapshot`, and example calls.
+- `discover_workflow`: Return the revision, valid IDs and ports, named page targets, a draft `SurfaceSnapshot`, and example calls.
 - `inspect_workflow_items`: Return full details and relationships for specified nodes or connections.
 - `edit_workflow`: Apply a typed command batch atomically against an exact revision.
 - `show_workflow_item`: Select a node or connection and bring it into view; nodes also receive keyboard focus.
@@ -27,17 +27,17 @@ For page focus, prefer a named `targetId`, such as `canvas.zoom-in`. CSS selecto
 
 ## Architecture
 
-- `src/graph` owns the workflow model, commands, references, selectors, and validation.
+- `src/graph` owns the workflow model, commands, references, and selectors.
 - `src/state` coordinates transactions, receipts, interface state, and session persistence.
 - `src/receipts` converts committed workflow differences into verifiable change records.
 - `src/webmcp` defines schemas, handlers, browser actions, and native tool registration.
 - `src/components` renders the canvas, live announcements, and change history.
 
-The graph command executor clones the current workflow, applies the complete command batch, validates it, and only then returns a new revision. The store records that result as a receipt and isolates browser persistence in a separate module.
+The graph command executor clones the current workflow, applies the complete command batch atomically, and then returns a new revision. The store records that result as a receipt and isolates browser persistence in a separate module.
 
 ## Verification
 
-Run `npm test`, `npm run build`, and `npm run test:e2e`. The suites cover atomic graph commands, revision conflicts, validation, receipt accuracy, undo round trips, WebMCP handlers, accessibility, and the keyboard-driven review path.
+Run `npm test`, `npm run build`, and `npm run test:e2e`. The suites cover atomic graph commands, revision conflicts, receipt accuracy, undo round trips, WebMCP handlers, accessibility, and keyboard interaction.
 
 The app vendors draft `SurfaceSnapshot` and `SurfaceReceipt` JSON Schemas as conformance fixtures. They are not npm dependencies or claims of finalized standards.
 

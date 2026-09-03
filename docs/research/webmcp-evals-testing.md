@@ -71,7 +71,45 @@ npx webmcp-evals browser \
   --reporter console json html
 ```
 
-Set the provider key documented for the chosen backend. Reports default to `.evals/`. Because the CLI is experimental, pin its version in development dependencies rather than relying indefinitely on an unpinned `npx` download.
+For this repository, the equivalent pinned command also writes a latency summary after the model run:
+
+```sh
+npm run eval:browser
+```
+
+The app must already be running at `http://127.0.0.1:4173`. The command uses the locally pinned and patched
+`webmcp-evals` package so every browser attempt includes timing data in its JSON report. It then writes
+`.evals/report-<timestamp>-latency.json`. To summarize an existing timing-enabled JSON report, run:
+
+```sh
+npm run eval:latency -- .evals/report-<timestamp>.json
+```
+
+The summary reports all attempts and each validated fixture `taskType`, including separate `create` and `edit`
+groups. Duration percentiles include successful required trajectories only, while tool-call, retry, and redundancy
+counts include every timed attempt. For create and edit tasks, success additionally requires one completed,
+valid semantic edit, visible evidence for that operation, and no later undo. The project-specific checks verify the
+requested notification addition or the complete approval topology, rather than treating any non-empty edit
+as success. The captured fields are:
+
+- `durationMs`: prompt submission through the agent's final response, excluding browser startup and page navigation.
+- `timeToFirstToolCallMs`: time spent before the agent starts its first tool.
+- `toolExecutionMs`: cumulative time inside tools. Parallel tool calls can overlap, so this can exceed their wall-clock contribution.
+- `nonToolDurationMs`: wall-clock duration minus cumulative tool time, clamped at zero.
+- `toolCallCount`: all tool calls made during the attempt.
+- `retryToolCallCount`: calls repeated after that tool previously returned an error, conflict, or failed status.
+- `redundantToolCallCount`: remaining calls beyond the required function-name counts, such as unnecessary discovery or inspection.
+
+Edit cases may declare deterministic `setupCalls`. The patched runner executes these after navigation but before
+starting the task timer, so edit turnaround is measured against a known existing diagram without mixing fixture
+construction time into the result.
+
+Use successful `durationMs` p50 as the normal turnaround target and p95 as the regression guard. Compare
+`timeToFirstToolCallMs`, `toolExecutionMs`, and retry/redundancy counts to locate the source of a slowdown.
+
+Set the provider key documented for the chosen backend. Reports default to `.evals/`. The CLI is experimental,
+so this repository pins `webmcp-evals` and applies `patches/webmcp-evals+0.0.4.patch` after installation. Revisit
+the patch whenever upgrading the package; remove it once upstream reports equivalent task timings.
 
 For local WebMCP, Chrome's current setup instructions require enabling `chrome://flags/#enable-webmcp-testing` and relaunching Chrome. The eval CLI defaults to Chrome Canary and allows selecting a Chrome channel. [Chrome: WebMCP local setup](https://developer.chrome.com/docs/ai/webmcp#get-started)
 
