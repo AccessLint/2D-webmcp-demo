@@ -93,7 +93,7 @@ index 379228c..8826eec 100644
                  error: e,
              };
 diff --git a/node_modules/webmcp-evals/dist/evaluator/browserEvaluator.js b/node_modules/webmcp-evals/dist/evaluator/browserEvaluator.js
-index 7a75b6c..f9a6f63 100644
+index 7a75b6c..f7345d8 100644
 --- a/node_modules/webmcp-evals/dist/evaluator/browserEvaluator.js
 +++ b/node_modules/webmcp-evals/dist/evaluator/browserEvaluator.js
 @@ -61,9 +61,11 @@ function calculateTotalSteps(tests, runs) {
@@ -127,18 +127,18 @@ index 7a75b6c..f9a6f63 100644
              throw evalResult.error;
          }
 -        return buildTestResults(test, evalResult.toolCalls, { text: evalResult.text }, evalResult.steps || [], runIndex, browserConsoleErrors);
-+        const expectedToolNames = collectExpectedToolNames(test.expectedCall || []);
++        const allowedToolNames = collectAllowedToolNames(test.expectedCall || []);
 +        const toolAttempts = evalResult.timing?.toolAttempts || [];
 +        const actualToolNames = toolAttempts.length > 0
 +            ? toolAttempts.map((attempt) => attempt.functionName)
 +            : evalResult.toolCalls.map((call) => call.functionName);
-+        const timing = buildTiming(evalResult.timing, expectedToolNames, actualToolNames, performance.now() - testStartedAt);
++        const timing = buildTiming(evalResult.timing, allowedToolNames, actualToolNames, performance.now() - testStartedAt);
 +        return buildTestResults(test, evalResult.toolCalls, { text: evalResult.text }, evalResult.steps || [], runIndex, browserConsoleErrors, timing);
      }
      catch (e) {
          browserConsoleErrors = registry?.getBrowserConsoleErrors() || browserConsoleErrors;
          logger.warn("Error running browser test:", e);
-+        const expectedToolNames = collectExpectedToolNames(test.expectedCall || []);
++        const allowedToolNames = collectAllowedToolNames(test.expectedCall || []);
 +        const toolAttempts = failedEvalTiming?.toolAttempts || [];
 +        const actualToolNames = toolAttempts.map((attempt) => attempt.functionName);
          return [
@@ -148,18 +148,19 @@ index 7a75b6c..f9a6f63 100644
                  outcome: "error",
                  runIndex,
                  stepIndex: 1,
-+                timing: buildTiming(failedEvalTiming, expectedToolNames, actualToolNames, performance.now() - testStartedAt),
++                timing: buildTiming(failedEvalTiming, allowedToolNames, actualToolNames, performance.now() - testStartedAt),
                  ...(browserConsoleErrors.length > 0 ? { browserConsoleErrors } : {}),
              },
          ];
-@@ -98,6 +119,62 @@ async function runSingleBrowserTest(test, browser, backend, config, runIndex) {
+@@ -98,6 +119,63 @@ async function runSingleBrowserTest(test, browser, backend, config, runIndex) {
          }
      }
  }
-+function buildTiming(rawTiming, expectedToolNames, actualToolNames, fallbackDurationMs) {
++export function buildTiming(rawTiming, allowedToolNames, actualToolNames, fallbackDurationMs) {
 +    const toolAttempts = rawTiming?.toolAttempts || [];
-+    const retryToolCallCount = countRetries(toolAttempts);
-+    const extraToolCallCount = countExtraCalls(expectedToolNames, actualToolNames);
++    const retryFlags = retryFlagsFor(toolAttempts);
++    const retryToolCallCount = retryFlags.filter(Boolean).length;
++    const redundantToolCallCount = countRedundantCalls(allowedToolNames, actualToolNames, retryFlags);
 +    return {
 +        durationMs: rawTiming?.durationMs ?? fallbackDurationMs,
 +        ...(rawTiming?.timeToFirstToolCallMs === undefined
@@ -173,49 +174,49 @@ index 7a75b6c..f9a6f63 100644
 +            : { nonToolDurationMs: rawTiming.nonToolDurationMs }),
 +        toolCallCount: actualToolNames.length,
 +        retryToolCallCount,
-+        redundantToolCallCount: Math.max(0, extraToolCallCount - retryToolCallCount),
++        redundantToolCallCount,
 +    };
 +}
-+function collectExpectedToolNames(nodes) {
++export function collectAllowedToolNames(nodes) {
 +    return nodes.flatMap((node) => {
 +        if ("functionName" in node) {
-+            return node.optional ? [] : [node.functionName];
++            if (node.optional && node.latencyAllowance === false) {
++                return [];
++            }
++            return [node.functionName];
 +        }
-+        return collectExpectedToolNames(node.ordered || node.unordered || []);
++        return collectAllowedToolNames(node.ordered || node.unordered || []);
 +    });
 +}
-+function countExtraCalls(expected, actual) {
++function countRedundantCalls(allowed, actual, retryFlags) {
 +    const remaining = new Map();
-+    for (const name of expected) {
++    for (const name of allowed) {
 +        remaining.set(name, (remaining.get(name) || 0) + 1);
 +    }
 +    let extra = 0;
-+    for (const name of actual) {
++    for (const [index, name] of actual.entries()) {
 +        const available = remaining.get(name) || 0;
 +        if (available > 0) {
 +            remaining.set(name, available - 1);
 +        }
-+        else {
++        else if (!retryFlags[index]) {
 +            extra++;
 +        }
 +    }
 +    return extra;
 +}
-+function countRetries(attempts) {
++function retryFlagsFor(attempts) {
 +    const lastOutcomeByTool = new Map();
-+    let retries = 0;
-+    for (const attempt of attempts) {
-+        if (lastOutcomeByTool.get(attempt.functionName) === false) {
-+            retries++;
-+        }
++    return attempts.map((attempt) => {
++        const isRetry = lastOutcomeByTool.get(attempt.functionName) === false;
 +        lastOutcomeByTool.set(attempt.functionName, attempt.succeeded === true);
-+    }
-+    return retries;
++        return isRetry;
++    });
 +}
  async function setupBrowserPage(browser, url) {
      const page = await browser.newPage();
      await page.goto(url, {
-@@ -106,7 +183,7 @@ async function setupBrowserPage(browser, url) {
+@@ -106,7 +184,7 @@ async function setupBrowserPage(browser, url) {
      });
      return page;
  }
@@ -224,7 +225,7 @@ index 7a75b6c..f9a6f63 100644
      const testResults = [];
      const trajectories = test.expectedCall
          ? evaluateExecutionTrajectory(test.expectedCall, executedCalls)
-@@ -121,6 +198,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
+@@ -121,6 +199,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
              ...(browserConsoleErrors.length > 0 ? { browserConsoleErrors } : {}),
              runIndex,
              stepIndex: 1,
@@ -232,7 +233,7 @@ index 7a75b6c..f9a6f63 100644
          });
      }
      else {
-@@ -136,8 +214,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
+@@ -136,8 +215,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
              }
              testResults.push({
                  test: {
@@ -242,7 +243,7 @@ index 7a75b6c..f9a6f63 100644
                      expectedCall: traj.expected ? [traj.expected] : null,
                  },
                  response,
-@@ -148,6 +225,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
+@@ -148,6 +226,7 @@ function buildTestResults(test, executedCalls, resultPayload, trajectory, runInd
                      : {}),
                  runIndex,
                  stepIndex: currentStepIndex,

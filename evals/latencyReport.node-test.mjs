@@ -78,7 +78,10 @@ test("requires a semantically valid notification edit and matching visible recei
   const editResult = {
     operationId: "op-1",
     status: "completed",
-    validation: { valid: true },
+    baseRevision: 1,
+    resultingRevision: 2,
+    changeCount: 2,
+    nextCall: { tool: "show_edit_result", input: { operationId: "op-1" } },
   };
   const required = (functionName, response) => ({
     test: { name: "Notification", taskType: "edit", expectedCall: [{ functionName }] },
@@ -94,6 +97,7 @@ test("requires a semantically valid notification edit and matching visible recei
         required("edit_workflow", {
           functionName: "edit_workflow",
           args: {
+            baseRevision: 1,
             commands: [
               {
                 type: "createNode",
@@ -139,7 +143,14 @@ test("requires a semantically valid notification edit and matching visible recei
 
 test("does not reject a failed undo that leaves the completed edit in place", () => {
   const timing = { durationMs: 9_000, toolCallCount: 4, retryToolCallCount: 0, redundantToolCallCount: 1 };
-  const editResult = { operationId: "op-1", status: "completed", validation: { valid: true } };
+  const editResult = {
+    operationId: "op-1",
+    status: "completed",
+    baseRevision: 1,
+    resultingRevision: 2,
+    changeCount: 2,
+    nextCall: { tool: "show_edit_result", input: { operationId: "op-1" } },
+  };
   const resultFor = (functionName, response, expectedCall = [{ functionName }]) => ({
     test: { name: "Notification", taskType: "edit", expectedCall },
     response,
@@ -152,7 +163,7 @@ test("does not reject a failed undo that leaves the completed edit in place", ()
       results: [
         resultFor("edit_workflow", {
           functionName: "edit_workflow",
-          args: { commands: [
+          args: { baseRevision: 1, commands: [
             { type: "createNode", node: { id: "notify", type: "action", label: "Notify requester" } },
             { type: "connect", edge: { source: "approve-request", sourcePort: "success", target: "notify", targetPort: "input" } },
           ] },
@@ -181,13 +192,21 @@ test("requires creation to replace the original graph with the requested topolog
   const edit = {
     functionName: "edit_workflow",
     args: {
+      baseRevision: 0,
       commands: [
         { type: "createNode", node: { id: "draft", label: "Draft request", type: "action" } },
         { type: "createNode", node: { id: "approve", label: "Approve request", type: "action" } },
         { type: "connect", edge: { id: "approval", source: "draft", sourcePort: "success", target: "approve", targetPort: "input" } },
       ],
     },
-    result: { operationId, status: "completed", validation: { valid: true } },
+    result: {
+      operationId,
+      status: "completed",
+      baseRevision: 0,
+      resultingRevision: 1,
+      changeCount: 3,
+      nextCall: { tool: "show_edit_result", input: { operationId } },
+    },
   };
   const resultFor = (functionName, response) => ({
     test: { name: "Approval", taskType: "create", expectedCall: [{ functionName }] },

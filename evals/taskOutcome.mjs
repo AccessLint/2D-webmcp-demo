@@ -8,10 +8,23 @@ function inputFor(call) {
   return call.args || call.arguments || {};
 }
 
-function isCompletedValidEdit(call) {
+function isCompletedEdit(call) {
+  const input = inputFor(call);
+  const result = call.result;
   return call.functionName === "edit_workflow"
-    && call.result?.status === "completed"
-    && call.result?.validation?.valid === true;
+    && result?.status === "completed"
+    && typeof result.operationId === "string"
+    && Number.isInteger(input.baseRevision)
+    && result.baseRevision === input.baseRevision
+    && result.resultingRevision === input.baseRevision + 1
+    && Number.isInteger(result.changeCount)
+    && result.changeCount > 0
+    && result.nextCall?.tool === "show_edit_result"
+    && result.nextCall?.input?.operationId === result.operationId;
+}
+
+function labelValue(label) {
+  return typeof label === "string" ? label : label?.value;
 }
 
 function matchingReceiptWasShown(calls, editCall) {
@@ -30,7 +43,7 @@ function isNotificationEdit(commands) {
   const notification = createdNodes[0].node;
   const edge = connections[0].edge;
   return notification?.type === "action"
-    && String(notification.label || "").toLowerCase() === "notify requester"
+    && String(labelValue(notification.label) || "").toLowerCase() === "notify requester"
     && edge?.source === "approve-request"
     && edge.sourcePort === "success"
     && edge.targetPort === "input"
@@ -44,7 +57,7 @@ function isCreateApprovalEdit(commands) {
   const connections = commands.filter((command) => command.type === "connect");
   if (createdNodes.length !== 2 || connections.length !== 1) return false;
   const nodeByLabel = new Map(createdNodes.map((command) => [
-    String(command.node?.label || "").toLowerCase(),
+    String(labelValue(command.node?.label) || "").toLowerCase(),
     command.node,
   ]));
   const draft = nodeByLabel.get("draft request");
@@ -62,7 +75,7 @@ export function hasVerifiedTaskOutcome(attempt, trajectorySuccessful) {
     return trajectorySuccessful;
   }
   const calls = callsFrom(attempt.results);
-  const completedEdits = calls.filter(isCompletedValidEdit);
+  const completedEdits = calls.filter(isCompletedEdit);
   if (completedEdits.length !== 1) return false;
   const editCall = completedEdits[0];
   const editIndex = calls.indexOf(editCall);

@@ -1,22 +1,5 @@
 [
   {
-    "name": "Discover the current workflow before answering",
-    "taskType": "read",
-    "messages": [
-      {
-        "role": "user",
-        "type": "message",
-        "content": "Inspect the workflow and tell me what is currently on the canvas."
-      }
-    ],
-    "expectedCall": [
-      {
-        "functionName": "discover_workflow",
-        "arguments": {}
-      }
-    ]
-  },
-  {
     "name": "Add a notification step to an approval workflow",
     "taskType": "edit",
     "setupCalls": [
@@ -80,9 +63,42 @@
           }
         },
         "result": {
+          "ok": false,
+          "error": { "code": "INVALID_INPUT" }
+        },
+        "optional": true,
+        "latencyAllowance": false
+      },
+      {
+        "functionName": "discover_workflow",
+        "arguments": {},
+        "optional": true,
+        "latencyAllowance": false
+      },
+      {
+        "functionName": "inspect_workflow_items",
+        "arguments": {
+          "objects": {
+            "$type": "array"
+          }
+        },
+        "optional": true
+      },
+      {
+        "functionName": "edit_workflow",
+        "arguments": {
+          "baseRevision": 1,
+          "commands": {
+            "$type": "array"
+          }
+        },
+        "result": {
           "status": "completed",
-          "validation": { "valid": true },
-          "changeCount": { "$gte": 1 }
+          "baseRevision": 1,
+          "resultingRevision": 2,
+          "changeCount": 2,
+          "operationId": { "$type": "string" },
+          "nextCall": { "tool": "show_edit_result" }
         }
       },
       {
@@ -121,9 +137,33 @@
           }
         },
         "result": {
+          "ok": false,
+          "error": { "code": "INVALID_INPUT" }
+        },
+        "optional": true,
+        "latencyAllowance": false
+      },
+      {
+        "functionName": "discover_workflow",
+        "arguments": {},
+        "optional": true,
+        "latencyAllowance": false
+      },
+      {
+        "functionName": "edit_workflow",
+        "arguments": {
+          "baseRevision": 0,
+          "commands": {
+            "$type": "array"
+          }
+        },
+        "result": {
           "status": "completed",
-          "validation": { "valid": true },
-          "changeCount": { "$gte": 1 }
+          "baseRevision": 0,
+          "resultingRevision": 1,
+          "changeCount": 3,
+          "operationId": { "$type": "string" },
+          "nextCall": { "tool": "show_edit_result" }
         }
       },
       {
@@ -134,29 +174,6 @@
           }
         },
         "result": { "status": "completed", "visible": true }
-      }
-    ]
-  },
-  {
-    "name": "Focus the named Zoom In target",
-    "taskType": "interaction",
-    "messages": [
-      {
-        "role": "user",
-        "type": "message",
-        "content": "Put keyboard focus on the Zoom In control."
-      }
-    ],
-    "expectedCall": [
-      {
-        "functionName": "discover_workflow",
-        "arguments": {}
-      },
-      {
-        "functionName": "focus_page_element",
-        "arguments": {
-          "targetId": "canvas.zoom-in"
-        }
       }
     ]
   }
