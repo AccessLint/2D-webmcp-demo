@@ -192,14 +192,22 @@ function toFlowNode(
   };
 }
 
-function toFlowEdge(edge: WorkflowEdge, selected: WorkflowSelection | null): Edge {
+function toFlowEdge(
+  edge: WorkflowEdge,
+  selected: WorkflowSelection | null,
+  nodeLabels: Map<string, string>,
+): Edge {
+  const sourceLabel = nodeLabels.get(edge.source) ?? edge.source;
+  const targetLabel = nodeLabels.get(edge.target) ?? edge.target;
+  const connectionLabel = edge.label ?? edge.sourcePort;
   return {
     id: edge.id,
     source: edge.source,
     sourceHandle: edge.sourcePort,
     target: edge.target,
     targetHandle: edge.targetPort,
-    label: edge.label ?? edge.sourcePort,
+    label: connectionLabel,
+    ariaLabel: `Connection from ${sourceLabel} to ${targetLabel}: ${connectionLabel}`,
     selected: selected?.kind === "edge" && selected.id === edge.id,
   };
 }
@@ -234,9 +242,13 @@ export function WorkflowCanvas() {
     )),
     [connectionSource, rovingNodeId, selected, treeRows],
   );
+  const nodeLabels = useMemo(
+    () => new Map(workflow.nodes.map((node) => [node.id, node.label])),
+    [workflow.nodes],
+  );
   const edges = useMemo(
-    () => workflow.edges.map((edge) => toFlowEdge(edge, selected)),
-    [workflow.edges, selected],
+    () => workflow.edges.map((edge) => toFlowEdge(edge, selected, nodeLabels)),
+    [nodeLabels, workflow.edges, selected],
   );
   const selectedNode = selected?.kind === "node"
     ? workflow.nodes.find((node) => node.id === selected.id) ?? null
@@ -483,8 +495,6 @@ export function WorkflowCanvas() {
     }], `Rename ${selectedNode.label} to ${label}`);
   };
 
-  const nodeLabels = new Map(workflow.nodes.map((node) => [node.id, node.label]));
-
   return (
     <>
       <section className="node-editor" aria-labelledby="node-editor-heading">
@@ -541,8 +551,7 @@ export function WorkflowCanvas() {
           connection. Press it again on the source to choose another output, or move to another
           node and press it to connect. Hold Alt with an Arrow key to move a selected node, or add
           Shift to move it farther. Press Backspace to delete it. Press Escape to cancel a
-          connection or clear selection. Use the Workflow connections region to review and select
-          connections.
+          connection or clear selection. Tab to navigate to connections and canvas controls.
         </p>
         <ReactFlow
           ref={configureTreeGrid}
@@ -550,7 +559,7 @@ export function WorkflowCanvas() {
           edges={edges}
           nodeTypes={nodeTypes}
           nodesFocusable
-          edgesFocusable={false}
+          edgesFocusable
           deleteKeyCode={["Backspace", "Delete"]}
           fitView
           minZoom={0.05}
@@ -567,7 +576,22 @@ export function WorkflowCanvas() {
             if (nodeId) setRovingNode(nodeId);
           }}
           onKeyDownCapture={(event) => {
-            const nodeElement = (event.target as HTMLElement).closest<HTMLElement>(
+            const target = event.target as HTMLElement;
+            const edgeId = target.closest<SVGGElement>(".react-flow__edge[data-id]")?.dataset.id;
+            if (edgeId && (event.key === "Enter" || event.key === " ")) {
+              event.preventDefault();
+              event.stopPropagation();
+              select({ kind: "edge", id: edgeId });
+              return;
+            }
+            if (edgeId && event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              select(null);
+              return;
+            }
+
+            const nodeElement = target.closest<HTMLElement>(
               ".react-flow__node[data-id]",
             );
             const nodeId = nodeElement?.dataset.id;
@@ -629,54 +653,6 @@ export function WorkflowCanvas() {
           <Controls showInteractive={false} />
         </ReactFlow>
       </div>
-
-      <section className="connection-panel" aria-labelledby="workflow-connections-heading">
-        <div className="connection-panel__heading">
-          <h2 id="workflow-connections-heading" tabIndex={-1}>Workflow connections</h2>
-          <span>{workflow.edges.length}</span>
-        </div>
-        <p id="workflow-connections-instructions" className="sr-only">
-          Press Enter or Space to select a connection. Press Delete or Backspace to disconnect it.
-          Press Escape to clear selection.
-        </p>
-        <ul>
-          {workflow.edges.map((edge) => {
-            const sourceLabel = nodeLabels.get(edge.source) ?? edge.source;
-            const targetLabel = nodeLabels.get(edge.target) ?? edge.target;
-            const connectionLabel = edge.label ?? edge.sourcePort;
-            const isSelected = selected?.kind === "edge" && selected.id === edge.id;
-            return (
-              <li key={edge.id}>
-                <button
-                  type="button"
-                  aria-pressed={isSelected}
-                  aria-describedby="workflow-connections-instructions"
-                  onClick={() => select({ kind: "edge", id: edge.id })}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") {
-                      event.preventDefault();
-                      select(null);
-                    } else if (event.key === "Delete" || event.key === "Backspace") {
-                      event.preventDefault();
-                      disconnectEdges([edge.id]);
-                      select(null);
-                      queueMicrotask(() => {
-                        document.getElementById("workflow-connections-heading")?.focus();
-                      });
-                    }
-                  }}
-                >
-                  <span>{sourceLabel}</span>
-                  <span className="sr-only">to</span>
-                  <span aria-hidden="true">→</span>
-                  <span>{targetLabel}</span>
-                  <span className="connection-panel__port">{connectionLabel} connection</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
     </>
   );
 }

@@ -9,7 +9,7 @@ import { workflowStore } from "../src/state/workflowStore";
 describe("accessible workflow review", () => {
   beforeEach(() => workflowStore.getState().reset());
 
-  it("renders the workflow canvas, connection controls, and change history surfaces", () => {
+  it("renders the workflow canvas and change history surfaces without duplicate connection controls", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: "Verifiable workflow editing with WebMCP" })).toBeInTheDocument();
     expect(screen.getByText(/This demo shows an agent editing the same workflow/)).toBeInTheDocument();
@@ -19,9 +19,7 @@ describe("accessible workflow review", () => {
     expect(screen.getByRole("button", { name: "Copy prompt" })).toBeInTheDocument();
     expect(screen.getByRole("treegrid", { name: /Workflow canvas/ })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Workflow outline" })).not.toBeInTheDocument();
-    const connections = screen.getByRole("region", { name: "Workflow connections" });
-    expect(within(connections).getByRole("heading", { name: "Workflow connections" })).toBeInTheDocument();
-    expect(within(connections).getAllByRole("button")).toHaveLength(6);
+    expect(screen.queryByRole("region", { name: "Workflow connections" })).not.toBeInTheDocument();
   });
 
   it("exposes canvas nodes as a treegrid with one tab stop and tree arrow navigation", async () => {

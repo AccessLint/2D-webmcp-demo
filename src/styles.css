@@ -57,19 +57,13 @@ main { padding: 24px; }
 .react-flow__handle { width: 9px; height: 9px; background: var(--lime); border: 2px solid #14212b; }
 .react-flow__handle.is-connecting { background: var(--orange); box-shadow: 0 0 0 4px rgba(255,184,107,.22); }
 .react-flow__edge-path { stroke: #778a93; stroke-width: 1.5; }
-.react-flow__edge.selected .react-flow__edge-path { stroke: var(--lime); stroke-width: 2.5; }
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:focus .react-flow__edge-path,
+.react-flow__edge:focus-visible .react-flow__edge-path { stroke: var(--lime); stroke-width: 2.5; }
 .react-flow__edge-text { font: 9px DM Mono, monospace; fill: #b9c8cc; }
 .react-flow__edge-textbg { fill: #101a23; }
 .react-flow__controls { background: #14212b; border: 1px solid #2b3b46; box-shadow: none; }
 .react-flow__controls-button { background: #14212b; border-color: #2b3b46; fill: var(--ink); }
-.connection-panel { padding: 16px 18px 18px; border-top: 1px solid var(--line); background: var(--panel); }
-.connection-panel__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.connection-panel__heading h2 { margin: 0; font-size: 1rem; }
-.connection-panel__heading > span { color: var(--muted); font: .7rem DM Mono, monospace; }
-.connection-panel ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
-.connection-panel button { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #40515c; border-radius: 3px; color: var(--ink); background: #0b141c; cursor: pointer; text-align: left; }
-.connection-panel button[aria-pressed="true"] { border-color: var(--lime); box-shadow: inset 3px 0 0 var(--lime); }
-.connection-panel__port { margin-left: auto; color: var(--muted); font-size: .7rem; }
 .change-actions button, .affected button { border: 1px solid #40515c; background: transparent; padding: 8px 11px; border-radius: 3px; cursor: pointer; font-size: .72rem; }
 button:disabled { opacity: .48; cursor: not-allowed; }
 .history { margin-top: 28px; }.history-heading { padding-bottom: 14px; border-bottom: 1px solid var(--line); }.history-heading h2 { margin: 0; font-size: 1.25rem; }.empty-history { padding: 28px 0; color: var(--muted); }.empty-history p { margin: 0; font-size: .85rem; }

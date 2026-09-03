@@ -76,11 +76,10 @@ test("inferred recovery-route receipt can be focused, spot checked, and undone",
   const receiptHeading = page.getByRole("heading", { name: "Changed 1 connection. Workflow validation passed." });
   await expect(receiptHeading).toBeVisible();
   await expect(receiptHeading).toBeFocused();
-  const connections = page.getByRole("region", { name: "Workflow connections" });
-  await expect(connections.getByRole("button")).toHaveCount(7);
-  await expect(connections.getByRole("button", { name: /Enrich company to Manual review Enrichment unavailable connection/ })).toBeVisible();
-  await expect(connections.getByRole("button", { name: /Qualified lead\? to Create CRM opportunity Qualified connection/ })).toBeVisible();
-  await expect(connections.getByRole("button", { name: /Qualified lead\? to Add to nurture campaign Nurture connection/ })).toBeVisible();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(7);
+  await expect(page.getByRole("group", { name: "Connection from Enrich company to Manual review: Enrichment unavailable" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Connection from Qualified lead? to Create CRM opportunity: Qualified" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Connection from Qualified lead? to Add to nurture campaign: Nurture" })).toBeVisible();
   await expect(page.getByText("7 nodes", { exact: true })).toBeVisible();
   const receiptBox = await receiptHeading.locator("..").evaluate((element) => element.getBoundingClientRect().toJSON());
   expect(receiptBox.bottom).toBeGreaterThan(0);

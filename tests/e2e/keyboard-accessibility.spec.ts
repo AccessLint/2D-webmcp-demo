@@ -54,32 +54,41 @@ test("selected nodes move and cancel selection with the documented keyboard comm
   await expect(entryNode).not.toHaveClass(/selected/);
 });
 
-test("connections use named keyboard controls instead of focusable SVG edges", async ({ page }) => {
+test("connections are directly keyboard navigable without duplicate controls", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.locator(".react-flow__edge[tabindex='0']")).toHaveCount(0);
+  const newNodeName = page.getByRole("textbox", { name: "New node name" });
+  await newNodeName.fill("Root");
+  await page.getByRole("button", { name: "Add node" }).click();
+  await newNodeName.fill("Next");
+  await page.getByRole("button", { name: "Add node" }).click();
+  const root = page.getByRole("row", { name: "Action node: Root" });
+  const next = page.getByRole("row", { name: "Action node: Next" });
+  await root.focus();
+  await root.press("Control+c");
+  await next.focus();
+  await next.press("Control+c");
 
-  const connections = page.getByRole("region", { name: "Workflow connections" });
-  await expect(connections.getByRole("button")).toHaveCount(6);
+  await expect(page.getByRole("region", { name: "Workflow connections" })).toHaveCount(0);
+  await expect(page.locator(".react-flow__edge[tabindex='0']")).toHaveCount(1);
 
-  const firstConnection = connections.getByRole("button", {
-    name: /New lead submitted to Enrich company next connection/,
+  const firstConnection = page.getByRole("group", {
+    name: "Connection from Root to Next: success",
   });
   await firstConnection.focus();
   await expect(firstConnection).toBeFocused();
-  await expect(firstConnection).toHaveCSS("outline-style", "solid");
+  await expect(firstConnection.locator(".react-flow__edge-path")).toHaveCSS("stroke-width", "2.5px");
 
   await firstConnection.press("Enter");
-  await expect(firstConnection).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".react-flow__edge[data-id='edge-lead-enrich']")).toHaveClass(/selected/);
+  await expect(firstConnection).toHaveClass(/selected/);
 
   await firstConnection.press("Escape");
-  await expect(firstConnection).toHaveAttribute("aria-pressed", "false");
+  await expect(firstConnection).not.toHaveClass(/selected/);
 
+  await firstConnection.focus();
   await firstConnection.press("Space");
   await firstConnection.press("Backspace");
-  await expect(connections.getByRole("button")).toHaveCount(5);
-  await expect(connections.getByRole("heading", { name: "Workflow connections" })).toBeFocused();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(0);
 });
 
 test("node selection is exposed as accessibility state", async ({ page }) => {
@@ -120,7 +129,7 @@ test("the canvas application exposes its complete keyboard contract", async ({ p
     "Press Escape to clear selection.",
   );
   await expect(page.locator("#workflow-canvas-instructions")).toContainText(
-    "Use the Workflow connections region to review and select connections.",
+    "Tab to navigate to connections and canvas controls.",
   );
 
   const reviewNode = page.getByRole("button", { name: "Action node: Manual review" });
