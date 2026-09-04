@@ -26,13 +26,14 @@ Create `evals/webmcp-evals.json` with realistic prompt variations for these beha
 
 - Discovery: a request to inspect or summarize the workflow should begin with `discover_workflow`.
 - Inspection: a relationship question should call `discover_workflow`, then `inspect_workflow_items` with copied stable IDs.
+- Creation: a request for a new empty-canvas workflow should call `create_workflow` once with compact request-local node keys and connections; the application generates durable IDs, positions, and mechanical ports.
 - Main edit journey: the outcome-oriented prompt from `docs/TESTING.md` should lead the agent to discover the workflow, inspect when useful, edit it, and surface the result.
 - Semantic accuracy: use `evals/recoveryIntent.ts` to grade the resulting graph, not one exact call sequence. The enrichment failure port must reach an Action owned by Sales operations, existing nodes and routes must remain intact, any new node must be that recovery destination, no unrelated connections may be added, and the edit receipt must be shown. The evaluator accepts generated IDs, optional labels, and either the existing Manual review Action or an equivalent newly created sales-operations Action.
 - Trajectory accuracy: treat the JSON `expectedCall` sequence as a tool-routing diagnostic, not the authoritative intent score. Reasonable inspection calls should be allowed by the model runner even when they lower strict exact-call matching.
 - Page focus: “Put keyboard focus on Zoom In” should call `show_target` with `kind: "page-element"` and `id: "canvas.zoom-in"`.
 - Reveal: the standalone intent prompt “Show me the step owned by sales operations” should resolve to Manual review from its properties and call `show_target` with that node ID. In the walkthrough, the contextual follow-up “Show me where failed enrichment is handled” tests the same inference after the recovery edit.
 - Undo: after an edit, the model should pass the returned operation ID to `undo_workflow_edit`.
-- Recovery: stale revisions, unknown IDs, and invalid arguments should lead back to `discover_workflow` rather than guessing.
+- Recovery: stale edit revisions should lead back to `discover_workflow`; invalid creation keys or ports should be corrected and retried atomically, while a non-empty canvas should switch to discovery and editing.
 - Negative selection: unrelated prompts should not call mutating workflow tools.
 
 Include both direct and paraphrased/ambiguous prompts. Chrome explicitly recommends both baseline direct queries and open-ended queries that exercise model reasoning. [Chrome: Evals for WebMCP](https://developer.chrome.com/docs/ai/webmcp/evals#run-probabilistic-tests)

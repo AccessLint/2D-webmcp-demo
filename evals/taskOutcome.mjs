@@ -8,11 +8,11 @@ function inputFor(call) {
   return call.args || call.arguments || {};
 }
 
-function isCompletedEdit(call) {
+function isCompletedMutation(call) {
   const input = inputFor(call);
   const result = call.result;
   const baseRevision = Number.isInteger(input.baseRevision) ? input.baseRevision : result?.baseRevision;
-  return call.functionName === "edit_workflow"
+  return ["create_workflow", "edit_workflow"].includes(call.functionName)
     && result?.status === "completed"
     && typeof result.operationId === "string"
     && Number.isInteger(baseRevision)
@@ -20,6 +20,32 @@ function isCompletedEdit(call) {
     && result.resultingRevision === baseRevision + 1
     && Number.isInteger(result.changeCount)
     && result.changeCount > 0;
+}
+
+function commandsForMutation(call) {
+  const input = inputFor(call);
+  if (call.functionName === "edit_workflow") return input.commands;
+  if (call.functionName !== "create_workflow"
+    || !Array.isArray(input.nodes)
+    || !Array.isArray(input.connections)) return null;
+  const nodesByKey = new Map(input.nodes.map((node) => [node?.key, node]));
+  const createdNodes = input.nodes.map((node) => ({
+    type: "createNode",
+    node: { id: node?.key, type: node?.type, label: node?.label },
+  }));
+  const connections = input.connections.map((connection, index) => {
+    const source = nodesByKey.get(connection?.from);
+    const target = nodesByKey.get(connection?.to);
+    return {
+      type: "connect",
+      edge: {
+        id: `connection-${String(index)}`,
+        source: { nodeId: connection?.from, port: connection?.on || creationPorts[source?.type]?.output },
+        target: { nodeId: connection?.to, port: creationPorts[target?.type]?.input },
+      },
+    };
+  });
+  return [...createdNodes, ...connections];
 }
 
 function labelValue(label) {
@@ -194,7 +220,7 @@ export function hasVerifiedTaskOutcome(attempt, trajectorySuccessful) {
     return trajectorySuccessful;
   }
   const calls = callsFrom(attempt.results);
-  const completedEdits = calls.filter(isCompletedEdit);
+  const completedEdits = calls.filter(isCompletedMutation);
   const outcomeType = attempt.outcomeType || (attempt.taskType === "create"
     ? "approval-create"
     : "notification-edit");
@@ -206,6 +232,7 @@ export function hasVerifiedTaskOutcome(attempt, trajectorySuccessful) {
     && inputFor(call).operationId === editCall.result?.operationId
     && call.result?.status === "completed");
   if (wasUndone) return false;
-  const commands = inputFor(editCall).commands;
+  const commands = commandsForMutation(editCall);
   return isSupportedOutcomeType(outcomeType) && outcomeValidators[outcomeType](commands);
 }
+import creationPorts from "../src/graph/creationPorts.json" with { type: "json" };

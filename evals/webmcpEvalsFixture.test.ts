@@ -25,6 +25,11 @@ const failedEdit = (baseRevision: number) => call(
   { ok: false, error: { code: "INVALID_INPUT" } },
   { baseRevision, commands: [] },
 );
+const successfulCreate = (changeCount = 3) => call(
+  "create_workflow",
+  completedEdit(0, changeCount),
+  { nodes: [], connections: [] },
+);
 const allPass = (expectedCall: unknown[], actualCalls: unknown[]) =>
   evaluateExecutionTrajectory(expectedCall, actualCalls).every((result: { outcome: string }) => result.outcome === "pass");
 const expectedFunctionCalls = (nodes: Array<Record<string, unknown>>): Array<Record<string, unknown>> => nodes.flatMap((node) => {
@@ -156,7 +161,7 @@ describe("WebMCP eval fixture", () => {
     const inspection = call("inspect_workflow_items", {}, { objects: [{ kind: "node", id: "approve-request" }] });
     const refreshedDiscovery = call("discover_workflow");
     const successfulEdit = call("edit_workflow", completedEdit(1, 2), { baseRevision: 1, commands: [] });
-    const successfulCreate = call("edit_workflow", completedEdit(0, 3), { commands: [] });
+    const create = successfulCreate();
 
     expect(allPass(editCase!.expectedCall, [discovery, inspection, successfulEdit])).toBe(true);
     expect(allPass(editCase!.expectedCall, [
@@ -166,27 +171,24 @@ describe("WebMCP eval fixture", () => {
       inspection,
       successfulEdit,
     ])).toBe(false);
-    expect(allPass(createCase!.expectedCall, [successfulCreate])).toBe(true);
-    expect(allPass(createCase!.expectedCall, [discovery, successfulCreate])).toBe(false);
+    expect(allPass(createCase!.expectedCall, [create])).toBe(true);
+    expect(allPass(createCase!.expectedCall, [discovery, create])).toBe(false);
     expect(allPass(createCase!.expectedCall, [
       discovery,
       failedEdit(0),
       refreshedDiscovery,
-      successfulCreate,
+      create,
     ])).toBe(false);
   });
 
-  it("allows optional discovery before one large edit for the natural complex prompt", () => {
+  it("requires one compact creation for the natural complex prompt", () => {
     const complexCase = evalCases.find((evalCase) => evalCase.outcomeType === "complex-branch-create")!;
-    const calls = [
-      call("discover_workflow"),
-      call("edit_workflow", completedEdit(0, 28), { baseRevision: 0, commands: [] }),
-    ];
+    const calls = [successfulCreate(28)];
 
     expect(allPass(complexCase.expectedCall, calls)).toBe(true);
     expect(allPass(complexCase.expectedCall, [
+      call("discover_workflow"),
       ...calls,
-      call("edit_workflow", completedEdit(1, 1), { baseRevision: 1, commands: [] }),
     ])).toBe(false);
   });
 
@@ -258,9 +260,9 @@ describe("WebMCP eval fixture", () => {
     const refreshedDiscovery = call("discover_workflow");
 
     const complexCase = byOutcome.get("complex-branch-create")!;
-    const complexEdit = call("edit_workflow", completedEdit(0, 20), { baseRevision: 0, commands: [] });
+    const complexEdit = successfulCreate(20);
     expect(allPass(complexCase.expectedCall, [complexEdit])).toBe(true);
-    expect(allPass(complexCase.expectedCall, [discovery, complexEdit])).toBe(true);
+    expect(allPass(complexCase.expectedCall, [discovery, complexEdit])).toBe(false);
     expect(allPass(complexCase.expectedCall, [
       discovery,
       failedEdit(0),

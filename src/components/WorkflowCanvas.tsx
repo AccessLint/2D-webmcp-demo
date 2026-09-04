@@ -16,6 +16,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { WorkflowCommand } from "../graph/commands";
+import { createUniqueId } from "../graph/identifiers";
 import type { NodeKind, WorkflowEdge, WorkflowNode } from "../graph/model";
 import { nodeDefinitions } from "../graph/nodeTypes";
 import {
@@ -77,20 +78,6 @@ const ariaLabelConfig = {
   "node.a11yDescription.ariaLiveMessage": ({ direction }: { direction: string }) =>
     `Moved selected node ${direction}.`,
 } satisfies Partial<AriaLabelConfig>;
-
-function createNodeId(label: string, nodes: WorkflowNode[]) {
-  const base = label
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 48) || "node";
-  const ids = new Set(nodes.map((node) => node.id));
-  let id = base;
-  let suffix = 2;
-  while (ids.has(id)) id = `${base}-${suffix++}`;
-  return id;
-}
 
 function isNodeKind(value: string): value is NodeKind {
   return Object.prototype.hasOwnProperty.call(nodeDefinitions, value);
@@ -472,7 +459,7 @@ export function WorkflowCanvas() {
     }
     const type = typeValue;
 
-    const id = createNodeId(label, workflow.nodes);
+    const id = createUniqueId(label, workflow.nodes.map((node) => node.id), "node");
     const bounds = shell.current?.getBoundingClientRect();
     const position = flow.current && bounds?.width && bounds.height
       ? flow.current.screenToFlowPosition({

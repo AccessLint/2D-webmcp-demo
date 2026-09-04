@@ -5,12 +5,15 @@ import { edgeReference, nodeReference } from "../graph/references";
 import { WorkflowUndoError, type InvocationInput, type WorkflowStore } from "../state/workflowStore";
 import {
   applyInputSchema,
+  createWorkflowInputSchema,
   discoveryInputSchema,
   inspectInputSchema,
   normalizeCommands,
   operationInputSchema,
   showTargetInputSchema,
+  type WorkflowCommandInput,
 } from "./toolSchemas";
+import { commandsForWorkflowCreation } from "./createWorkflow";
 import { browserUiActions, type UiActions } from "./uiActions";
 import { selectorForUiTarget } from "./uiTargets";
 import { workflowSummary } from "./discovery";
@@ -112,6 +115,30 @@ export function createToolHandlers(
       store.getState().finishNodeReveal(operationId);
     }
   };
+  const applyCommands = (baseRevision: number, commands: WorkflowCommandInput[]) => {
+    const createdNodeIds = commands.flatMap((command) => (
+      command.type === "createNode" ? [command.node.id] : []
+    ));
+    const incrementallyRevealedNodeIds = createdNodeIds.length > 1 ? createdNodeIds : [];
+    const receipt = store.getState().apply(
+      baseRevision,
+      normalizeCommands(commands, store.getState().workflow.nodes),
+      undefined,
+      {
+        autoLayoutNodeIds: createdNodeIds,
+        initiallyHiddenNodeIds: incrementallyRevealedNodeIds,
+        cleanUpLayout: true,
+      },
+    );
+    if (receipt.status === "completed" && incrementallyRevealedNodeIds.length > 0) {
+      const nodeReveal = store.getState().nodeReveal;
+      const pendingNodeIds = nodeReveal?.operationId === receipt.operationId
+        ? [...nodeReveal.pendingNodeIds]
+        : [];
+      void revealCreatedNodes(receipt.operationId, pendingNodeIds);
+    }
+    return receipt;
+  };
   return {
     [toolNames.discoverWorkflow](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);
@@ -132,6 +159,16 @@ export function createToolHandlers(
         };
       });
     },
+    async [toolNames.createWorkflow](input: unknown, options?: { signal: AbortSignal }) {
+      checkAbort(options);
+      const parsed = createWorkflowInputSchema.parse(input);
+      const currentWorkflow = store.getState().workflow;
+      if (currentWorkflow.nodes.length > 0 || currentWorkflow.edges.length > 0) {
+        throw new ToolError("CANVAS_NOT_EMPTY", "create_workflow requires an empty canvas; use discover_workflow and edit_workflow instead.");
+      }
+      const commands = commandsForWorkflowCreation(parsed);
+      return applyCommands(currentWorkflow.revision, commands);
+    },
     async [toolNames.editWorkflow](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);
       const parsed = applyInputSchema.parse(input);
@@ -150,28 +187,7 @@ export function createToolHandlers(
         );
       }
       const baseRevision = parsed.baseRevision ?? currentWorkflow.revision;
-      const createdNodeIds = parsed.commands.flatMap((command) => (
-        command.type === "createNode" ? [command.node.id] : []
-      ));
-      const incrementallyRevealedNodeIds = createdNodeIds.length > 1 ? createdNodeIds : [];
-      const receipt = store.getState().apply(
-        baseRevision,
-        normalizeCommands(parsed.commands, store.getState().workflow.nodes),
-        undefined,
-        {
-          autoLayoutNodeIds: createdNodeIds,
-          initiallyHiddenNodeIds: incrementallyRevealedNodeIds,
-          cleanUpLayout: true,
-        },
-      );
-      if (receipt.status === "completed" && incrementallyRevealedNodeIds.length > 0) {
-        const nodeReveal = store.getState().nodeReveal;
-        const pendingNodeIds = nodeReveal?.operationId === receipt.operationId
-          ? [...nodeReveal.pendingNodeIds]
-          : [];
-        void revealCreatedNodes(receipt.operationId, pendingNodeIds);
-      }
-      return receipt;
+      return applyCommands(baseRevision, parsed.commands);
     },
     async [toolNames.showTarget](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);

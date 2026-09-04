@@ -210,7 +210,7 @@ function compactError(result: UnknownRecord) {
   return output;
 }
 
-const receiptTools = new Set<ToolName>(["edit_workflow", "undo_workflow_edit"]);
+const receiptTools = new Set<ToolName>(["create_workflow", "edit_workflow", "undo_workflow_edit"]);
 
 const outputTooLarge = (name: ToolName) => ({
   ok: false,

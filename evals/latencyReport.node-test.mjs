@@ -451,6 +451,34 @@ test("accepts a direct empty-canvas create whose revision is inferred by the too
   assert.equal(hasVerifiedTaskOutcome(attempt, true), true);
 });
 
+test("accepts the compact creation tool as a verified empty-canvas create", () => {
+  const attempt = {
+    outcomeType: "approval-create",
+    taskType: "create",
+    results: [{
+      response: {
+        functionName: "create_workflow",
+        args: {
+          nodes: [
+            { key: "draft", type: "action", label: "Draft request" },
+            { key: "approve", type: "action", label: "Approve request" },
+          ],
+          connections: [{ from: "draft", to: "approve" }],
+        },
+        result: {
+          operationId: "compact-create-operation",
+          status: "completed",
+          baseRevision: 0,
+          resultingRevision: 1,
+          changeCount: 3,
+        },
+      },
+    }],
+  };
+
+  assert.equal(hasVerifiedTaskOutcome(attempt, true), true);
+});
+
 test("does not reject a failed undo that leaves the completed edit in place", () => {
   const timing = { durationMs: 9_000, toolCallCount: 4, retryToolCallCount: 0, redundantToolCallCount: 1 };
   const editResult = {

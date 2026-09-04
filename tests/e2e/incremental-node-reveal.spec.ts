@@ -136,3 +136,40 @@ test("a connection-only edit appears without reloading the canvas", async ({ pag
   await expect(edge).toHaveCount(1);
   await expect(edge).toHaveAttribute("aria-label", "Connection from Source to Target: next");
 });
+
+test("create_workflow renders a compact empty-canvas creation", async ({ page }) => {
+  await page.addInitScript(() => {
+    const tools: Record<string, { execute: (input: unknown) => unknown }> = {};
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        registerTool(tool: { name: string; execute: (input: unknown) => unknown }) {
+          tools[tool.name] = tool;
+        },
+      },
+    });
+    (window as unknown as { __workflowTools: typeof tools }).__workflowTools = tools;
+  });
+  await page.goto("/");
+
+  const receipt = await page.evaluate(async () => {
+    const tools = (window as unknown as {
+      __workflowTools: Record<string, { execute: (input: unknown) => unknown }>;
+    }).__workflowTools;
+    return tools.create_workflow.execute({
+      nodes: [
+        { key: "start", type: "start", label: "Start" },
+        { key: "review", type: "action", label: "Review" },
+        { key: "done", type: "end", label: "Done" },
+      ],
+      connections: [
+        { from: "start", to: "review" },
+        { from: "review", to: "done" },
+      ],
+    });
+  });
+
+  expect(receipt).toMatchObject({ status: "completed", atomic: true, verification: "native-diff" });
+  await expect(page.locator(".react-flow__node")).toHaveCount(3);
+  await expect(page.locator(".react-flow__edge")).toHaveCount(2);
+});

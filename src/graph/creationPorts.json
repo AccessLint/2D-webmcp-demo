@@ -1,0 +1,12 @@
+{
+  "node": { "input": "input", "output": "next" },
+  "action": { "input": "input", "output": "success" },
+  "condition": { "input": "input", "output": null },
+  "start": { "input": null, "output": "next" },
+  "end": { "input": "input", "output": null },
+  "input": { "input": null, "output": "data" },
+  "output": { "input": "data", "output": null },
+  "subprocess": { "input": "input", "output": "next" },
+  "parallel-gateway": { "input": "input", "output": "next" },
+  "data-store": { "input": "write", "output": "read" }
+}

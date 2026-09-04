@@ -22,27 +22,116 @@ const uiActions = {
 };
 
 function registerTools() {
+  const store = createWorkflowStore();
   const registered = new Map<string, WebMCPTool>();
   const modelContext = Object.assign(new EventTarget(), {
     registerTool(tool: WebMCPTool) { registered.set(tool.name, tool); },
   });
   Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
-  const registration = registerWorkflowTools(createToolHandlers(createWorkflowStore(), uiActions));
-  return { registered, registration };
+  const registration = registerWorkflowTools(createToolHandlers(store, uiActions));
+  return { registered, registration, store };
 }
 
 describe("reduced WebMCP surface", () => {
-  it("registers five task-oriented tools", async () => {
+  it("registers six task-oriented tools", async () => {
     const { registered, registration } = registerTools();
     await registration.ready;
 
     expect([...registered.keys()]).toEqual([
       "discover_workflow",
       "inspect_workflow_items",
+      "create_workflow",
       "edit_workflow",
       "show_target",
       "undo_workflow_edit",
     ]);
+
+    registration.unregister();
+    delete document.modelContext;
+  });
+
+  it("creates a complete empty-canvas workflow through a compact contract", async () => {
+    const { registered, registration, store } = registerTools();
+    await registration.ready;
+    const create = registered.get("create_workflow")!;
+    const serializedSchema = JSON.stringify(create.inputSchema);
+    expect(create.description).toContain("do not discover first solely to check emptiness");
+
+    expect(serializedSchema.length).toBeLessThan(1_800);
+    expect(serializedSchema).not.toContain('"baseRevision"');
+    expect(serializedSchema).not.toContain('"position"');
+    expect(serializedSchema).not.toContain('"nodeId"');
+    expect(serializedSchema).not.toContain('"edgeId"');
+
+    const receipt = await create.execute({
+      nodes: [
+        { key: "intake", type: "input", label: "Report intake" },
+        { key: "triage", type: "action", label: "Triage report" },
+        { key: "duplicate", type: "condition", label: "Duplicate?" },
+        { key: "close", type: "end", label: "Close report" },
+      ],
+      connections: [
+        { from: "intake", to: "triage" },
+        { from: "triage", to: "duplicate" },
+        { from: "duplicate", on: "yes", to: "close" },
+        { from: "duplicate", on: "no", to: "close", label: "Not duplicate" },
+      ],
+    });
+
+    expect(receipt).toMatchObject({
+      status: "completed",
+      resultingRevision: 1,
+      atomic: true,
+      verification: "native-diff",
+    });
+    expect(store.getState().workflow).toMatchObject({
+      revision: 1,
+      nodes: [
+        expect.objectContaining({ id: "report-intake", type: "input", label: "Report intake" }),
+        expect.objectContaining({ id: "triage-report", type: "action", label: "Triage report" }),
+        expect.objectContaining({ id: "duplicate", type: "condition", label: "Duplicate?" }),
+        expect.objectContaining({ id: "close-report", type: "end", label: "Close report" }),
+      ],
+      edges: [
+        expect.objectContaining({ source: "report-intake", sourcePort: "data", target: "triage-report", targetPort: "input" }),
+        expect.objectContaining({ source: "triage-report", sourcePort: "success", target: "duplicate", targetPort: "input" }),
+        expect.objectContaining({ source: "duplicate", sourcePort: "yes", target: "close-report", targetPort: "input" }),
+        expect.objectContaining({ source: "duplicate", sourcePort: "no", target: "close-report", targetPort: "input", label: "Not duplicate" }),
+      ],
+    });
+
+    registration.unregister();
+    delete document.modelContext;
+  });
+
+  it("rejects unsafe or invalid creation without changing the workflow", async () => {
+    const { registered, registration, store } = registerTools();
+    await registration.ready;
+    const create = registered.get("create_workflow")!;
+
+    const invalidReference = await create.execute({
+      nodes: [{ key: "start", type: "start", label: "Start" }],
+      connections: [{ from: "start", to: "missing" }],
+    });
+    expect(invalidReference).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_CREATION", recovery: { tool: "create_workflow" } },
+    });
+    expect(store.getState().workflow).toMatchObject({ revision: 0, nodes: [], edges: [] });
+
+    await create.execute({
+      nodes: [{ key: "start", type: "start", label: "Start" }],
+      connections: [],
+    });
+    const nonEmpty = await create.execute({
+      nodes: [{ key: "replacement", type: "start", label: "Replacement" }],
+      connections: [],
+    });
+    expect(nonEmpty).toMatchObject({
+      ok: false,
+      error: { code: "CANVAS_NOT_EMPTY", recovery: { tool: "discover_workflow" } },
+    });
+    expect(store.getState().workflow.nodes).toHaveLength(1);
 
     registration.unregister();
     delete document.modelContext;

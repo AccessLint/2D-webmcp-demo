@@ -276,12 +276,13 @@ describe("WebMCP tool boundary", () => {
     const registration = registerWorkflowTools(createToolHandlers(store));
     await expect(registration.ready).resolves.toBe(true);
     expect([...registered.keys()]).toEqual([
-      "discover_workflow", "inspect_workflow_items", "edit_workflow", "show_target", "undo_workflow_edit",
+      "discover_workflow", "inspect_workflow_items", "create_workflow", "edit_workflow", "show_target", "undo_workflow_edit",
     ]);
-    expect(registered.get("discover_workflow")?.description).toContain("Skip discovery only when the canvas is known to be empty");
+    expect(registered.get("discover_workflow")?.description).toContain("call create_workflow directly");
     expect(registered.get("inspect_workflow_items")?.description).toContain("change-receipt operation ID");
+    expect(registered.get("create_workflow")?.description).toContain("do not discover first solely to check emptiness");
     expect(registered.get("edit_workflow")?.description).toContain("Reroute with disconnect and connect");
-    expect(registered.get("edit_workflow")?.description).toContain("omit it only for an empty-canvas create");
+    expect(registered.get("edit_workflow")?.description).toContain("backward-compatible empty-canvas create");
     expect(registered.get("show_target")?.description).toContain("workflow node, edge, change receipt, or named page element");
     expect(registered.get("discover_workflow")?.annotations).toEqual({
       readOnlyHint: true,

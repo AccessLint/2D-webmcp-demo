@@ -1,6 +1,7 @@
 export const toolNames = {
   discoverWorkflow: "discover_workflow",
   inspectWorkflowItems: "inspect_workflow_items",
+  createWorkflow: "create_workflow",
   editWorkflow: "edit_workflow",
   showTarget: "show_target",
   undoWorkflowEdit: "undo_workflow_edit",

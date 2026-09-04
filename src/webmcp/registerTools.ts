@@ -72,6 +72,9 @@ function recoveryFor(tool: ToolName, invalidInput: boolean, code?: string, input
       commandExamples: editCommandExamples,
     };
   }
+  if (invalidInput && tool === toolNames.createWorkflow) {
+    return { tool, reason: "Correct the listed node keys, node definitions, or connections and retry." };
+  }
   if (invalidInput) return { tool, reason: "Correct the listed input fields and retry." };
   if (code === "UNDO_REVISION_CONFLICT") {
     return { action: "not-retryable", reason: "A later workflow edit makes this operation impossible to undo." };
@@ -84,6 +87,11 @@ function recoveryFor(tool: ToolName, invalidInput: boolean, code?: string, input
       return { tool, reason: "Retry with a current operation ID returned by editing or undoing." };
     }
     return { tool: toolNames.discoverWorkflow, reason: "Refresh current workflow item IDs, then retry." };
+  }
+  if (tool === toolNames.createWorkflow) {
+    return code === "CANVAS_NOT_EMPTY"
+      ? { tool: toolNames.discoverWorkflow, reason: "The canvas is not empty. Discover it, then use edit_workflow." }
+      : { tool, reason: "Correct the referenced node keys or output ports and retry the complete creation." };
   }
   if (tool === toolNames.showTarget || tool === toolNames.undoWorkflowEdit) {
     return { tool, reason: "Use a current target ID returned by discovery, editing, or inspection." };
@@ -116,6 +124,7 @@ function recoveryError(tool: ToolName, error: unknown, input: unknown) {
 const parameterNamesByTool: Record<ToolName, readonly string[]> = {
   discover_workflow: ["cursor", "limit"],
   inspect_workflow_items: ["objects", "detail", "cursor", "limit"],
+  create_workflow: ["nodes", "connections"],
   edit_workflow: ["baseRevision", "commands"],
   show_target: ["kind", "id"],
   undo_workflow_edit: ["operationId"],
@@ -202,7 +211,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.discoverWorkflow,
       title: "Discover workflow",
-      description: `List current workflow item IDs and labels with the revision required by ${toolNames.editWorkflow}. Follow itemPage.nextCursor for more items. Skip discovery only when the canvas is known to be empty and the task creates a new workflow.`,
+      description: `List current workflow item IDs and labels with the revision required by ${toolNames.editWorkflow}. Follow itemPage.nextCursor for more items. For a new-workflow request, call ${toolNames.createWorkflow} directly because it safely refuses to overwrite a non-empty canvas.`,
       inputSchema: jsonSchemas.discovery,
       annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: handlers[toolNames.discoverWorkflow],
@@ -216,9 +225,17 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
       execute: handlers[toolNames.inspectWorkflowItems],
     },
     {
+      name: toolNames.createWorkflow,
+      title: "Create workflow",
+      description: `Call this directly for a new-workflow request; it creates the complete workflow atomically and safely refuses to overwrite a non-empty canvas, so do not discover first solely to check emptiness. Give each node a short request-local key; the app generates durable node and connection IDs, positions, and target ports. Connections use {from:"source-key",to:"target-key"}; omit on for a single-output node or an action's success output, and set on for condition branches or other outputs. A completed receipt is authoritative; do not discover or inspect solely to verify it. If the canvas is not empty, use ${toolNames.discoverWorkflow} and ${toolNames.editWorkflow} instead.`,
+      inputSchema: jsonSchemas.create,
+      annotations: { readOnlyHint: false, untrustedContentHint: true },
+      execute: handlers[toolNames.createWorkflow],
+    },
+    {
       name: toolNames.editWorkflow,
       title: "Edit workflow",
-      description: `Atomically apply up to ${MAX_COMMANDS_PER_BATCH} commands. Use these exact shapes: {type:"createNode",node:{id:"node-id",type:"action",label:"Label"}}; {type:"updateNode",id:"node-id",patch:{label:"New label"}}; {type:"deleteNode",id:"node-id"}; {type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}; {type:"disconnect",edgeId:"edge-id"}. For an existing workflow, use ${toolNames.discoverWorkflow}'s exact revision as baseRevision; omit it only for an empty-canvas create. Node positions are automatic. Reroute with disconnect and connect commands in the same batch. Valid ports are ${nodePortGuide}. A completed receipt is authoritative proof that the atomic edit was validated and committed; do not call ${toolNames.discoverWorkflow} or ${toolNames.inspectWorkflowItems} solely to verify it. The app announces the receipt. On conflict, rediscover before retrying.`,
+      description: `Atomically apply up to ${MAX_COMMANDS_PER_BATCH} commands to an existing workflow; prefer ${toolNames.createWorkflow} for a new workflow. Use these exact shapes: {type:"createNode",node:{id:"node-id",type:"action",label:"Label"}}; {type:"updateNode",id:"node-id",patch:{label:"New label"}}; {type:"deleteNode",id:"node-id"}; {type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}; {type:"disconnect",edgeId:"edge-id"}. For an existing workflow, use ${toolNames.discoverWorkflow}'s exact revision as baseRevision; omit it only for a backward-compatible empty-canvas create. Node positions are automatic. Reroute with disconnect and connect commands in the same batch. Valid ports are ${nodePortGuide}. A completed receipt is authoritative proof that the atomic edit was validated and committed; do not call ${toolNames.discoverWorkflow} or ${toolNames.inspectWorkflowItems} solely to verify it. The app announces the receipt. On conflict, rediscover before retrying.`,
       inputSchema: jsonSchemas.apply,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.editWorkflow],

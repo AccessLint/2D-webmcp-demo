@@ -89,9 +89,12 @@
     ],
     "expectedCall": [
       {
-        "functionName": "edit_workflow",
+        "functionName": "create_workflow",
         "arguments": {
-          "commands": {
+          "nodes": {
+            "$type": "array"
+          },
+          "connections": {
             "$type": "array"
           }
         },
@@ -118,21 +121,15 @@
     ],
     "expectedCall": [
       {
-        "ordered": [
-          {
-            "functionName": "discover_workflow",
-            "arguments": {},
-            "optional": true
-          },
-          {
-            "functionName": "edit_workflow",
-            "arguments": { "commands": { "$type": "array" } },
-            "result": {
-              "status": "completed",
-              "operationId": { "$type": "string" }
-            }
-          }
-        ]
+        "functionName": "create_workflow",
+        "arguments": {
+          "nodes": { "$type": "array" },
+          "connections": { "$type": "array" }
+        },
+        "result": {
+          "status": "completed",
+          "operationId": { "$type": "string" }
+        }
       }
     ]
   },

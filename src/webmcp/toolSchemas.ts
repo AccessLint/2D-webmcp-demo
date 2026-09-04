@@ -57,6 +57,36 @@ export const applyInputSchema = z.object({
   baseRevision: z.number().int().nonnegative().optional().describe(`Use ${toolNames.discoverWorkflow}'s revision exactly. Omit only for an empty-canvas create.`),
   commands: z.array(commandSchema).min(1).max(MAX_COMMANDS_PER_BATCH).describe("Atomic workflow edits. Every command must match one documented command type."),
 }).strict();
+export type WorkflowCommandInput = z.infer<typeof commandSchema>;
+
+const creationNodeSchema = z.object({
+  key: idSchema.describe("Short unique key used by connections in this request only."),
+  type: z.enum(nodeKinds).describe("Workflow node type."),
+  label: labelSchema,
+  properties: propertiesSchema.optional(),
+}).strict();
+const creationConnectionSchema = z.object({
+  from: idSchema.describe("Source node key."),
+  on: portSchema.optional().describe("Source output port. Omit for a single-output node or an action's success output."),
+  to: idSchema.describe("Target node key."),
+  label: labelSchema.optional(),
+}).strict();
+export const createWorkflowInputSchema = z.object({
+  nodes: z.array(creationNodeSchema).min(1).max(MAX_COMMANDS_PER_BATCH),
+  connections: z.array(creationConnectionSchema).max(MAX_COMMANDS_PER_BATCH),
+}).strict().superRefine((input, context) => {
+  if (input.nodes.length + input.connections.length > MAX_COMMANDS_PER_BATCH) {
+    context.addIssue({ code: "custom", message: `Nodes and connections together cannot exceed ${MAX_COMMANDS_PER_BATCH}.` });
+  }
+  const seen = new Set<string>();
+  input.nodes.forEach((node, index) => {
+    if (seen.has(node.key)) {
+      context.addIssue({ code: "custom", path: ["nodes", index, "key"], message: `Duplicate node key '${node.key}'.` });
+    }
+    seen.add(node.key);
+  });
+});
+export type WorkflowCreationInput = z.infer<typeof createWorkflowInputSchema>;
 
 function normalizeEdge(edge: z.infer<typeof edgeSchema>) {
   return {
@@ -150,6 +180,7 @@ const jsonSchemaFor = (schema: z.ZodType, compact = false) => {
 export const jsonSchemas = {
   discovery: jsonSchemaFor(discoveryInputSchema),
   inspect: jsonSchemaFor(inspectInputSchema),
+  create: jsonSchemaFor(createWorkflowInputSchema, true),
   apply: jsonSchemaFor(applyInputSchema, true),
   showTarget: jsonSchemaFor(showTargetInputSchema),
   operation: jsonSchemaFor(operationInputSchema),
