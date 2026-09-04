@@ -1,4 +1,4 @@
-import latestLatencyReport from "../../.evals/report-1788467823279-latency.json";
+import latestLatencyReport from "../../.evals/report-1788485842899-latency.json";
 
 export type EvalRun = {
   id: string;
@@ -16,9 +16,9 @@ export type EvalRun = {
 };
 
 export const latestEvalRun = {
-  id: "2026-09-03-gpt-5-6-terra-current",
+  id: "2026-09-03-gpt-5-6-terra-current-1788485842899",
   label: "Current fixture",
-  recordedAt: "2026-09-03T16:37:03-04:00",
+  recordedAt: "2026-09-03T21:37:22-04:00",
   model: latestLatencyReport.source.model,
   backend: "Vercel",
   browser: "Chrome Stable",
@@ -47,7 +47,7 @@ export const latestEvalRun = {
   },
   latency: latestLatencyReport.all.metrics,
   note:
-    "All 50 journeys reached the requested workflow outcome. The agent also followed the expected efficient trajectory in 42 attempts, with rerouting accounting for most of the remaining extra calls.",
+    "All 50 journeys reached the requested workflow outcome. The agent followed the expected efficient trajectory in 49 attempts; the remaining reroute inspected edge properties instead of explicitly requesting relationships before making the correct edit.",
 };
 
 export const evalRuns: EvalRun[] = [

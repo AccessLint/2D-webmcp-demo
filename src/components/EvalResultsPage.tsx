@@ -78,7 +78,7 @@ export function EvalResultsPage() {
               <p>Create journeys</p>
               <strong>{displayPercent(latestEvalRun.outcomes.create)}</strong>
               <span>{latestEvalRun.outcomes.create.passed} of {latestEvalRun.outcomes.create.total} attempts</span>
-              <small>Simple approval creation and a complex, multi-branch workflow.</small>
+              <small>10 small two-step workflows and 10 larger branching workflows.</small>
             </article>
             <article className="eval-score-card">
               <p>Edit journeys</p>
