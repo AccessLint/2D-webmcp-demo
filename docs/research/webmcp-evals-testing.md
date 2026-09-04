@@ -85,6 +85,15 @@ The app must already be running at `http://127.0.0.1:4173`. The command uses the
 npm run eval:latency -- .evals/report-<timestamp>.json
 ```
 
+To compare an already-loaded ChatGPT in-app browser run with the matching eval case, start and finish timing from the demo page around the ChatGPT prompt and final response, then apply the downloaded trace:
+
+```sh
+npm run eval:latency -- .evals/report-<timestamp>.json \
+  --real-trace ~/Downloads/real-run-<id>.json
+```
+
+This deliberately excludes browser startup and page navigation. The real-run trace records the same top-level duration, first-tool, cumulative tool, non-tool, and tool-count fields as the eval, plus the time between the last tool result and the user's finish marker. The page cannot observe ChatGPT's prompt submission or final-response event directly, so its manual markers include user reaction time and are labeled as observational. It does not claim access to ChatGPT's private model-step timing. The summarizer rejects prompt mismatches and warns when a real run's task outcome was failed or not verified.
+
 For `openai:*` models, the local patch uses OpenAI's Responses API so reasoning models can use function tools.
 The separate `ollama:*` provider remains on the OpenAI-compatible Chat Completions API.
 

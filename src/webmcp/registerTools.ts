@@ -1,5 +1,7 @@
 import { ZodError, type ZodIssue } from "zod";
+import { realRunTracer } from "../evals/realRunTrace";
 import { nodeDefinitions } from "../graph/nodeTypes";
+import type { InvocationInput } from "../state/workflowStore";
 import type { ToolHandlers } from "./toolHandlers";
 import { jsonSchemas, workflowCommandTypes } from "./toolSchemas";
 import { ToolError } from "./errors";
@@ -155,22 +157,33 @@ function invocationDetails(tool: ToolName, input: unknown, result: unknown, star
 
 const withRecovery = (tool: ToolName, handlers: ToolHandlers, execute: WebMCPTool["execute"]): WebMCPTool["execute"] => (input, options) => {
   const startedAt = performance.now();
+  const recordInvocation = (invocation: InvocationInput) => {
+    handlers.recordInvocation(invocation);
+    realRunTracer.recordTool({
+      name: tool,
+      outcome: invocation.outcome,
+      startedAt,
+      durationMs: invocation.durationMs,
+    });
+  };
   const finish = (result: unknown) => {
     const output = fitToolOutput(tool, input, result);
-    handlers.recordInvocation(invocationDetails(tool, input, output, startedAt));
+    const invocation = invocationDetails(tool, input, output, startedAt);
+    recordInvocation(invocation);
     return output;
   };
   const fail = (error: unknown) => {
     if (options?.signal?.aborted || isAbortError(error)) {
       const { parameterNames, unknownParameterCount } = safeParameterShape(tool, input);
-      handlers.recordInvocation({
+      const invocation = {
         tool,
         outcome: "aborted",
         code: "ABORTED",
         durationMs: Math.max(0, Math.round((performance.now() - startedAt) * 100) / 100),
         parameterNames,
         ...(unknownParameterCount > 0 ? { unknownParameterCount } : {}),
-      });
+      } as const;
+      recordInvocation(invocation);
       throw error;
     }
     return finish(recoveryError(tool, error, input));

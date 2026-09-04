@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildLatencyReport, distribution, evaluateLatencyGates } from "./latencyReport.mjs";
+import {
+  buildLatencyReport,
+  buildRealRunComparison,
+  distribution,
+  evaluateLatencyGates,
+} from "./latencyReport.mjs";
 import { hasVerifiedTaskOutcome } from "./taskOutcome.mjs";
 
 function completedEditAttempt({ outcomeType, taskType, baseRevision, commands }) {
@@ -36,6 +41,91 @@ test("distribution reports nearest-rank p50 and p95", () => {
     p95: 400,
     max: 400,
   });
+});
+
+test("compares a matching real ChatGPT trace with eval timing", () => {
+  const timing = {
+    durationMs: 12_000,
+    timeToFirstToolCallMs: 3_000,
+    toolExecutionMs: 200,
+    nonToolDurationMs: 11_800,
+    toolCallCount: 1,
+    retryToolCallCount: 0,
+    redundantToolCallCount: 0,
+  };
+  const evalSummary = buildLatencyReport({
+    results: {
+      results: [{
+        test: { name: "Create diagram", taskType: "read", expectedCall: [{ functionName: "edit_workflow" }] },
+        response: {
+          functionName: "edit_workflow",
+          args: { commands: [] },
+          result: { status: "completed", baseRevision: 0, resultingRevision: 1, changeCount: 0 },
+        },
+        outcome: "pass",
+        runIndex: 1,
+        timing,
+      }],
+    },
+  });
+  const trace = {
+    schemaVersion: "1.0",
+    source: "chatgpt-in-app-browser",
+    outcome: "unverified",
+    caseName: "Create diagram",
+    prompt: "Create the diagram.",
+    timing: {
+      durationMs: 120_000,
+      timeToFirstToolCallMs: 30_000,
+      toolExecutionMs: 400,
+      nonToolDurationMs: 119_600,
+      timeAfterLastToolCallMs: 25_000,
+      toolCallCount: 1,
+    },
+  };
+
+  const comparison = buildRealRunComparison(evalSummary, [trace], [{
+    name: "Create diagram",
+    messages: [{ role: "user", content: "Create the diagram." }],
+  }]);
+
+  assert.equal(comparison.measurementWindow, "manual-start-to-manual-finish");
+  assert.equal(comparison.targetWindow, "prompt-submission-to-final-response");
+  assert.deepEqual(comparison.excludes, ["browser-startup", "page-navigation"]);
+  assert.deepEqual(comparison.byCase["Create diagram"].warnings, [
+    "1 real run has no verified task outcome; its latency is observational, not a successful-task cohort.",
+  ]);
+  assert.equal(comparison.byCase["Create diagram"].real.metrics.durationMs.p50, 120_000);
+  assert.equal(comparison.byCase["Create diagram"].real.metrics.timeAfterLastToolCallMs.p50, 25_000);
+  assert.equal(comparison.byCase["Create diagram"].p50Gap.durationMs, 108_000);
+  assert.equal(comparison.byCase["Create diagram"].p50Gap.durationMultiplier, 10);
+  assert.equal(comparison.byCase["Create diagram"].p50Gap.timeToFirstToolCallMs, 27_000);
+  assert.equal(comparison.byCase["Create diagram"].p50Gap.toolExecutionMs, 200);
+});
+
+test("rejects a real-run trace whose prompt differs from the eval fixture", () => {
+  const evalSummary = { byCase: { "Read diagram": { attempts: 1, successfulAttempts: 1, metrics: {} } } };
+  assert.throws(() => buildRealRunComparison(evalSummary, [{
+    schemaVersion: "1.0",
+    source: "chatgpt-in-app-browser",
+    caseName: "Read diagram",
+    prompt: "A different prompt",
+    timing: { durationMs: 1_000 },
+  }], [{
+    name: "Read diagram",
+    messages: [{ role: "user", content: "Read this diagram" }],
+  }]), /prompt does not match/);
+});
+
+test("rejects a real-run comparison when the eval prompt cannot be verified", () => {
+  const evalSummary = { byCase: { "Read diagram": { attempts: 1, successfulAttempts: 1, metrics: {} } } };
+  assert.throws(() => buildRealRunComparison(evalSummary, [{
+    schemaVersion: "1.0",
+    source: "chatgpt-in-app-browser",
+    caseName: "Read diagram",
+    prompt: "Read this diagram",
+    timing: { durationMs: 1_000 },
+  }]), /prompt could not be verified/);
 });
 
 test("latency gates enforce semantic, efficiency, retry, and turnaround targets", () => {

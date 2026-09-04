@@ -13,7 +13,7 @@ describe("accessible workflow editor", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: "2D WebMCP - Agent-friendly, accessible canvas editor" })).toBeInTheDocument();
     expect(screen.getByText(/Work with a mouse, keyboard, or AI agent/)).toBeInTheDocument();
-    expect(screen.getByText(/create a software bug triage workflow/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Create a bug-handling workflow/)).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Copy prompt" })).toBeInTheDocument();
     expect(screen.getByRole("treegrid", { name: /Workflow canvas/ })).toHaveAttribute("aria-rowcount", "0");
     expect(screen.queryByRole("heading", { name: "Workflow outline" })).not.toBeInTheDocument();

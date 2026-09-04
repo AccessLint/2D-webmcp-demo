@@ -15,6 +15,14 @@ const METRICS = {
 
 const TASK_TYPES = new Set(["create", "edit", "read", "interaction", "uncategorized"]);
 const COMPLEX_CREATE_CASE = "Create a complex multi-branch bug workflow";
+const REAL_RUN_METRICS = [
+  "durationMs",
+  "timeToFirstToolCallMs",
+  "toolExecutionMs",
+  "nonToolDurationMs",
+  "timeAfterLastToolCallMs",
+  "toolCallCount",
+];
 
 function round(value) {
   return Math.round(value * 100) / 100;
@@ -81,6 +89,10 @@ function hasRequiredExpectedCall(nodes) {
   });
 }
 
+function userPrompt(test) {
+  return test?.messages?.find((message) => message.role === "user")?.content;
+}
+
 function groupAttempts(stepResults, fixtureMetadataByName) {
   const attempts = new Map();
   for (const result of stepResults) {
@@ -94,6 +106,7 @@ function groupAttempts(stepResults, fixtureMetadataByName) {
       runIndex,
       taskType,
       outcomeType: assertOutcomeType(result.test?.outcomeType || fixtureMetadata?.outcomeType),
+      prompt: userPrompt(result.test) || fixtureMetadata?.prompt,
       results: [],
     };
     attempt.results.push(result);
@@ -157,6 +170,7 @@ export function buildLatencyReport(report, fixtureCases = []) {
       .map((test) => [test.name, {
         taskType: assertTaskType(test.taskType),
         outcomeType: assertOutcomeType(test.outcomeType),
+        prompt: userPrompt(test),
       }]),
   );
   const attempts = groupAttempts(stepResults, fixtureMetadataByName);
@@ -179,11 +193,102 @@ export function buildLatencyReport(report, fixtureCases = []) {
       ]),
     ),
     byCase: Object.fromEntries(
-      caseNames.map((name) => [
-        name,
-        summarizeAttempts(attempts.filter((attempt) => attempt.name === name)),
-      ]),
+      caseNames.map((name) => {
+        const matchingAttempts = attempts.filter((attempt) => attempt.name === name);
+        const prompt = matchingAttempts.find((attempt) => typeof attempt.prompt === "string")?.prompt;
+        return [name, {
+          ...summarizeAttempts(matchingAttempts),
+          ...(prompt ? { prompt } : {}),
+        }];
+      }),
     ),
+  };
+}
+
+function requireRealRunTrace(trace) {
+  if (trace?.schemaVersion !== "1.0" || trace?.source !== "chatgpt-in-app-browser") {
+    throw new Error("Expected a version 1.0 ChatGPT in-app browser real-run trace.");
+  }
+  if (typeof trace.caseName !== "string" || typeof trace.prompt !== "string" || !Number.isFinite(trace.timing?.durationMs)) {
+    throw new Error("Real-run trace requires caseName, prompt, and timing.durationMs.");
+  }
+  return trace;
+}
+
+function metricGap(realMetric, evalMetric) {
+  if (!realMetric || !evalMetric) return undefined;
+  return round(realMetric.p50 - evalMetric.p50);
+}
+
+export function buildRealRunComparison(evalSummary, traces, fixtureCases = []) {
+  const promptByCase = new Map(Object.entries(evalSummary.byCase || {}).flatMap(([name, summary]) => (
+    typeof summary.prompt === "string" ? [[name, summary.prompt]] : []
+  )));
+  for (const [name, prompt] of fixtureCases.flatMap((fixture) => {
+    const prompt = fixture.messages?.find((message) => message.role === "user")?.content;
+    return typeof fixture.name === "string" && typeof prompt === "string" ? [[fixture.name, prompt]] : [];
+  })) promptByCase.set(name, prompt);
+  const grouped = new Map();
+  for (const candidate of traces) {
+    const trace = requireRealRunTrace(candidate);
+    if (!evalSummary.byCase?.[trace.caseName]) {
+      throw new Error(`Real-run trace case ${JSON.stringify(trace.caseName)} was not found in the eval report.`);
+    }
+    const expectedPrompt = promptByCase.get(trace.caseName);
+    if (expectedPrompt === undefined) {
+      throw new Error(`Real-run trace prompt could not be verified for eval case ${JSON.stringify(trace.caseName)}.`);
+    }
+    if (trace.prompt !== expectedPrompt) {
+      throw new Error(`Real-run trace prompt does not match eval case ${JSON.stringify(trace.caseName)}.`);
+    }
+    const group = grouped.get(trace.caseName) || [];
+    group.push(trace);
+    grouped.set(trace.caseName, group);
+  }
+
+  return {
+    measurementWindow: "manual-start-to-manual-finish",
+    targetWindow: "prompt-submission-to-final-response",
+    excludes: ["browser-startup", "page-navigation"],
+    byCase: Object.fromEntries([...grouped.entries()].map(([caseName, caseTraces]) => {
+      const realMetrics = Object.fromEntries(REAL_RUN_METRICS.map((metric) => [
+        metric,
+        distribution(caseTraces.map((trace) => trace.timing?.[metric]).filter(Number.isFinite)),
+      ]));
+      const evalMetrics = evalSummary.byCase[caseName].metrics;
+      const p50Gap = Object.fromEntries(REAL_RUN_METRICS.flatMap((metric) => {
+        const gap = metricGap(realMetrics[metric], evalMetrics[metric]);
+        return gap === undefined ? [] : [[metric, gap]];
+      }));
+      const evalDuration = evalMetrics.durationMs?.p50;
+      const realDuration = realMetrics.durationMs?.p50;
+      if (Number.isFinite(evalDuration) && evalDuration > 0 && Number.isFinite(realDuration)) {
+        p50Gap.durationMultiplier = round(realDuration / evalDuration);
+      }
+      const unverifiedCount = caseTraces.filter((trace) => !trace.outcome || trace.outcome === "unverified").length;
+      const failedCount = caseTraces.filter((trace) => trace.outcome === "failure").length;
+      const warnings = [];
+      if (unverifiedCount > 0) {
+        warnings.push(`${unverifiedCount} real ${unverifiedCount === 1 ? "run has" : "runs have"} no verified task outcome; ${unverifiedCount === 1 ? "its" : "their"} latency is observational, not a successful-task cohort.`);
+      }
+      if (failedCount > 0) {
+        warnings.push(`${failedCount} failed or incomplete real ${failedCount === 1 ? "run is" : "runs are"} compared with successful eval attempts.`);
+      }
+      return [caseName, {
+        real: {
+          attempts: caseTraces.length,
+          successfulAttempts: caseTraces.filter((trace) => trace.outcome === "success").length,
+          metrics: realMetrics,
+        },
+        eval: {
+          attempts: evalSummary.byCase[caseName].attempts,
+          successfulAttempts: evalSummary.byCase[caseName].successfulAttempts,
+          metrics: evalMetrics,
+        },
+        p50Gap,
+        warnings,
+      }];
+    })),
   };
 }
 import { hasVerifiedTaskOutcome, isSupportedOutcomeType } from "./taskOutcome.mjs";

@@ -11,6 +11,23 @@ npm run eval:latency:check
 
 The generated latency report separates semantic task success from strict trajectory efficiency and reports every case independently. The gate requires 100% semantic and trajectory success, zero retries, overall p50 at or below 10 seconds, overall p95 at or below 20 seconds, and complex-create p50 at or below 15 seconds.
 
+## Compare a real ChatGPT run with the eval
+
+This comparison starts with the page already loaded, so browser startup and navigation are excluded from both sides.
+
+1. Copy the suggested prompt, which is sourced from the matching eval fixture.
+2. In the demo page, use **Start real-run timing** immediately before submitting that prompt to ChatGPT.
+3. After ChatGPT's final response appears, use **Stop real-run timing** immediately.
+4. Classify the observed task result, then use **Download trace**.
+5. Apply the downloaded trace to the JSON report for the matching eval case:
+
+```sh
+npm run eval:latency -- .evals/report-<timestamp>.json \
+  --real-trace ~/Downloads/real-run-<id>.json
+```
+
+The resulting latency JSON keeps the repeatable eval statistics unchanged and adds `realRunComparison`. The comparison reports the manually observed start-to-finish duration gap, time before the first WebMCP tool call, cumulative tool time, non-tool time, and time from the last tool result to the manual stop marker. Browser startup and navigation remain excluded, but the manual markers include the user's submit/return reaction time because the page cannot observe ChatGPT's shell directly. Outcome classification happens after timing has stopped. The downloaded trace's case name and prompt must match the eval fixture or the comparison fails closed. Unverified or unsuccessful runs remain visible with a warning rather than being presented as an equivalent successful-task cohort.
+
 Use this three-minute walkthrough to see the core WebMCP and accessibility features. No mouse is required.
 
 ## Setup

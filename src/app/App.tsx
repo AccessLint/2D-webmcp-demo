@@ -1,14 +1,22 @@
 import { useEffect, useState } from "react";
+import evalCases from "../../evals/webmcp-evals.json";
 import { ChangeHistory } from "../components/ChangeHistory";
 import { EvalResultsPage } from "../components/EvalResultsPage";
 import { LiveStatus } from "../components/LiveStatus";
+import { RealRunTraceControls } from "../components/RealRunTraceControls";
 import { WorkflowCanvas } from "../components/WorkflowCanvas";
 import { workflowStore, useWorkflowStore } from "../state/workflowStore";
 import { registerWorkflowTools } from "../webmcp/registerTools";
 import { createToolHandlers } from "../webmcp/toolHandlers";
 import { parseWorkflowHash } from "./routes";
 
-const demoPrompt = "Use the page's WebMCP tools to create a software bug triage workflow, from report intake through resolution and follow-up. Include duplicate detection, reproduction, severity and priority assessment, ownership, investigation, fixes, verification, release, closure, blocked cases, and regressions.";
+const matchingEvalCase = "Create a complex multi-branch bug workflow";
+const matchingEvalPrompt = (() => {
+  const prompt = evalCases.find((evalCase) => evalCase.name === matchingEvalCase)?.messages[0]?.content;
+  if (!prompt) throw new Error(`Eval case ${matchingEvalCase} is missing its prompt.`);
+  return prompt;
+})();
+const demoPrompt = matchingEvalPrompt;
 
 function WorkflowDemo() {
   const select = useWorkflowStore((state) => state.select);
@@ -60,6 +68,7 @@ function WorkflowDemo() {
               </button>
             </div>
             <blockquote>{demoPrompt}</blockquote>
+            <RealRunTraceControls caseName={matchingEvalCase} prompt={matchingEvalPrompt} />
           </div>
         </header>
         <div className="workbench">

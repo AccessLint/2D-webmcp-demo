@@ -21,6 +21,14 @@ main { padding: 24px; }
 .demo-prompt h2 { margin: 0; color: var(--lime); font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; }
 .demo-prompt button { flex: none; padding: 7px 10px; border: 1px solid #40515c; border-radius: 3px; background: transparent; cursor: pointer; font-size: .72rem; }
 .demo-prompt blockquote { margin: 9px 0 0; line-height: 1.55; }
+.real-run-trace { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.real-run-trace p { margin: 0; color: var(--muted); font-size: .72rem; line-height: 1.5; }
+.real-run-trace details { margin-top: 10px; }
+.real-run-trace summary { color: var(--lime); cursor: pointer; font-size: .72rem; }
+.real-run-trace blockquote { max-height: 150px; overflow: auto; font-size: .72rem; }
+.real-run-trace__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.real-run-trace__outcome { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--muted); font-size: .72rem; }
+.real-run-trace__status { margin-top: 8px !important; }
 .workbench { border: 1px solid var(--line); background: #0b141c; }
 .node-editor { padding: 16px 18px 18px; border-bottom: 1px solid var(--line); background: var(--panel); }
 .node-editor__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
