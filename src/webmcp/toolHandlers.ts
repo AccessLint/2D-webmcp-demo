@@ -91,6 +91,27 @@ export function createToolHandlers(
   handlerOptions: ToolHandlerOptions = {},
 ) {
   const checkAbort = (options?: { signal: AbortSignal }) => options?.signal?.throwIfAborted();
+  let revealController: AbortController | null = null;
+  const revealCreatedNodes = async (operationId: string, nodeIds: string[]) => {
+    revealController?.abort();
+    const controller = new AbortController();
+    revealController = controller;
+    try {
+      for (const nodeId of nodeIds) {
+        if (store.getState().nodeReveal?.operationId !== operationId) break;
+        store.getState().revealNode(operationId, nodeId);
+        await (handlerOptions.waitForNodeReveal ?? waitForNodeReveal)(controller.signal);
+      }
+    } catch (error) {
+      if (!isAbortError(error, controller.signal)
+        && store.getState().nodeReveal?.operationId === operationId) {
+        store.getState().reportError("Workflow committed, but incremental node reveal stopped early.");
+      }
+    } finally {
+      if (revealController === controller) revealController = null;
+      store.getState().finishNodeReveal(operationId);
+    }
+  };
   return {
     [toolNames.discoverWorkflow](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);
@@ -144,21 +165,11 @@ export function createToolHandlers(
         },
       );
       if (receipt.status === "completed" && incrementallyRevealedNodeIds.length > 0) {
-        try {
-          const nodeReveal = store.getState().nodeReveal;
-          const pendingNodeIds = nodeReveal?.operationId === receipt.operationId
-            ? [...nodeReveal.pendingNodeIds]
-            : [];
-          for (const nodeId of pendingNodeIds) {
-            if (store.getState().nodeReveal?.operationId !== receipt.operationId) break;
-            store.getState().revealNode(receipt.operationId, nodeId);
-            await (handlerOptions.waitForNodeReveal ?? waitForNodeReveal)(options?.signal);
-          }
-        } catch (error) {
-          if (isAbortError(error, options?.signal)) throw error;
-        } finally {
-          store.getState().finishNodeReveal(receipt.operationId);
-        }
+        const nodeReveal = store.getState().nodeReveal;
+        const pendingNodeIds = nodeReveal?.operationId === receipt.operationId
+          ? [...nodeReveal.pendingNodeIds]
+          : [];
+        void revealCreatedNodes(receipt.operationId, pendingNodeIds);
       }
       return receipt;
     },
@@ -211,6 +222,8 @@ export function createToolHandlers(
       store.getState().logInvocation(invocation);
     },
     dispose() {
+      revealController?.abort();
+      revealController = null;
       uiActions.cancelPendingDomFocus?.();
     },
   };

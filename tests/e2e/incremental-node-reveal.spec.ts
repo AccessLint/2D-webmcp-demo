@@ -58,7 +58,23 @@ test("edit_workflow reveals a new diagram one node at a time", async ({ page }) 
         },
       ],
     });
-    recordGraphCount();
+    await new Promise<void>((resolve, reject) => {
+      const startedAt = performance.now();
+      const recordUntilComplete = () => {
+        recordGraphCount();
+        const latest = counts.at(-1);
+        if (latest?.nodes === 3 && latest.edges === 2) {
+          resolve();
+          return;
+        }
+        if (performance.now() - startedAt > 2_000) {
+          reject(new Error("Timed out waiting for incremental node reveal."));
+          return;
+        }
+        window.setTimeout(recordUntilComplete, 20);
+      };
+      recordUntilComplete();
+    });
     observer.disconnect();
     return counts;
   });

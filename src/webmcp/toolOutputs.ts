@@ -51,6 +51,8 @@ function compactReceipt(result: UnknownRecord, input: unknown, includeChanges = 
   const createOutput = () => ({
     operationId: result.operationId,
     status: result.status,
+    atomic: true,
+    verification: result.status === "completed" ? "native-diff" : "native-result",
     baseRevision: result.baseRevision,
     resultingRevision: result.resultingRevision,
     summary: result.summary,

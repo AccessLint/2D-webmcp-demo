@@ -381,6 +381,8 @@ describe("WebMCP tool boundary", () => {
       operationId: expect.any(String),
       changeCount: 0,
       canUndo: true,
+      atomic: true,
+      verification: "native-diff",
     });
     expect(applied).not.toHaveProperty("visible");
     expect(applied).not.toHaveProperty("nextCall");
@@ -606,7 +608,7 @@ describe("WebMCP tool boundary", () => {
     delete document.modelContext;
   });
 
-  it("pages compact receipt changes without validation metadata", async () => {
+  it("pages compact receipt changes with authoritative verification metadata", async () => {
     const store = createSalesWorkflowStore();
     const registered = new Map<string, WebMCPTool>();
     const modelContext = Object.assign(new EventTarget(), {
@@ -634,6 +636,7 @@ describe("WebMCP tool boundary", () => {
         }]).flat(),
     }) as { operationId: string };
 
+    expect(edit).toMatchObject({ atomic: true, verification: "native-diff" });
     expect(edit).not.toHaveProperty("validation");
     expect(edit).not.toHaveProperty("changePage");
     const nextPage = registered.get("inspect_workflow_items")!.execute({
@@ -645,6 +648,8 @@ describe("WebMCP tool boundary", () => {
     expect(nextPage).toMatchObject({
       items: [expect.objectContaining({
         kind: "change-receipt",
+        atomic: true,
+        verification: "native-diff",
         changePage: { nextCursor: 8, items: expect.arrayContaining([expect.objectContaining({ id: "isolated-5" })]) },
       })],
     });
@@ -680,6 +685,8 @@ describe("WebMCP tool boundary", () => {
       resultingRevision: 1,
       changeCount: 100,
       canUndo: true,
+      atomic: true,
+      verification: "native-diff",
     });
     expect(result).not.toHaveProperty("changePage");
     expect(result).not.toHaveProperty("visible");

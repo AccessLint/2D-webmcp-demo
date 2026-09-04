@@ -65,11 +65,17 @@ describe("reduced WebMCP surface", () => {
     expect(description).toContain('{type:"deleteNode",id:"node-id"}');
     expect(description).toContain('{type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}');
     expect(description).toContain('{type:"disconnect",edgeId:"edge-id"}');
+    expect(description).toContain("do not call discover_workflow or inspect_workflow_items solely to verify it");
 
     const created = await edit.execute({
       commands: [{ type: "createNode", node: { id: "draft", type: "action", label: "Draft" } }],
     });
-    expect(created).toMatchObject({ status: "completed", resultingRevision: 1 });
+    expect(created).toMatchObject({
+      status: "completed",
+      resultingRevision: 1,
+      atomic: true,
+      verification: "native-diff",
+    });
 
     registration.unregister();
     delete document.modelContext;

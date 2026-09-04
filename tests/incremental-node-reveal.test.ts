@@ -24,6 +24,59 @@ function uiActions(): UiActions {
 }
 
 describe("incremental agent node reveal", () => {
+  it("returns the committed receipt before visual node reveal finishes", async () => {
+    const store = createWorkflowStore();
+    const releaseWaits: Array<() => void> = [];
+    const tools = createToolHandlers(store, uiActions(), {
+      waitForNodeReveal: () => new Promise<void>((resolve) => {
+        releaseWaits.push(resolve);
+      }),
+    });
+
+    const receipt = await tools.edit_workflow({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "first", type: "action", label: "First" } },
+        { type: "createNode", node: { id: "second", type: "action", label: "Second" } },
+      ],
+    });
+
+    expect(receipt).toMatchObject({ status: "completed", resultingRevision: 1 });
+    expect(store.getState().workflow.nodes).toHaveLength(2);
+    expect(store.getState().nodeReveal).not.toBeNull();
+    expect(releaseWaits).toHaveLength(1);
+
+    releaseWaits.shift()?.();
+    await vi.waitFor(() => expect(releaseWaits).toHaveLength(1));
+    releaseWaits.shift()?.();
+    await vi.waitFor(() => expect(store.getState().nodeReveal).toBeNull());
+  });
+
+  it("cancels a pending visual reveal when the tool handlers are disposed", async () => {
+    const store = createWorkflowStore();
+    let revealSignal: AbortSignal | undefined;
+    const tools = createToolHandlers(store, uiActions(), {
+      waitForNodeReveal: (signal) => new Promise<void>((resolve, reject) => {
+        revealSignal = signal;
+        signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+      }),
+    });
+
+    await tools.edit_workflow({
+      baseRevision: 0,
+      commands: [
+        { type: "createNode", node: { id: "first", type: "action", label: "First" } },
+        { type: "createNode", node: { id: "second", type: "action", label: "Second" } },
+      ],
+    });
+    expect(revealSignal?.aborted).toBe(false);
+
+    tools.dispose();
+
+    await vi.waitFor(() => expect(store.getState().nodeReveal).toBeNull());
+    expect(revealSignal?.aborted).toBe(true);
+  });
+
   it("finishes revealing nodes when animation frames are suspended", async () => {
     const canvas = document.createElement("div");
     canvas.className = "canvas-shell";
@@ -98,6 +151,7 @@ describe("incremental agent node reveal", () => {
       ],
     });
 
+    await vi.waitFor(() => expect(store.getState().nodeReveal).toBeNull());
     expect(revealSteps).toEqual([
       { pending: ["review", "done"], nodeCount: 3, edgeCount: 2, revision: 1 },
       { pending: ["done"], nodeCount: 3, edgeCount: 2, revision: 1 },
@@ -124,8 +178,9 @@ describe("incremental agent node reveal", () => {
         { type: "createNode", node: { id: "first", type: "action", label: "First" } },
         { type: "createNode", node: { id: "second", type: "action", label: "Second" } },
       ],
-    })).rejects.toBe(abortError);
+    })).resolves.toMatchObject({ status: "completed", resultingRevision: 1 });
 
+    await vi.waitFor(() => expect(store.getState().nodeReveal).toBeNull());
     expect(store.getState().workflow.nodes.map((node) => node.id)).toEqual(["first", "second"]);
     expect(store.getState().workflow.revision).toBe(1);
     expect(store.getState().history).toHaveLength(1);
