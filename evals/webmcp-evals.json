@@ -45,7 +45,7 @@
       {
         "role": "user",
         "type": "message",
-        "content": "Add a Notify requester action after Approve request in the existing workflow. Keep the current steps and connection intact, then show me what changed."
+        "content": "Add a Notify requester action after Approve request in the existing workflow. Keep the current steps and connection intact. The app will announce the change receipt automatically; do not inspect or focus the receipt afterward."
       }
     ],
     "expectedCall": [
@@ -88,7 +88,7 @@
       {
         "role": "user",
         "type": "message",
-        "content": "Create a new approval workflow containing Draft request followed by Approve request. Show me what changed."
+        "content": "The canvas is empty. Create a new approval workflow containing Draft request followed by Approve request without calling discover_workflow first or supplying baseRevision. The app will announce the change receipt automatically; do not inspect or focus the receipt afterward."
       }
     ],
     "expectedCall": [
@@ -117,7 +117,7 @@
       {
         "role": "user",
         "type": "message",
-        "content": "Create a bug-handling workflow using these exact labels and node types: input ‘Report intake’; actions ‘Triage report’, ‘Investigate bug’, ‘Fix bug’, and ‘Request more details’; conditions ‘Reproducible?’ and ‘Verification passed?’; and ends ‘Release fix’ and ‘Close incomplete’. Connect Report intake to Triage report; Triage report success to Reproducible?; Reproducible? yes to Investigate bug and no to Request more details; Investigate bug success to Fix bug and failure to Close incomplete; Fix bug success to Verification passed? and failure to Close incomplete; Verification passed? yes to Release fix and no back to Fix bug; and Request more details success to Close incomplete. Create the full workflow atomically and show me what changed."
+        "content": "The canvas is empty. Create a bug-handling workflow without calling discover_workflow first or supplying baseRevision, using these exact labels and node types: input ‘Report intake’; actions ‘Triage report’, ‘Investigate bug’, ‘Fix bug’, and ‘Request more details’; conditions ‘Reproducible?’ and ‘Verification passed?’; and ends ‘Release fix’ and ‘Close incomplete’. Connect Report intake to Triage report; Triage report success to Reproducible?; Reproducible? yes to Investigate bug and no to Request more details; Investigate bug success to Fix bug and failure to Close incomplete; Fix bug success to Verification passed? and failure to Close incomplete; Verification passed? yes to Release fix and no back to Fix bug; and Request more details success to Close incomplete. Create the full workflow atomically. The app will announce the change receipt automatically; do not inspect or focus the receipt afterward."
       }
     ],
     "expectedCall": [
@@ -192,7 +192,7 @@
       {
         "role": "user",
         "type": "message",
-        "content": "Inspect the current connection from Receive request to Archive request. Then use replaceConnection to reroute Receive request’s success output to Manual review instead, keeping every existing node. Show me what changed."
+        "content": "Inspect the current connection from Receive request to Archive request. Then use replaceConnection to reroute Receive request’s success output to Manual review instead, keeping every existing node. The app will announce the change receipt automatically; do not inspect or focus the receipt afterward."
       }
     ],
     "expectedCall": [
@@ -363,7 +363,7 @@
       {
         "role": "user",
         "type": "message",
-        "content": "Review this large workflow using discover_workflow pages of 4 items until you locate Routing hub. Inspect all of Routing hub’s relationships using pages of 3 relationships. Then rename only that node to Reviewed routing hub and show me what changed."
+        "content": "Review this large workflow using discover_workflow pages of 4 items until you locate Routing hub. Inspect all of Routing hub’s relationships using pages of 3 relationships. Then rename only that node to Reviewed routing hub. The app will announce the change receipt automatically; do not inspect or focus the receipt afterward."
       }
     ],
     "expectedCall": [

@@ -98,6 +98,21 @@ describe("WebMCP eval fixture", () => {
     }
   });
 
+  it("states the direct-create and receipt stopping conditions in each prompt", () => {
+    for (const evalCase of evalCases) {
+      const prompt = evalCase.messages.find((message) => message.role === "user")!.content;
+      expect(prompt).toContain("The app will announce the change receipt automatically");
+      expect(prompt).toContain("do not inspect or focus the receipt afterward");
+      expect(prompt).not.toContain("show me what changed");
+
+      if (evalCase.taskType === "create") {
+        expect(prompt).toContain("The canvas is empty");
+        expect(prompt).toContain("without calling discover_workflow first");
+        expect(prompt).toContain("or supplying baseRevision");
+      }
+    }
+  });
+
   it("runs every setup transaction against the current edit tool", async () => {
     for (const evalCase of evalCases) {
       const handlers = createToolHandlers(createWorkflowStore(), nonBrowserUiActions);
