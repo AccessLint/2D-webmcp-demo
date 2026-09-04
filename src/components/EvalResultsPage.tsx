@@ -7,6 +7,7 @@ const percent = ({ passed, total }: Score) => (total === 0 ? 0 : (passed / total
 const displayPercent = (score: Score) => `${percent(score).toFixed(1).replace(".0", "")}%`;
 const displaySeconds = (milliseconds: number) => `${(milliseconds / 1000).toFixed(2)} s`;
 const displayMilliseconds = (milliseconds: number) => `${Math.round(milliseconds)} ms`;
+const displayTokens = (tokens: number) => Math.round(tokens).toLocaleString("en-US");
 
 export function EvalResultsPage() {
   const latestLegacyRun = evalRuns.at(-1)!;
@@ -15,6 +16,8 @@ export function EvalResultsPage() {
   const firstToolCall = latestEvalRun.latency.timeToFirstToolCallMs;
   const toolExecution = latestEvalRun.latency.toolExecutionMs;
   const toolCalls = latestEvalRun.latency.toolCallCount;
+  const inputTokens = latestEvalRun.latency.inputTokenCount;
+  const outputTokens = latestEvalRun.latency.outputTokenCount;
 
   useEffect(() => {
     const skipLink = document.querySelector<HTMLAnchorElement>("body > .skip-link");
@@ -134,6 +137,30 @@ export function EvalResultsPage() {
           <p className="eval-note">
             All 50 attempts reached the requested end state. Tool-call counts also cover all 50 attempts.
           </p>
+        </section>
+
+        <section className="eval-section" aria-labelledby="token-usage-heading">
+          <div className="eval-section__heading">
+            <div>
+              <p className="eyebrow">Latest token usage</p>
+              <h2 id="token-usage-heading">Token usage for successful journeys</h2>
+            </div>
+            <p>Counts combine every model step in each of the {latestEvalRun.outcomes.all.passed} verified successful attempts.</p>
+          </div>
+          <div className="eval-latency-grid">
+            <article className="eval-latency-card" aria-label="Input tokens">
+              <p>Input tokens</p>
+              <strong>{displayTokens(inputTokens.p50)}</strong>
+              <span>p50 per attempt</span>
+              <small>p95 {displayTokens(inputTokens.p95)}</small>
+            </article>
+            <article className="eval-latency-card" aria-label="Output tokens">
+              <p>Output tokens</p>
+              <strong>{displayTokens(outputTokens.p50)}</strong>
+              <span>p50 per attempt</span>
+              <small>p95 {displayTokens(outputTokens.p95)}</small>
+            </article>
+          </div>
         </section>
 
         <section className="eval-section eval-smoke" aria-labelledby="execution-heading">
