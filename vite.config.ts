@@ -6,9 +6,6 @@ import react from "@vitejs/plugin-react";
 
 function publishEvalReport(): Plugin {
   const reports = [
-    [".evals/report-1788212058992.html", "gpt-5-mini-baseline.html"],
-    [".evals/report-1788215449743.html", "gpt-5-mini-iteration-1.html"],
-    [".evals/report-1788217687512.html", "gpt-5-mini-iteration-2.html"],
     [".evals/report-1788485842899.html", "gpt-5.6-terra-current.html"],
     [".evals/report-1788485842899-latency.json", "gpt-5.6-terra-current-latency.json"],
   ] as const;

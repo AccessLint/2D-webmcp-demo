@@ -1,6 +1,9 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { EvalResultsPage } from "../src/components/EvalResultsPage";
+import { evalRuns } from "../src/evals/evalRuns";
 
 describe("evaluation results", () => {
   it("shows the latest verified outcomes, report, and latency", () => {
@@ -40,5 +43,13 @@ describe("evaluation results", () => {
     expect(screen.getByText("Baseline")).toBeInTheDocument();
     expect(screen.getByText("Iteration 1")).toBeInTheDocument();
     expect(screen.getByText("Iteration 2")).toBeInTheDocument();
+  });
+
+  it("publishes every legacy report linked from the page", () => {
+    const missingReports = evalRuns
+      .map((run) => run.reportPath)
+      .filter((reportPath) => !existsSync(resolve("public", reportPath.slice(1))));
+
+    expect(missingReports).toEqual([]);
   });
 });
