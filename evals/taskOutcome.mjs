@@ -86,47 +86,69 @@ function isCreateApprovalEdit(commands) {
 function isComplexBranchCreate(commands) {
   const graph = createdGraphFrom(commands);
   if (!graph) return false;
-  const { createdNodes, connections, nodeByLabel } = graph;
-  if (createdNodes.length !== 9 || connections.length !== 11) return false;
-  const expectedNodes = new Map([
-    ["report intake", "input"],
-    ["triage report", "action"],
-    ["reproducible?", "condition"],
-    ["investigate bug", "action"],
-    ["fix bug", "action"],
-    ["verification passed?", "condition"],
-    ["release fix", "end"],
-    ["request more details", "action"],
-    ["close incomplete", "end"],
-  ]);
-  if ([...expectedNodes].some(([label, type]) => nodeByLabel.get(label)?.type !== type)) return false;
-  const nodeLabelById = new Map([...nodeByLabel].map(([label, node]) => [node.id, label]));
-  const actualConnections = new Set(connections.map((command) => {
-    const edge = command.edge;
-    const source = edgeEndpoint(edge, "source");
-    const target = edgeEndpoint(edge, "target");
-    return [
-      nodeLabelById.get(source.nodeId),
-      source.port,
-      nodeLabelById.get(target.nodeId),
-      target.port,
-    ].join("|");
-  }));
-  const expectedConnections = [
-    ["report intake", "data", "triage report", "input"],
-    ["triage report", "success", "reproducible?", "input"],
-    ["reproducible?", "yes", "investigate bug", "input"],
-    ["reproducible?", "no", "request more details", "input"],
-    ["investigate bug", "success", "fix bug", "input"],
-    ["investigate bug", "failure", "close incomplete", "input"],
-    ["fix bug", "success", "verification passed?", "input"],
-    ["fix bug", "failure", "close incomplete", "input"],
-    ["verification passed?", "yes", "release fix", "input"],
-    ["verification passed?", "no", "fix bug", "input"],
-    ["request more details", "success", "close incomplete", "input"],
-  ].map((parts) => parts.join("|"));
-  return actualConnections.size === expectedConnections.length
-    && expectedConnections.every((connection) => actualConnections.has(connection));
+  const { createdNodes, connections } = graph;
+  if (createdNodes.length < 8 || connections.length < createdNodes.length - 1) return false;
+  const nodes = createdNodes.map((command) => command.node);
+  const labels = nodes.map((node) => String(labelValue(node?.label) || "").toLowerCase());
+  const requiredConcepts = [
+    /report|intake/,
+    /duplicat|dedup/,
+    /reproduc/,
+    /severity/,
+    /priorit/,
+    /owner|assign/,
+    /investigat|diagnos/,
+    /fix|repair|remediat/,
+    /verif|test|\bqa\b/,
+    /releas|deploy/,
+    /clos|resolv/,
+    /block/,
+    /regress/,
+    /follow.?up/,
+  ];
+  if (requiredConcepts.some((concept) => !labels.some((label) => concept.test(label)))) return false;
+  const meaningfulNodeIndexes = new Set(labels.flatMap((label, index) => (
+    requiredConcepts.some((concept) => concept.test(label)) ? [index] : []
+  )));
+  if (meaningfulNodeIndexes.size < 8) return false;
+  if (!nodes.some((node) => node?.type === "input")
+    || !nodes.some((node) => node?.type === "end")
+    || nodes.filter((node) => node?.type === "condition").length < 2) return false;
+
+  const nodeIds = new Set(nodes.map((node) => node?.id));
+  const outgoing = new Map([...nodeIds].map((id) => [id, []]));
+  const incoming = new Map([...nodeIds].map((id) => [id, []]));
+  const undirected = new Map([...nodeIds].map((id) => [id, []]));
+  for (const command of connections) {
+    const source = edgeEndpoint(command.edge, "source").nodeId;
+    const target = edgeEndpoint(command.edge, "target").nodeId;
+    if (!nodeIds.has(source) || !nodeIds.has(target)) return false;
+    outgoing.get(source).push(target);
+    incoming.get(target).push(source);
+    undirected.get(source).push(target);
+    undirected.get(target).push(source);
+  }
+  const visit = (startingIds, adjacency) => {
+    const visited = new Set(startingIds);
+    const pending = [...startingIds];
+    while (pending.length > 0) {
+      for (const id of adjacency.get(pending.shift()) || []) {
+        if (!visited.has(id)) {
+          visited.add(id);
+          pending.push(id);
+        }
+      }
+    }
+    return visited;
+  };
+  const inputs = nodes.filter((node) => node.type === "input").map((node) => node.id);
+  const ends = nodes.filter((node) => node.type === "end").map((node) => node.id);
+  const branchingConditions = nodes.filter((node) => node.type === "condition"
+    && new Set(outgoing.get(node.id)).size >= 2);
+  return visit([nodes[0].id], undirected).size === nodeIds.size
+    && visit(inputs, outgoing).size === nodeIds.size
+    && visit(ends, incoming).size === nodeIds.size
+    && branchingConditions.length >= 2;
 }
 
 function isConnectionReroute(commands) {
@@ -173,6 +195,9 @@ export function hasVerifiedTaskOutcome(attempt, trajectorySuccessful) {
   }
   const calls = callsFrom(attempt.results);
   const completedEdits = calls.filter(isCompletedEdit);
+  const outcomeType = attempt.outcomeType || (attempt.taskType === "create"
+    ? "approval-create"
+    : "notification-edit");
   if (completedEdits.length !== 1) return false;
   const editCall = completedEdits[0];
   const editIndex = calls.indexOf(editCall);
@@ -182,8 +207,5 @@ export function hasVerifiedTaskOutcome(attempt, trajectorySuccessful) {
     && call.result?.status === "completed");
   if (wasUndone) return false;
   const commands = inputFor(editCall).commands;
-  const outcomeType = attempt.outcomeType || (attempt.taskType === "create"
-    ? "approval-create"
-    : "notification-edit");
   return isSupportedOutcomeType(outcomeType) && outcomeValidators[outcomeType](commands);
 }

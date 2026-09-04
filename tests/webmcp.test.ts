@@ -360,7 +360,7 @@ describe("WebMCP tool boundary", () => {
     expect(editInputSchema).toMatchObject({
       properties: {
         baseRevision: expect.any(Object),
-        commands: expect.objectContaining({ type: "array", minItems: 1, maxItems: 20 }),
+        commands: expect.objectContaining({ type: "array", minItems: 1, maxItems: 100 }),
       },
       additionalProperties: false,
     });
@@ -668,7 +668,7 @@ describe("WebMCP tool boundary", () => {
 
     const result = await registered.get("edit_workflow")!.execute({
       baseRevision: 0,
-      commands: Array.from({ length: 20 }, (_, index) => ({
+      commands: Array.from({ length: 100 }, (_, index) => ({
         type: "createNode",
         node: { id: `node-${String(index)}`, type: "action", label: `Node ${String(index)}` },
       })),
@@ -678,12 +678,21 @@ describe("WebMCP tool boundary", () => {
       status: "completed",
       baseRevision: 0,
       resultingRevision: 1,
-      changeCount: 20,
+      changeCount: 100,
       canUndo: true,
     });
     expect(result).not.toHaveProperty("changePage");
     expect(result).not.toHaveProperty("visible");
     expect(JSON.stringify(result).length).toBeLessThanOrEqual(1_500);
+
+    const oversizedResult = await registered.get("edit_workflow")!.execute({
+      baseRevision: 1,
+      commands: Array.from({ length: 101 }, (_, index) => ({
+        type: "createNode",
+        node: { id: `overflow-${String(index)}`, type: "action", label: `Overflow ${String(index)}` },
+      })),
+    });
+    expect(oversizedResult).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
     registration.unregister();
     delete document.modelContext;
   });

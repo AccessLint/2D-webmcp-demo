@@ -1,7 +1,7 @@
 import type { WorkflowEdge, WorkflowNode, WorkflowState } from "./model";
 import { nodeDefinitions } from "./nodeTypes";
 
-const MAX_COMMANDS_PER_BATCH = 20;
+export const MAX_COMMANDS_PER_BATCH = 100;
 
 export type WorkflowCommand =
   | { type: "createNode"; node: WorkflowNode }

@@ -1,5 +1,6 @@
 import { ZodError, type ZodIssue } from "zod";
 import { realRunTracer } from "../evals/realRunTrace";
+import { MAX_COMMANDS_PER_BATCH } from "../graph/commands";
 import { nodeDefinitions } from "../graph/nodeTypes";
 import type { InvocationInput } from "../state/workflowStore";
 import type { ToolHandlers } from "./toolHandlers";
@@ -217,7 +218,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.editWorkflow,
       title: "Edit workflow",
-      description: `Atomically apply up to 20 commands. Use these exact shapes: {type:"createNode",node:{id:"node-id",type:"action",label:"Label"}}; {type:"updateNode",id:"node-id",patch:{label:"New label"}}; {type:"deleteNode",id:"node-id"}; {type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}; {type:"disconnect",edgeId:"edge-id"}. For an existing workflow, use ${toolNames.discoverWorkflow}'s exact revision as baseRevision; omit it only for an empty-canvas create. Node positions are automatic. Reroute with disconnect and connect commands in the same batch. Valid ports are ${nodePortGuide}. The app announces a compact receipt. On conflict, rediscover before retrying.`,
+      description: `Atomically apply up to ${MAX_COMMANDS_PER_BATCH} commands. Use these exact shapes: {type:"createNode",node:{id:"node-id",type:"action",label:"Label"}}; {type:"updateNode",id:"node-id",patch:{label:"New label"}}; {type:"deleteNode",id:"node-id"}; {type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}; {type:"disconnect",edgeId:"edge-id"}. For an existing workflow, use ${toolNames.discoverWorkflow}'s exact revision as baseRevision; omit it only for an empty-canvas create. Node positions are automatic. Reroute with disconnect and connect commands in the same batch. Valid ports are ${nodePortGuide}. The app announces a compact receipt. On conflict, rediscover before retrying.`,
       inputSchema: jsonSchemas.apply,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.editWorkflow],

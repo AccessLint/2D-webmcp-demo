@@ -227,7 +227,9 @@ export function buildRealRunComparison(evalSummary, traces, fixtureCases = []) {
   for (const [name, prompt] of fixtureCases.flatMap((fixture) => {
     const prompt = fixture.messages?.find((message) => message.role === "user")?.content;
     return typeof fixture.name === "string" && typeof prompt === "string" ? [[fixture.name, prompt]] : [];
-  })) promptByCase.set(name, prompt);
+  })) {
+    if (!promptByCase.has(name)) promptByCase.set(name, prompt);
+  }
   const grouped = new Map();
   for (const candidate of traces) {
     const trace = requireRealRunTrace(candidate);

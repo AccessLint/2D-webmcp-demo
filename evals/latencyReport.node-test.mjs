@@ -128,6 +128,29 @@ test("rejects a real-run comparison when the eval prompt cannot be verified", ()
   }]), /prompt could not be verified/);
 });
 
+test("uses the prompt embedded in a historical report instead of a changed fixture", () => {
+  const evalSummary = {
+    byCase: {
+      "Read diagram": {
+        attempts: 1,
+        successfulAttempts: 1,
+        prompt: "Historical prompt",
+        metrics: {},
+      },
+    },
+  };
+  assert.throws(() => buildRealRunComparison(evalSummary, [{
+    schemaVersion: "1.0",
+    source: "chatgpt-in-app-browser",
+    caseName: "Read diagram",
+    prompt: "Current prompt",
+    timing: { durationMs: 1_000 },
+  }], [{
+    name: "Read diagram",
+    messages: [{ role: "user", content: "Current prompt" }],
+  }]), /prompt does not match/);
+});
+
 test("latency gates enforce semantic, efficiency, retry, and turnaround targets", () => {
   const passing = {
     all: {
@@ -522,7 +545,7 @@ test("requires creation to replace the original graph with the requested topolog
   assert.equal(buildLatencyReport(report).byTaskType.create.successfulAttempts, 0);
 });
 
-test("requires every node and branch in the complex workflow", () => {
+test("rejects the old contrived topology when it omits concepts from the suggested prompt", () => {
   const node = (id, type, label) => ({
     type: "createNode",
     node: { id, type, label, position: { x: 0, y: 0 } },
@@ -560,9 +583,158 @@ test("requires every node and branch in the complex workflow", () => {
     commands,
   });
 
-  assert.equal(hasVerifiedTaskOutcome(attempt, true), true);
-  commands.pop();
   assert.equal(hasVerifiedTaskOutcome(attempt, true), false);
+});
+
+test("accepts a single-batch bug workflow that covers the natural prompt without exact labels", () => {
+  const node = (id, type, label) => ({ type: "createNode", node: { id, type, label } });
+  const edge = (id, source, sourcePort, target) => ({
+    type: "connect",
+    edge: { id, source: { nodeId: source, port: sourcePort }, target: { nodeId: target, port: "input" } },
+  });
+  const commands = [
+    node("reported", "input", "Bug reported"),
+    node("duplicate", "condition", "Duplicate detected?"),
+    node("reproduce", "action", "Reproduce issue"),
+    node("assess", "action", "Assess severity and priority"),
+    node("owner", "action", "Assign owner"),
+    node("investigate", "action", "Investigate root cause"),
+    node("fix", "action", "Implement repair"),
+    node("verify", "condition", "Tests verified?"),
+    node("release", "action", "Deploy release"),
+    node("closed", "end", "Resolved and closed"),
+    node("blocked", "action", "Handle blocked case"),
+    node("regression", "action", "Regression follow-up"),
+    edge("reported-duplicate", "reported", "data", "duplicate"),
+    edge("duplicate-reproduce", "duplicate", "no", "reproduce"),
+    edge("duplicate-closed", "duplicate", "yes", "closed"),
+    edge("reproduce-assess", "reproduce", "success", "assess"),
+    edge("reproduce-blocked", "reproduce", "failure", "blocked"),
+    edge("assess-owner", "assess", "success", "owner"),
+    edge("owner-investigate", "owner", "success", "investigate"),
+    edge("investigate-fix", "investigate", "success", "fix"),
+    edge("investigate-blocked", "investigate", "failure", "blocked"),
+    edge("fix-verify", "fix", "success", "verify"),
+    edge("fix-blocked", "fix", "failure", "blocked"),
+    edge("verify-release", "verify", "yes", "release"),
+    edge("verify-regression", "verify", "no", "regression"),
+    edge("regression-investigate", "regression", "success", "investigate"),
+    edge("release-closed", "release", "success", "closed"),
+    edge("blocked-closed", "blocked", "success", "closed"),
+  ];
+  const result = (operationId, baseRevision, batch) => ({
+    response: {
+      functionName: "edit_workflow",
+      args: { ...(baseRevision > 0 ? { baseRevision } : {}), commands: batch },
+      result: {
+        operationId,
+        status: "completed",
+        baseRevision,
+        resultingRevision: baseRevision + 1,
+        changeCount: batch.length,
+      },
+    },
+  });
+  const attempt = {
+    outcomeType: "complex-branch-create",
+    taskType: "create",
+    results: [result("complex-1", 0, commands)],
+  };
+
+  assert.equal(hasVerifiedTaskOutcome(attempt, true), true);
+  const originalLabels = commands.flatMap((command) => command.node
+    ? [[command.node, command.node.label]]
+    : []);
+  for (const [node] of originalLabels) node.label = "Generic step";
+  originalLabels[0][0].label = "Report intake duplicate dedup reproduce severity priority owner assign investigate diagnose fix repair remediate verify test QA release deploy close resolve block regress follow-up";
+  assert.equal(hasVerifiedTaskOutcome(attempt, true), false);
+  for (const [node, label] of originalLabels) node.label = label;
+  commands.find((command) => command.node?.id === "regression").node.label = "Regression analysis";
+  assert.equal(hasVerifiedTaskOutcome(attempt, true), false);
+  commands.find((command) => command.node?.id === "regression").node.label = "Follow-up analysis";
+  assert.equal(hasVerifiedTaskOutcome(attempt, true), false);
+});
+
+test("accepts a connected acyclic branching workflow with one fewer edge than nodes", () => {
+  const labels = [
+    ["intake", "input", "Report intake and duplicate detection"],
+    ["reproduce", "condition", "Reproduction and severity assessment"],
+    ["owner", "action", "Priority assessment and ownership"],
+    ["investigate", "action", "Investigation and fixes"],
+    ["verify", "condition", "Verification and release?"],
+    ["blocked", "end", "Closure and blocked cases"],
+    ["regression", "end", "Regressions and follow-up"],
+    ["resolved", "end", "Released and resolved"],
+  ];
+  const commands = labels.map(([id, type, label]) => ({
+    type: "createNode",
+    node: { id, type, label },
+  }));
+  const connect = (source, port, target) => ({
+    type: "connect",
+    edge: {
+      id: `edge-${source}-${target}`,
+      source: { nodeId: source, port },
+      target: { nodeId: target, port: "input" },
+    },
+  });
+  commands.push(
+    connect("intake", "data", "reproduce"),
+    connect("reproduce", "no", "blocked"),
+    connect("reproduce", "yes", "owner"),
+    connect("owner", "success", "investigate"),
+    connect("investigate", "success", "verify"),
+    connect("verify", "no", "regression"),
+    connect("verify", "yes", "resolved"),
+  );
+  const attempt = completedEditAttempt({
+    outcomeType: "complex-branch-create",
+    taskType: "create",
+    baseRevision: 0,
+    commands,
+  });
+
+  assert.equal(hasVerifiedTaskOutcome(attempt, true), true);
+
+  const linearCommands = structuredClone(commands.filter((command) => command.type === "createNode"));
+  linearCommands.find((command) => command.node?.id === "blocked").node.type = "action";
+  linearCommands.find((command) => command.node?.id === "regression").node.type = "action";
+  linearCommands.push(
+    connect("intake", "data", "reproduce"),
+    connect("reproduce", "yes", "owner"),
+    connect("owner", "success", "investigate"),
+    connect("investigate", "success", "verify"),
+    connect("verify", "yes", "blocked"),
+    connect("blocked", "success", "regression"),
+    connect("regression", "success", "resolved"),
+  );
+  assert.equal(hasVerifiedTaskOutcome(completedEditAttempt({
+    outcomeType: "complex-branch-create",
+    taskType: "create",
+    baseRevision: 0,
+    commands: linearCommands,
+  }), true), false);
+
+  const disconnectedCommands = structuredClone(commands.filter((command) => command.type === "createNode"));
+  disconnectedCommands.find((command) => command.node?.id === "investigate").node.type = "end";
+  disconnectedCommands.find((command) => command.node?.id === "verify").node.type = "input";
+  disconnectedCommands.find((command) => command.node?.id === "blocked").node.type = "condition";
+  disconnectedCommands.push(
+    connect("intake", "data", "reproduce"),
+    connect("reproduce", "yes", "owner"),
+    connect("reproduce", "no", "investigate"),
+    connect("owner", "success", "investigate"),
+    connect("verify", "data", "blocked"),
+    connect("blocked", "yes", "regression"),
+    connect("blocked", "no", "resolved"),
+  );
+  const disconnectedAttempt = completedEditAttempt({
+    outcomeType: "complex-branch-create",
+    taskType: "create",
+    baseRevision: 0,
+    commands: disconnectedCommands,
+  });
+  assert.equal(hasVerifiedTaskOutcome(disconnectedAttempt, true), false);
 });
 
 test("uses fixture outcome metadata when summarizing semantic success", () => {

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { WorkflowCommand } from "../graph/commands";
+import { MAX_COMMANDS_PER_BATCH, type WorkflowCommand } from "../graph/commands";
 import type { WorkflowNode } from "../graph/model";
 import { nodeKinds } from "../graph/model";
 import { uiTargetIds } from "./uiTargets";
@@ -55,7 +55,7 @@ export const commandSchema = z.discriminatedUnion("type", [
 ]);
 export const applyInputSchema = z.object({
   baseRevision: z.number().int().nonnegative().optional().describe(`Use ${toolNames.discoverWorkflow}'s revision exactly. Omit only for an empty-canvas create.`),
-  commands: z.array(commandSchema).min(1).max(20).describe("Atomic workflow edits. Every command must match one documented command type."),
+  commands: z.array(commandSchema).min(1).max(MAX_COMMANDS_PER_BATCH).describe("Atomic workflow edits. Every command must match one documented command type."),
 }).strict();
 
 function normalizeEdge(edge: z.infer<typeof edgeSchema>) {

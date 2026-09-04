@@ -113,22 +113,26 @@
       {
         "role": "user",
         "type": "message",
-        "content": "The canvas is empty. Create a bug-handling workflow without calling discover_workflow first or supplying baseRevision, using these exact labels and node types: input ‘Report intake’; actions ‘Triage report’, ‘Investigate bug’, ‘Fix bug’, and ‘Request more details’; conditions ‘Reproducible?’ and ‘Verification passed?’; and ends ‘Release fix’ and ‘Close incomplete’. Connect Report intake to Triage report; Triage report success to Reproducible?; Reproducible? yes to Investigate bug and no to Request more details; Investigate bug success to Fix bug and failure to Close incomplete; Fix bug success to Verification passed? and failure to Close incomplete; Verification passed? yes to Release fix and no back to Fix bug; and Request more details success to Close incomplete. Create the full workflow atomically. The app will announce the change receipt automatically; do not inspect or focus the receipt afterward."
+        "content": "Use the page's WebMCP tools to create a software bug triage workflow, from report intake through resolution and follow-up. Include duplicate detection, reproduction, severity and priority assessment, ownership, investigation, fixes, verification, release, closure, blocked cases, and regressions."
       }
     ],
     "expectedCall": [
       {
-        "functionName": "edit_workflow",
-        "arguments": {
-          "commands": { "$type": "array" }
-        },
-        "result": {
-          "status": "completed",
-          "baseRevision": 0,
-          "resultingRevision": 1,
-          "changeCount": 20,
-          "operationId": { "$type": "string" }
-        }
+        "ordered": [
+          {
+            "functionName": "discover_workflow",
+            "arguments": {},
+            "optional": true
+          },
+          {
+            "functionName": "edit_workflow",
+            "arguments": { "commands": { "$type": "array" } },
+            "result": {
+              "status": "completed",
+              "operationId": { "$type": "string" }
+            }
+          }
+        ]
       }
     ]
   },

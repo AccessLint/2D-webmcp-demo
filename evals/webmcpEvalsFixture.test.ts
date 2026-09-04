@@ -27,6 +27,10 @@ const failedEdit = (baseRevision: number) => call(
 );
 const allPass = (expectedCall: unknown[], actualCalls: unknown[]) =>
   evaluateExecutionTrajectory(expectedCall, actualCalls).every((result: { outcome: string }) => result.outcome === "pass");
+const expectedFunctionCalls = (nodes: Array<Record<string, unknown>>): Array<Record<string, unknown>> => nodes.flatMap((node) => {
+  if ("functionName" in node) return [node];
+  return expectedFunctionCalls((node.ordered ?? node.unordered ?? []) as Array<Record<string, unknown>>);
+});
 const nonBrowserUiActions = {
   async focusChangeEntry(operationId: string) {
     return { operationId, focusedIn: "change-history" as const, visible: true as const };
@@ -40,6 +44,14 @@ const nonBrowserUiActions = {
 };
 
 describe("WebMCP eval fixture", () => {
+  it("uses the original suggested prompt for the complex real-run comparison", () => {
+    const complexCase = evalCases.find((evalCase) => evalCase.outcomeType === "complex-branch-create");
+
+    expect(complexCase?.messages[0]?.content).toBe(
+      "Use the page's WebMCP tools to create a software bug triage workflow, from report intake through resolution and follow-up. Include duplicate detection, reproduction, severity and priority assessment, ownership, investigation, fixes, verification, release, closure, blocked cases, and regressions.",
+    );
+  });
+
   it("accepts position-free creates and canonical updates without focusing the receipt", async () => {
     const store = createWorkflowStore();
     const focusedOperations: string[] = [];
@@ -91,7 +103,7 @@ describe("WebMCP eval fixture", () => {
       expect(["create", "edit", "read", "interaction"]).toContain(evalCase.taskType);
       expect(evalCase.messages.some((message) => message.role === "user" && message.content.length > 0)).toBe(true);
       expect(evalCase.expectedCall.length).toBeGreaterThan(0);
-      for (const call of [...(evalCase.setupCalls ?? []), ...evalCase.expectedCall]) {
+      for (const call of [...(evalCase.setupCalls ?? []), ...expectedFunctionCalls(evalCase.expectedCall)]) {
         expect(registeredTools.has(call.functionName)).toBe(true);
         expect(call.arguments).toBeTypeOf("object");
       }
@@ -101,11 +113,14 @@ describe("WebMCP eval fixture", () => {
   it("states the direct-create and receipt stopping conditions in each prompt", () => {
     for (const evalCase of evalCases) {
       const prompt = evalCase.messages.find((message) => message.role === "user")!.content;
-      expect(prompt).toContain("The app will announce the change receipt automatically");
-      expect(prompt).toContain("do not inspect or focus the receipt afterward");
       expect(prompt).not.toContain("show me what changed");
 
-      if (evalCase.taskType === "create") {
+      if (evalCase.outcomeType !== "complex-branch-create") {
+        expect(prompt).toContain("The app will announce the change receipt automatically");
+        expect(prompt).toContain("do not inspect or focus the receipt afterward");
+      }
+
+      if (evalCase.taskType === "create" && evalCase.outcomeType !== "complex-branch-create") {
         expect(prompt).toContain("The canvas is empty");
         expect(prompt).toContain("without calling discover_workflow first");
         expect(prompt).toContain("or supplying baseRevision");
@@ -158,6 +173,20 @@ describe("WebMCP eval fixture", () => {
       failedEdit(0),
       refreshedDiscovery,
       successfulCreate,
+    ])).toBe(false);
+  });
+
+  it("allows optional discovery before one large edit for the natural complex prompt", () => {
+    const complexCase = evalCases.find((evalCase) => evalCase.outcomeType === "complex-branch-create")!;
+    const calls = [
+      call("discover_workflow"),
+      call("edit_workflow", completedEdit(0, 28), { baseRevision: 0, commands: [] }),
+    ];
+
+    expect(allPass(complexCase.expectedCall, calls)).toBe(true);
+    expect(allPass(complexCase.expectedCall, [
+      ...calls,
+      call("edit_workflow", completedEdit(1, 1), { baseRevision: 1, commands: [] }),
     ])).toBe(false);
   });
 
@@ -231,7 +260,7 @@ describe("WebMCP eval fixture", () => {
     const complexCase = byOutcome.get("complex-branch-create")!;
     const complexEdit = call("edit_workflow", completedEdit(0, 20), { baseRevision: 0, commands: [] });
     expect(allPass(complexCase.expectedCall, [complexEdit])).toBe(true);
-    expect(allPass(complexCase.expectedCall, [discovery, complexEdit])).toBe(false);
+    expect(allPass(complexCase.expectedCall, [discovery, complexEdit])).toBe(true);
     expect(allPass(complexCase.expectedCall, [
       discovery,
       failedEdit(0),
