@@ -29,7 +29,12 @@ export function createSalesWorkflowEditCommands() {
   return [
     ...workflow.nodes.map((node) => ({
       type: "createNode" as const,
-      node: structuredClone(node),
+      node: {
+        id: node.id,
+        type: node.type,
+        label: node.label,
+        ...(Object.keys(node.properties).length > 0 ? { properties: structuredClone(node.properties) } : {}),
+      },
     })),
     ...workflow.edges.map((edge) => ({
       type: "connect" as const,

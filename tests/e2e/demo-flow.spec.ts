@@ -104,12 +104,11 @@ test("inferred recovery-route receipt can be focused, spot checked, and undone",
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
     const receipt = await tools.edit_workflow.execute({
       baseRevision: 1,
-      intent: "Keep leads from disappearing when enrichment is unavailable",
       commands: [
         { type: "connect", edge: { id: "edge-enrich-review", source: { nodeId: "enrich-company", port: "failure" }, target: { nodeId: "manual-review", port: "input" }, label: "Enrichment unavailable" } },
       ],
     }) as { operationId: string };
-    const shown = await tools.show_edit_result.execute({ operationId: receipt.operationId }) as { visible: boolean };
+    const shown = await tools.show_target.execute({ kind: "change-receipt", id: receipt.operationId }) as { visible: boolean };
     if (!shown.visible) throw new Error("Change entry was not visible after focus.");
     return receipt.operationId;
   });
@@ -130,48 +129,16 @@ test("inferred recovery-route receipt can be focused, spot checked, and undone",
   await expect(reviewNode).not.toHaveClass(/selected/);
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    const focusResult = await tools.focus_page_element.execute({ selector: "[data-id='manual-review']" }) as { queued: boolean; focusWhen: string };
-    if (!focusResult.queued || focusResult.focusWhen !== "window-focus-or-accessibility-interaction") throw new Error("Manual review focus was not queued.");
+    const shown = await tools.show_target.execute({ kind: "workflow-node", id: "manual-review" }) as { visible: boolean; focused: boolean };
+    if (!shown.visible || !shown.focused) throw new Error("Manual review was not shown.");
   });
-  await expect(reviewNode).not.toHaveClass(/selected/);
-  await expect(reviewNode).not.toBeFocused();
-  await page.keyboard.press("ArrowDown");
+  await expect(reviewNode).toHaveClass(/selected/);
   await expect(reviewNode).toBeFocused();
-  await page.waitForTimeout(400);
-  await expect(reviewNode).toBeFocused();
-  await page.evaluate(() => {
-    window.dispatchEvent(new FocusEvent("blur"));
-    (document.activeElement as HTMLElement | null)?.blur();
-    window.dispatchEvent(new FocusEvent("focus"));
-    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-    queueMicrotask(() => document.querySelector<HTMLElement>("a[href='#workspace']")?.focus());
-  });
-  await expect(reviewNode).toBeFocused();
-  await page.evaluate(() => {
-    window.dispatchEvent(new FocusEvent("blur"));
-    (document.activeElement as HTMLElement | null)?.blur();
-    window.dispatchEvent(new FocusEvent("focus"));
-  });
-  await expect(reviewNode).not.toBeFocused();
   const qualifiedNode = page.getByTestId("rf__node-qualified-lead");
   await page.evaluate(async () => {
     const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    await tools.focus_page_element.execute({ selector: "[data-id='qualified-lead']" });
+    await tools.show_target.execute({ kind: "workflow-node", id: "qualified-lead" });
   });
-  await page.getByRole("button", { name: "Zoom In" }).focus();
-  await expect(qualifiedNode).toBeFocused();
-  await page.evaluate(async () => {
-    const tools = (window as unknown as { __workflowTools: Record<string, { execute: (input: unknown) => unknown }> }).__workflowTools;
-    const superseded = tools.focus_page_element.execute({ selector: "#late-focus-target" }) as Promise<{ error?: { code: string } }>;
-    await tools.focus_page_element.execute({ selector: "[data-id='qualified-lead']" });
-    const lateTarget = document.createElement("button");
-    lateTarget.id = "late-focus-target";
-    document.body.append(lateTarget);
-    const supersededResult = await superseded;
-    lateTarget.remove();
-    if (supersededResult.error?.code !== "TOOL_EXECUTION_FAILED") throw new Error("Superseded focus request did not return a structured error.");
-  });
-  await page.keyboard.press("ArrowRight");
   await expect(qualifiedNode).toBeFocused();
   await expect(reviewNode).not.toBeFocused();
   await expect(receipt).not.toContainText("Agent intent");

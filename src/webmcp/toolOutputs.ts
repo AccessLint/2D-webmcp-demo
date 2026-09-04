@@ -12,33 +12,20 @@ function compactDiscovery(result: UnknownRecord, input: unknown) {
   const edges = Array.isArray(authoring.edges) ? authoring.edges.filter(isRecord) : [];
   const allItems = [
     ...nodes.map((node) => ({ kind: "workflow-node", id: node.id, type: node.type, label: node.label })),
-    ...edges.map((edge) => ({ kind: "workflow-edge", id: edge.id })),
+    ...edges.map((edge) => ({
+      kind: "workflow-edge",
+      id: edge.id,
+      ...(typeof edge.label === "string" ? { label: edge.label } : {}),
+    })),
   ];
   const parsedInput = isRecord(input) ? input : {};
   const cursor = typeof parsedInput.cursor === "number" ? parsedInput.cursor : 0;
   const requestedLimit = typeof parsedInput.limit === "number" ? parsedInput.limit : 8;
-  const nodeTypes = Array.isArray(authoring.nodeTypes)
-    ? authoring.nodeTypes.filter(isRecord).map(({ type, inputs, outputs }) => ({ type, inputs, outputs }))
-    : [];
-  const uiTargets = Array.isArray(authoring.uiTargets)
-    ? authoring.uiTargets.filter(isRecord).map(({ id, label }) => ({ id, label }))
-    : [];
   const pageItems = allItems.slice(cursor, cursor + requestedLimit);
-  const capabilities = cursor === 0 ? {
-    nodeTypes,
-    uiTargets,
-    nextCalls: {
-      inspect: "inspect_workflow_items: use itemPage IDs.",
-      edit: `edit_workflow baseRevision ${String(result.revision)}. Reuse itemPage IDs; no duplicates. Node positions are optional. A successful edit announces its receipt without moving focus.`,
-    },
-  } : {};
   const createOutput = () => ({
-    schemaVersion: result.schemaVersion,
     revision: result.revision,
     counts: { nodes: result.nodes, edges: result.edges },
-    ...capabilities,
     itemPage: {
-      cursor,
       nextCursor: cursor + pageItems.length < allItems.length ? cursor + pageItems.length : null,
       items: pageItems,
     },
@@ -52,39 +39,29 @@ function compactDiscovery(result: UnknownRecord, input: unknown) {
   return output;
 }
 
-function compactReceipt(result: UnknownRecord, input: unknown) {
+function compactReceipt(result: UnknownRecord, input: unknown, includeChanges = false) {
   const parsedInput = isRecord(input) ? input : {};
   const changes = Array.isArray(result.changes) ? result.changes.filter(isRecord) : [];
-  const changeCursor = typeof parsedInput.changeCursor === "number" ? parsedInput.changeCursor : 0;
-  const changeLimit = typeof parsedInput.changeLimit === "number" ? parsedInput.changeLimit : 3;
+  const changeCursor = typeof parsedInput.cursor === "number" ? parsedInput.cursor : 0;
+  const changeLimit = typeof parsedInput.limit === "number" ? parsedInput.limit : 3;
   const compactChanges = changes.slice(changeCursor, changeCursor + changeLimit).map((change) => {
     const object = isRecord(change.object) ? change.object : {};
     return { action: change.action, kind: object.kind, id: object.id };
   });
   const createOutput = () => ({
-    schemaVersion: result.schemaVersion,
     operationId: result.operationId,
     status: result.status,
     baseRevision: result.baseRevision,
     resultingRevision: result.resultingRevision,
     summary: result.summary,
-    ...(typeof result.visible === "boolean" ? { visible: result.visible } : {}),
     changeCount: changes.length,
-    changePage: {
-      cursor: changeCursor,
-      nextCursor: changeCursor + compactChanges.length < changes.length ? changeCursor + compactChanges.length : null,
-      items: compactChanges,
-    },
-    undo: result.undo,
-    ...(isRecord(result.layout) ? {
-      layout: {
-        action: result.layout.action,
-        affectedNodeCount: Array.isArray(result.layout.affectedNodeIds)
-          ? result.layout.affectedNodeIds.length
-          : 0,
+    canUndo: isRecord(result.undo) && result.undo.available === true,
+    ...(includeChanges ? {
+      changePage: {
+        nextCursor: changeCursor + compactChanges.length < changes.length ? changeCursor + compactChanges.length : null,
+        items: compactChanges,
       },
     } : {}),
-    ...(isRecord(result.nextCall) ? { nextCall: result.nextCall } : {}),
     ...(result.failure ? { failure: result.failure } : {}),
     ...(result.recovery ? { recovery: result.recovery } : {}),
   });
@@ -98,12 +75,22 @@ function compactReceipt(result: UnknownRecord, input: unknown) {
 
 function compactInspection(result: unknown[], input: unknown) {
   const parsedInput = isRecord(input) ? input : {};
-  const detail = parsedInput.detail === "properties" || parsedInput.detail === "relationships" ? parsedInput.detail : "summary";
+  const detail = parsedInput.detail === "properties"
+    || parsedInput.detail === "relationships"
+    || parsedInput.detail === "changes"
+    ? parsedInput.detail
+    : "summary";
   const cursor = typeof parsedInput.cursor === "number" ? parsedInput.cursor : 0;
   const limit = typeof parsedInput.limit === "number" ? parsedInput.limit : 3;
   const compactItems = result.filter(isRecord).map((item): UnknownRecord => {
     const reference = isRecord(item.reference) ? item.reference : {};
     const relationships = Array.isArray(item.relationships) ? item.relationships.filter(isRecord) : [];
+    if (reference.kind === "change-receipt") {
+      return {
+        kind: reference.kind,
+        ...compactReceipt(item, input, detail === "changes"),
+      };
+    }
     if (reference.kind === "workflow-edge") {
       return {
         kind: reference.kind,
@@ -129,7 +116,6 @@ function compactInspection(result: unknown[], input: unknown) {
       id: item.id,
       type: item.type,
       label: item.label,
-      position: item.position,
       propertyNames: Object.keys(properties),
       ...(detail === "properties" ? { properties } : {}),
       relationshipCount: relationships.length,
@@ -222,7 +208,7 @@ function compactError(result: UnknownRecord) {
   return output;
 }
 
-const receiptTools = new Set<ToolName>(["edit_workflow", "get_edit_result", "undo_workflow_edit"]);
+const receiptTools = new Set<ToolName>(["edit_workflow", "undo_workflow_edit"]);
 
 const outputTooLarge = (name: ToolName) => ({
   ok: false,

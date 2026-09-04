@@ -33,6 +33,7 @@ describe("WebMCP tool boundary", () => {
   it("omits workflow validation from compact discovery", () => {
     const workflow = createSalesWorkflow();
     workflow.edges = workflow.edges.filter((edge) => edge.id !== "edge-qualified-nurture");
+    workflow.edges[0].label = "Qualified";
 
     const compact = fitToolOutput(
       "discover_workflow",
@@ -41,6 +42,13 @@ describe("WebMCP tool boundary", () => {
     ) as Record<string, unknown>;
 
     expect(compact).not.toHaveProperty("validation");
+    expect(compact).toMatchObject({
+      itemPage: {
+        items: expect.arrayContaining([
+          expect.objectContaining({ kind: "workflow-edge", id: workflow.edges[0].id, label: "Qualified" }),
+        ]),
+      },
+    });
     expect(JSON.stringify(compact).length).toBeLessThanOrEqual(1_500);
   });
 
@@ -65,95 +73,34 @@ describe("WebMCP tool boundary", () => {
     });
     const discovery = tools.discover_workflow({});
     expect(discovery).toMatchObject({
-      schemaVersion: "2",
       revision: 0,
       nodes: 7,
       edges: 6,
-      surfaceSchema: {
-        id: "urn:2d-webmcp:schema:surface-snapshot:0.1",
-        status: "draft",
-        source: "2D-webmcp/schemas/surface-snapshot.v0.1.schema.json",
-        version: "0.1",
-      },
-      surfaceSnapshot: {
-        schemaVersion: "0.1",
-        surface: {
-          id: "workflow",
-          documentVersion: "0",
-          capabilities: {
-            atomicity: "arbitrary-batch",
-            revisionPreconditions: true,
-            undo: "operation-token",
-          },
-        },
-        items: expect.arrayContaining([
-          expect.objectContaining({
-            id: "enrich-company",
-            kind: "workflow-node",
-            label: { value: "Enrich company", source: "author" },
-            geometry: {
-              type: "point",
-              coordinateSpaceId: "world",
-              origin: "top-left",
-              x: 280,
-              y: 220,
-            },
-          }),
-        ]),
-        relationships: expect.arrayContaining([
-          expect.objectContaining({
-            id: "edge-enrich-qualified",
-            type: "connects",
-            from: { itemId: "enrich-company", terminal: "success" },
-            to: { itemId: "qualified-lead", terminal: "input" },
-          }),
-        ]),
-      },
       authoring: {
-        nodeTypes: expect.arrayContaining([
-          { type: "node", title: "Node", inputs: ["input"], outputs: ["next"] },
-          { type: "action", title: "Action", inputs: ["input"], outputs: ["success", "failure"] },
-          { type: "condition", title: "Condition", inputs: ["input"], outputs: ["yes", "no"] },
-        ]),
         nodes: expect.arrayContaining([
-          { id: "enrich-company", type: "action", label: "Enrich company", inputs: ["input"], outputs: ["success", "failure"] },
+          { id: "enrich-company", type: "action", label: "Enrich company" },
         ]),
         edges: expect.arrayContaining([
           { id: "edge-enrich-qualified", source: { nodeId: "enrich-company", port: "success" }, target: { nodeId: "qualified-lead", port: "input" } },
         ]),
-        uiTargets: expect.arrayContaining([
-          { id: "canvas.zoom-in", label: "Zoom In", selector: "button[aria-label='Zoom In']" },
-        ]),
       },
-      recommendedNextCalls: expect.arrayContaining([
-        { tool: "inspect_workflow_items", input: { objects: [{ kind: "workflow-node", id: "enrich-company" }] } },
-        {
-          tool: "edit_workflow",
-          purpose: "Copy this valid call shape and replace the example command with the intended edit.",
-          input: { baseRevision: 0, commands: [{ type: "updateNode", id: "enrich-company", patch: { label: "Enrich company" } }] },
-        },
-      ]),
     });
 
     const receipt = await tools.edit_workflow({
       baseRevision: 0,
-      intent: "Add Notify sales after Create CRM opportunity",
       commands: [
-        { type: "createNode", node: { id: "notify-sales", type: "action", label: "Notify sales", position: { x: 900, y: 100 }, properties: {} } },
-        { type: "replaceConnection", edgeId: "edge-opportunity-end", replacements: [
-          { id: "edge-opportunity-notify", source: { nodeId: "create-opportunity", port: "success" }, target: { nodeId: "notify-sales", port: "input" } },
-          { id: "edge-notify-complete", source: { nodeId: "notify-sales", port: "success" }, target: { nodeId: "complete", port: "input" } },
-        ] },
+        { type: "createNode", node: { id: "notify-sales", type: "action", label: "Notify sales" } },
+        { type: "disconnect", edgeId: "edge-opportunity-end" },
+        { type: "connect", edge: { id: "edge-opportunity-notify", source: { nodeId: "create-opportunity", port: "success" }, target: { nodeId: "notify-sales", port: "input" } } },
+        { type: "connect", edge: { id: "edge-notify-complete", source: { nodeId: "notify-sales", port: "success" }, target: { nodeId: "complete", port: "input" } } },
       ],
     });
     expect(focusedOperationId).toBeNull();
     expect(store.getState().politeMessage).toBe(receipt.summary);
-    expect(tools.get_edit_result({ operationId: receipt.operationId })).toMatchObject({
-      operationId: receipt.operationId,
-      summary: receipt.summary,
-      status: receipt.status,
+    expect(tools.inspect_workflow_items({ objects: [{ kind: "change-receipt", id: receipt.operationId }] })[0]).toMatchObject({
+      operationId: receipt.operationId, summary: receipt.summary, status: receipt.status,
     });
-    await expect(tools.show_edit_result({ operationId: receipt.operationId })).resolves.toMatchObject({ operationId: receipt.operationId, summary: receipt.summary, focusedIn: "change-history", visible: true });
+    await expect(tools.show_target({ kind: "change-receipt", id: receipt.operationId })).resolves.toMatchObject({ operationId: receipt.operationId, summary: receipt.summary, focusedIn: "change-history", visible: true });
     expect(focusedOperationId).toBe(receipt.operationId);
     expect(tools.inspect_workflow_items({ objects: [{ kind: "workflow-node", id: "notify-sales" }] })[0]).toMatchObject({ label: "Notify sales", properties: {} });
     const inspectedEdge = tools.inspect_workflow_items({ objects: [{ kind: "workflow-edge", id: "edge-opportunity-notify" }] })[0];
@@ -163,11 +110,9 @@ describe("WebMCP tool boundary", () => {
       target: { nodeId: "notify-sales", port: "input" },
     });
     expect(inspectedEdge).not.toHaveProperty("sourcePort");
-    await expect(tools.focus_page_element({ selector: "[data-id='notify-sales']" })).resolves.toMatchObject({ selector: "[data-id='notify-sales']", tagName: "div", focusWhen: "window-focus-or-accessibility-interaction", queued: true });
-    expect(focusedSelector).toBe("[data-id='notify-sales']");
-    await expect(tools.focus_page_element({ targetId: "canvas.zoom-in" })).resolves.toMatchObject({ targetId: "canvas.zoom-in", selector: "button[aria-label='Zoom In']", queued: true });
+    await expect(tools.show_target({ kind: "page-element", id: "canvas.zoom-in" })).resolves.toMatchObject({ targetId: "canvas.zoom-in", selector: "button[aria-label='Zoom In']", queued: true });
     expect(focusedSelector).toBe("button[aria-label='Zoom In']");
-    await expect(tools.show_workflow_item({ kind: "workflow-node", id: "notify-sales" })).resolves.toMatchObject({ id: "notify-sales", label: "Notify sales", focused: true, visible: true });
+    await expect(tools.show_target({ kind: "workflow-node", id: "notify-sales" })).resolves.toMatchObject({ id: "notify-sales", label: "Notify sales", focused: true, visible: true });
     expect(focusedNodeId).toBe("notify-sales");
     expect(store.getState().selected).toEqual({ kind: "node", id: "notify-sales" });
     expect(tools.undo_workflow_edit({ operationId: receipt.operationId }).summary).toContain("Undid");
@@ -183,27 +128,24 @@ describe("WebMCP tool boundary", () => {
       recovery: { tool: "discover_workflow", input: {}, currentRevision: 0, then: "edit_workflow" },
     });
     expect(store.getState().workflow.revision).toBe(0);
-    expect(tools.get_edit_result({ operationId: receipt.operationId })).toMatchObject({
+    expect(tools.inspect_workflow_items({ objects: [{ kind: "change-receipt", id: receipt.operationId }] })[0]).toMatchObject({
       operationId: receipt.operationId,
       status: receipt.status,
     });
   });
 
-  it("accepts a discovered SurfaceSnapshot label when editing a node", async () => {
+  it("rejects object-shaped labels from the internal SurfaceSnapshot format", async () => {
     const store = createSalesWorkflowStore();
     const tools = createToolHandlers(store);
 
-    const receipt = await tools.edit_workflow({
+    await expect(tools.edit_workflow({
       baseRevision: 0,
       commands: [{
         type: "updateNode",
         id: "enrich-company",
         patch: { label: { value: "Enrich company v2", source: "author" } },
       }],
-    });
-
-    expect(receipt).toMatchObject({ status: "completed", resultingRevision: 1 });
-    expect(store.getState().workflow.nodes.find((node) => node.id === "enrich-company")?.label).toBe("Enrich company v2");
+    })).rejects.toThrow();
   });
 
   it("defaults omitted properties when creating a node", async () => {
@@ -214,7 +156,7 @@ describe("WebMCP tool boundary", () => {
       baseRevision: 0,
       commands: [{
         type: "createNode",
-        node: { id: "new-action", type: "action", label: "New action", position: { x: 700, y: 300 } },
+        node: { id: "new-action", type: "action", label: "New action" },
       }],
     });
 
@@ -253,15 +195,14 @@ describe("WebMCP tool boundary", () => {
 
     const replaced = await tools.edit_workflow({
       baseRevision: 1,
-      commands: [{
-        type: "replaceConnection",
-        edgeId: "first-second",
-        replacements: [{
+      commands: [
+        { type: "disconnect", edgeId: "first-second" },
+        { type: "connect", edge: {
           id: "second-first",
           source: { nodeId: "second", port: "success" },
           target: { nodeId: "first", port: "input" },
-        }],
-      }],
+        } },
+      ],
     });
     expect(replaced).toMatchObject({ status: "completed", changes: expect.any(Array) });
     expect(replaced.changes).toHaveLength(2);
@@ -282,15 +223,7 @@ describe("WebMCP tool boundary", () => {
     })).rejects.toThrow();
     await expect(tools.edit_workflow({
       baseRevision: 2,
-      commands: [{
-        type: "replaceConnection",
-        edgeId: "second-first",
-        replacement: [{
-          id: "singular-field",
-          source: { nodeId: "first", port: "success" },
-          target: { nodeId: "second", port: "input" },
-        }],
-      }],
+      commands: [{ type: "replaceConnection", edgeId: "second-first", replacements: [] }],
     })).rejects.toThrow();
   });
 
@@ -311,10 +244,10 @@ describe("WebMCP tool boundary", () => {
   it("does not request focus for a missing change entry", async () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store);
-    await expect(tools.show_edit_result({ operationId: "missing" })).rejects.toThrow("Receipt missing does not exist");
+    await expect(tools.show_target({ kind: "change-receipt", id: "missing" })).rejects.toThrow("Receipt missing does not exist");
   });
 
-  it("does not request DOM focus for an empty selector", async () => {
+  it("rejects an unknown named page target before requesting DOM focus", async () => {
     const store = createWorkflowStore();
     let focusRequested = false;
     const tools = createToolHandlers(store, {
@@ -326,7 +259,7 @@ describe("WebMCP tool boundary", () => {
       },
     });
 
-    await expect(tools.focus_page_element({ selector: "" })).rejects.toThrow();
+    await expect(tools.show_target({ kind: "page-element", id: "canvas.missing" })).rejects.toThrow();
     expect(focusRequested).toBe(false);
   });
 
@@ -343,31 +276,13 @@ describe("WebMCP tool boundary", () => {
     const registration = registerWorkflowTools(createToolHandlers(store));
     await expect(registration.ready).resolves.toBe(true);
     expect([...registered.keys()]).toEqual([
-      "discover_workflow", "inspect_workflow_items", "edit_workflow", "show_workflow_item",
-      "focus_page_element", "get_edit_result", "show_edit_result", "undo_workflow_edit",
+      "discover_workflow", "inspect_workflow_items", "edit_workflow", "show_target", "undo_workflow_edit",
     ]);
-    expect(registered.get("discover_workflow")?.description).toContain("Skip it when the canvas is visibly empty");
-    expect(registered.get("discover_workflow")?.description).toContain("do not call this tool again");
-    expect(registered.get("discover_workflow")?.description).toContain("recovery directs");
-    expect(registered.get("inspect_workflow_items")?.description).toContain("does not select or reveal");
-    expect(registered.get("edit_workflow")?.description).toContain("Do not increment it");
-    expect(registered.get("edit_workflow")?.description).toContain("Every command object needs a top-level type");
-    expect(registered.get("edit_workflow")?.description).toContain('node:{id:"node-id",type:"action",label:"Node label"}');
-    expect(registered.get("edit_workflow")?.description).toContain("not inside properties");
-    expect(registered.get("edit_workflow")?.description).toContain("Never wrap a command");
-    expect(registered.get("edit_workflow")?.description).toContain('source:{nodeId:"source-id",port:"success"}');
-    expect(registered.get("edit_workflow")?.description).toContain("replacements:[{");
-    expect(registered.get("edit_workflow")?.description).toContain("without moving keyboard focus");
-    expect(registered.get("edit_workflow")?.description).toContain("itemPage.nextCursor");
-    expect(registered.get("edit_workflow")?.description).toContain("announces the resulting receipt");
-    expect(registered.get("edit_workflow")?.description).toContain("omit baseRevision");
-    expect(registered.get("focus_page_element")?.description).toContain("exactly one targetId");
-    expect(registered.get("focus_page_element")?.description).toContain("Always call discover_workflow first");
-    expect(registered.get("focus_page_element")?.description).toContain("Queue keyboard focus");
-    expect(registered.get("focus_page_element")?.description).toContain("window receives focus");
-    expect(registered.get("show_workflow_item")?.description).toContain("select, show, reveal, or bring an item into view");
-    expect(registered.get("show_edit_result")?.description).toContain("explicitly asks");
-    expect(registered.get("show_edit_result")?.description).toContain("Do not call it automatically");
+    expect(registered.get("discover_workflow")?.description).toContain("Skip discovery only when the canvas is known to be empty");
+    expect(registered.get("inspect_workflow_items")?.description).toContain("change-receipt operation ID");
+    expect(registered.get("edit_workflow")?.description).toContain("Reroute with disconnect and connect");
+    expect(registered.get("edit_workflow")?.description).toContain("omit it only for an empty-canvas create");
+    expect(registered.get("show_target")?.description).toContain("workflow node, edge, change receipt, or named page element");
     expect(registered.get("discover_workflow")?.annotations).toEqual({
       readOnlyHint: true,
       untrustedContentHint: true,
@@ -376,16 +291,8 @@ describe("WebMCP tool boundary", () => {
       readOnlyHint: false,
       untrustedContentHint: true,
     });
-    expect(registered.get("focus_page_element")?.annotations).toEqual({ readOnlyHint: false });
-    const schema = registered.get("focus_page_element")?.inputSchema;
-    expect(schema).toMatchObject({
-      type: "object",
-      properties: {
-        targetId: expect.objectContaining({ enum: ["canvas.zoom-in", "canvas.zoom-out", "canvas.fit-view"] }),
-      },
-      required: ["targetId"],
-      additionalProperties: false,
-    });
+    expect(registered.get("show_target")?.annotations).toEqual({ readOnlyHint: false, untrustedContentHint: true });
+    expect(JSON.stringify(registered.get("show_target")?.inputSchema)).toContain("canvas.zoom-in");
     const invalidDiscovery = registered.get("discover_workflow")!.execute({ unexpected: true });
     expect(invalidDiscovery).toMatchObject({
       ok: false,
@@ -424,11 +331,6 @@ describe("WebMCP tool boundary", () => {
           commandExamples: {
             createNode: expect.objectContaining({ type: "createNode", node: expect.any(Object) }),
             connect: expect.objectContaining({ type: "connect", edge: expect.any(Object) }),
-            replaceConnection: expect.objectContaining({
-              type: "replaceConnection",
-              edgeId: expect.any(String),
-              replacements: expect.any(Array),
-            }),
           },
         },
       },
@@ -464,8 +366,10 @@ describe("WebMCP tool boundary", () => {
     });
     expect(editInputSchema.required).not.toContain("baseRevision");
     expect(JSON.stringify(editInputSchema)).toContain('"minimum":0');
-    expect(JSON.stringify(editInputSchema).length).toBeLessThan(4_500);
-    expect(JSON.stringify(editInputSchema)).toContain('"nodeId"');
+    expect(JSON.stringify(editInputSchema).length).toBeLessThan(2_800);
+    expect(JSON.stringify(editInputSchema)).not.toContain('"replaceConnection"');
+    expect(JSON.stringify(editInputSchema)).not.toContain('"position"');
+    expect(JSON.stringify(editInputSchema)).not.toContain('"intent"');
     expect(JSON.stringify(editInputSchema)).not.toContain("\\\\p{");
     const applied = await registered.get("edit_workflow")!.execute({
       baseRevision: 0,
@@ -476,7 +380,7 @@ describe("WebMCP tool boundary", () => {
       resultingRevision: 1,
       operationId: expect.any(String),
       changeCount: 0,
-      changePage: { cursor: 0, nextCursor: null, items: [] },
+      canUndo: true,
     });
     expect(applied).not.toHaveProperty("visible");
     expect(applied).not.toHaveProperty("nextCall");
@@ -492,27 +396,21 @@ describe("WebMCP tool boundary", () => {
     };
     expect(compactDiscovery).toMatchObject({
       revision: 1,
-      nodeTypes: expect.arrayContaining([
-        { type: "start", inputs: [], outputs: ["next"] },
-        { type: "end", inputs: ["input"], outputs: [] },
-        { type: "parallel-gateway", inputs: ["input"], outputs: ["next"] },
-      ]),
       itemPage: {
-        cursor: 0,
         items: expect.arrayContaining([
           expect.objectContaining({ id: "enrich-company", label: "Enrich company" }),
         ]),
       },
-      nextCalls: {
-        edit: expect.stringMatching(/Reuse itemPage IDs.*positions are optional.*announces its receipt without moving focus/),
-      },
     });
+    expect(compactDiscovery).not.toHaveProperty("nodeTypes");
+    expect(compactDiscovery).not.toHaveProperty("uiTargets");
+    expect(compactDiscovery).not.toHaveProperty("nextCalls");
     expect(compactDiscovery.itemPage.items.length).toBeGreaterThanOrEqual(3);
     expect(compactDiscovery.itemPage.nextCursor).toBe(compactDiscovery.itemPage.items.length);
     expect(JSON.stringify(compactDiscovery).length).toBeLessThanOrEqual(1_500);
     const discoveryPage = registered.get("discover_workflow")!.execute({ limit: 1 });
     expect(discoveryPage).toMatchObject({
-      itemPage: { cursor: 0, nextCursor: 1, items: [expect.any(Object)] },
+      itemPage: { nextCursor: 1, items: [expect.any(Object)] },
     });
     const compactInspection = registered.get("inspect_workflow_items")!.execute({
       objects: [{ kind: "workflow-node", id: "enrich-company" }],
@@ -534,20 +432,23 @@ describe("WebMCP tool boundary", () => {
         target: { nodeId: "qualified-lead", port: "input" },
       })],
     });
-    expect(registered.get("get_edit_result")!.execute({ operationId: "missing" })).toMatchObject({
+    expect(registered.get("inspect_workflow_items")!.execute({ objects: [{ kind: "change-receipt", id: "missing" }] })).toMatchObject({
       ok: false,
       error: {
         code: "NOT_FOUND",
         message: "Receipt missing does not exist.",
-        recovery: { tool: "get_edit_result", reason: expect.stringContaining("operationId") },
+        recovery: {
+          tool: "inspect_workflow_items",
+          reason: expect.stringContaining("operation ID returned by editing"),
+        },
       },
     });
-    await expect(registered.get("focus_page_element")!.execute({ targetId: "canvas.missing" })).resolves.toMatchObject({
+    await expect(registered.get("show_target")!.execute({ kind: "page-element", id: "canvas.missing" })).resolves.toMatchObject({
       ok: false,
       error: {
         code: "INVALID_INPUT",
-        issues: expect.arrayContaining([expect.objectContaining({ path: ["targetId"] })]),
-        recovery: { tool: "focus_page_element", reason: expect.stringContaining("Correct") },
+        issues: expect.arrayContaining([expect.objectContaining({ path: ["id"] })]),
+        recovery: { tool: "show_target", reason: expect.stringContaining("Correct") },
       },
     });
     window.removeEventListener("webmcp:invocation", observeInvocation);
@@ -571,7 +472,6 @@ describe("WebMCP tool boundary", () => {
           id: "x".repeat(65),
           type: "action",
           label: "Valid label",
-          position: { x: 0, y: 0 },
           properties: {},
         },
       }],
@@ -587,7 +487,6 @@ describe("WebMCP tool boundary", () => {
           id: "bounded-properties",
           type: "action",
           label: "Bounded properties",
-          position: { x: 0, y: 0 },
           properties: { one: 1, two: 2, three: 3, four: 4, five: 5 },
         },
       }],
@@ -602,7 +501,6 @@ describe("WebMCP tool boundary", () => {
           id: "control-character",
           type: "action",
           label: `Unsafe\u0000label`,
-          position: { x: 0, y: 0 },
           properties: {},
         },
       }],
@@ -725,8 +623,6 @@ describe("WebMCP tool boundary", () => {
             id: `isolated-${String(index)}`,
             type: "condition",
             label: `Isolated ${String(index)}`,
-            position: { x: index * 20, y: 500 },
-            properties: {},
           },
         }, {
           type: "connect",
@@ -736,17 +632,21 @@ describe("WebMCP tool boundary", () => {
             target: { nodeId: "complete", port: "input" },
           },
         }]).flat(),
-    }) as { operationId: string; changePage: { nextCursor: number | null } };
+    }) as { operationId: string };
 
-    expect(edit.changePage.nextCursor).toBe(3);
     expect(edit).not.toHaveProperty("validation");
-    const nextPage = registered.get("get_edit_result")!.execute({
-      operationId: edit.operationId,
-      changeCursor: 3,
-      changeLimit: 5,
+    expect(edit).not.toHaveProperty("changePage");
+    const nextPage = registered.get("inspect_workflow_items")!.execute({
+      objects: [{ kind: "change-receipt", id: edit.operationId }],
+      detail: "changes",
+      cursor: 3,
+      limit: 5,
     });
     expect(nextPage).toMatchObject({
-      changePage: { cursor: 3, nextCursor: 8, items: expect.arrayContaining([expect.objectContaining({ id: "isolated-5" })]) },
+      items: [expect.objectContaining({
+        kind: "change-receipt",
+        changePage: { nextCursor: 8, items: expect.arrayContaining([expect.objectContaining({ id: "isolated-5" })]) },
+      })],
     });
     expect(nextPage).not.toHaveProperty("validation");
     expect(JSON.stringify(nextPage).length).toBeLessThanOrEqual(1_500);
@@ -779,8 +679,9 @@ describe("WebMCP tool boundary", () => {
       baseRevision: 0,
       resultingRevision: 1,
       changeCount: 20,
-      changePage: { cursor: 0, nextCursor: expect.any(Number), items: expect.any(Array) },
+      canUndo: true,
     });
+    expect(result).not.toHaveProperty("changePage");
     expect(result).not.toHaveProperty("visible");
     expect(JSON.stringify(result).length).toBeLessThanOrEqual(1_500);
     registration.unregister();
@@ -825,8 +726,8 @@ describe("WebMCP tool boundary", () => {
     const controller = new AbortController();
     controller.abort();
 
-    await expect(registered.get("focus_page_element")!.execute(
-      { targetId: "canvas.zoom-in" },
+    await expect(registered.get("show_target")!.execute(
+      { kind: "page-element", id: "canvas.zoom-in" },
       { signal: controller.signal },
     )).rejects.toHaveProperty("name", "AbortError");
     expect(focusRequested).toBe(false);
@@ -845,8 +746,8 @@ describe("WebMCP tool boundary", () => {
     const controller = new AbortController();
     controller.abort("cancelled");
 
-    await expect(registered.get("focus_page_element")!.execute(
-      { targetId: "canvas.zoom-in" },
+    await expect(registered.get("show_target")!.execute(
+      { kind: "page-element", id: "canvas.zoom-in" },
       { signal: controller.signal },
     )).rejects.toBe("cancelled");
     expect(store.getState().invocations[0]).toMatchObject({ outcome: "aborted", code: "ABORTED" });
@@ -876,7 +777,7 @@ describe("WebMCP tool boundary", () => {
       ok: false,
       error: {
         code: "UNDO_NOT_AVAILABLE",
-        recovery: { tool: "get_edit_result", reason: expect.stringContaining("no longer") },
+        recovery: { tool: "inspect_workflow_items", reason: expect.stringContaining("no longer") },
       },
     });
     registration.unregister();
@@ -891,8 +792,8 @@ describe("WebMCP tool boundary", () => {
     Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
     const registration = registerWorkflowTools(createToolHandlers(createWorkflowStore()));
     const controller = new AbortController();
-    const pending = registered.get("focus_page_element")!.execute(
-      { selector: "#never-rendered" },
+    const pending = registered.get("show_target")!.execute(
+      { kind: "page-element", id: "canvas.zoom-in" },
       { signal: controller.signal },
     );
     controller.abort();
@@ -912,12 +813,12 @@ describe("WebMCP tool boundary", () => {
       focusDomNode: async () => { throw new Error("internal selector engine detail"); },
     }));
 
-    await expect(failingTools.get("focus_page_element")!.execute({ targetId: "canvas.zoom-in" })).resolves.toMatchObject({
+    await expect(failingTools.get("show_target")!.execute({ kind: "page-element", id: "canvas.zoom-in" })).resolves.toMatchObject({
       ok: false,
       error: {
         code: "TOOL_EXECUTION_FAILED",
         message: "The tool could not complete the request.",
-        recovery: { tool: "focus_page_element" },
+        recovery: { tool: "show_target" },
       },
     });
     failingRegistration.unregister();

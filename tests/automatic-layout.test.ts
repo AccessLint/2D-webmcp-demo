@@ -129,31 +129,6 @@ describe("automatic workflow layout", () => {
     });
   });
 
-  it("cleans up explicitly positioned neighbors with the rest of the graph", async () => {
-    const store = createWorkflowStore();
-    const tools = createToolHandlers(store, uiActions);
-
-    await tools.edit_workflow({
-      baseRevision: 0,
-      commands: [
-        { type: "createNode", node: { id: "request", type: "action", label: "Request", position: { x: 100, y: 220 } } },
-        { type: "createNode", node: { id: "review", type: "action", label: "Review" } },
-        { type: "createNode", node: { id: "complete", type: "end", label: "Complete", position: { x: 700, y: 220 } } },
-        connect("request-review", "request", "success", "review"),
-        connect("review-complete", "review", "success", "complete"),
-      ],
-    });
-
-    const positions = Object.fromEntries(
-      store.getState().workflow.nodes.map((node) => [node.id, node.position]),
-    );
-    expect(positions).toEqual({
-      request: { x: 100, y: 100 },
-      review: { x: 385, y: 100 },
-      complete: { x: 670, y: 100 },
-    });
-  });
-
   it("keeps the forward path sequential when the workflow contains a back edge", async () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store, uiActions);
@@ -183,19 +158,18 @@ describe("automatic workflow layout", () => {
     });
   });
 
-  it("normalizes a position explicitly assigned earlier in the same batch", async () => {
+  it("rejects positions because WebMCP layout is automatic", async () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store, uiActions);
 
-    await tools.edit_workflow({
+    await expect(tools.edit_workflow({
       baseRevision: 0,
       commands: [
-        { type: "createNode", node: { id: "placed", type: "action", label: "Placed" } },
-        { type: "updateNode", id: "placed", patch: { position: { x: 640, y: 360 } } },
+        { type: "createNode", node: { id: "placed", type: "action", label: "Placed", position: { x: 640, y: 360 } } },
       ],
-    });
+    })).rejects.toThrow("Unrecognized key");
 
-    expect(store.getState().workflow.nodes[0].position).toEqual({ x: 100, y: 100 });
+    expect(store.getState().workflow.nodes).toEqual([]);
   });
 
   it("centers a join between all of its incoming paths", async () => {
@@ -223,30 +197,6 @@ describe("automatic workflow layout", () => {
     expect(positions.continue.y).not.toBe(positions.join.y);
   });
 
-  it("centers a join after cleaning up manually positioned predecessors", async () => {
-    const store = createWorkflowStore();
-    const tools = createToolHandlers(store, uiActions);
-
-    await tools.edit_workflow({
-      baseRevision: 0,
-      commands: [
-        { type: "createNode", node: { id: "top", type: "action", label: "Top", position: { x: 100, y: 100 } } },
-        { type: "createNode", node: { id: "middle", type: "action", label: "Middle", position: { x: 100, y: 300 } } },
-        { type: "createNode", node: { id: "bottom", type: "action", label: "Bottom", position: { x: 100, y: 900 } } },
-        { type: "createNode", node: { id: "join", type: "action", label: "Join" } },
-        connect("top-join", "top", "success", "join"),
-        connect("middle-join", "middle", "success", "join"),
-        connect("bottom-join", "bottom", "success", "join"),
-      ],
-    });
-
-    const positions = Object.fromEntries(
-      store.getState().workflow.nodes.map((node) => [node.id, node.position]),
-    );
-    expect(positions.join).toEqual({ x: 385, y: 211 });
-    expect(new Set([positions.top.y, positions.middle.y, positions.bottom.y]).size).toBe(3);
-  });
-
   it("stacks branches when connections are added after automatic node creation", async () => {
     const store = createWorkflowStore();
     const tools = createToolHandlers(store, uiActions);
@@ -261,81 +211,6 @@ describe("automatic workflow layout", () => {
     });
     await tools.edit_workflow({
       baseRevision: 1,
-      commands: [
-        connect("decision-yes", "decision", "yes", "approved"),
-        connect("decision-no", "decision", "no", "rejected"),
-      ],
-    });
-
-    const positions = Object.fromEntries(
-      store.getState().workflow.nodes.map((node) => [node.id, node.position]),
-    );
-    expect(positions).toEqual({
-      decision: { x: 100, y: 155.5 },
-      approved: { x: 385, y: 100 },
-      rejected: { x: 385, y: 211 },
-    });
-  });
-
-  it("cleans up an explicit move as part of the same edit", async () => {
-    const store = createWorkflowStore();
-    const tools = createToolHandlers(store, uiActions);
-
-    await tools.edit_workflow({
-      baseRevision: 0,
-      commands: [
-        { type: "createNode", node: { id: "decision", type: "condition", label: "Approved?" } },
-        { type: "createNode", node: { id: "approved", type: "action", label: "Approve" } },
-        { type: "createNode", node: { id: "rejected", type: "action", label: "Reject" } },
-      ],
-    });
-    await tools.edit_workflow({
-      baseRevision: 1,
-      commands: [
-        { type: "updateNode", id: "decision", patch: { position: { x: 900, y: 500 } } },
-      ],
-    });
-    expect(store.getState().workflow.nodes.find((node) => node.id === "decision")?.position)
-      .toEqual({ x: 100, y: 100 });
-    await tools.edit_workflow({
-      baseRevision: 2,
-      commands: [
-        connect("decision-yes", "decision", "yes", "approved"),
-        connect("decision-no", "decision", "no", "rejected"),
-      ],
-    });
-
-    const positions = Object.fromEntries(
-      store.getState().workflow.nodes.map((node) => [node.id, node.position]),
-    );
-    expect(positions).toEqual({
-      decision: { x: 100, y: 155.5 },
-      approved: { x: 385, y: 100 },
-      rejected: { x: 385, y: 211 },
-    });
-  });
-
-  it("restores automatic layout ownership when an explicit move is undone", async () => {
-    const store = createWorkflowStore();
-    const tools = createToolHandlers(store, uiActions);
-
-    await tools.edit_workflow({
-      baseRevision: 0,
-      commands: [
-        { type: "createNode", node: { id: "decision", type: "condition", label: "Approved?" } },
-        { type: "createNode", node: { id: "approved", type: "action", label: "Approve" } },
-        { type: "createNode", node: { id: "rejected", type: "action", label: "Reject" } },
-      ],
-    });
-    const moveReceipt = await tools.edit_workflow({
-      baseRevision: 1,
-      commands: [
-        { type: "updateNode", id: "decision", patch: { position: { x: 900, y: 500 } } },
-      ],
-    });
-    tools.undo_workflow_edit({ operationId: moveReceipt.operationId });
-    await tools.edit_workflow({
-      baseRevision: 3,
       commands: [
         connect("decision-yes", "decision", "yes", "approved"),
         connect("decision-no", "decision", "no", "rejected"),

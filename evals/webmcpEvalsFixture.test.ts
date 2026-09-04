@@ -40,7 +40,7 @@ const nonBrowserUiActions = {
 };
 
 describe("WebMCP eval fixture", () => {
-  it("accepts position-free creates and the nodeId update alias without focusing the receipt", async () => {
+  it("accepts position-free creates and canonical updates without focusing the receipt", async () => {
     const store = createWorkflowStore();
     const focusedOperations: string[] = [];
     const handlers = createToolHandlers(store, {
@@ -66,7 +66,7 @@ describe("WebMCP eval fixture", () => {
     const updated = await handlers.edit_workflow({
       baseRevision: 1,
       commands: [
-        { type: "updateNode", nodeId: "approve", patch: { label: "Approved" } },
+        { type: "updateNode", id: "approve", patch: { label: "Approved" } },
       ],
     });
 
@@ -80,7 +80,7 @@ describe("WebMCP eval fixture", () => {
   });
 
   it("keeps the edit schema within the model-context budget", () => {
-    expect(JSON.stringify(jsonSchemas.apply).length).toBeLessThan(4_500);
+    expect(JSON.stringify(jsonSchemas.apply).length).toBeLessThan(2_800);
   });
 
   it("contains runnable cases that reference registered workflow tools", () => {
@@ -249,6 +249,14 @@ describe("WebMCP eval fixture", () => {
     });
     const rerouteEdit = call("edit_workflow", completedEdit(1, 2), { baseRevision: 1, commands: [] });
     expect(allPass(rerouteCase.expectedCall, [discovery, edgeInspection, rerouteEdit])).toBe(true);
+    const edgePropertiesInspection = call("inspect_workflow_items", {
+      returnedCount: 1,
+      items: [{ kind: "workflow-edge", id: "edge-receive-archive" }],
+    }, {
+      objects: [{ kind: "workflow-edge", id: "edge-receive-archive" }],
+      detail: "properties",
+    });
+    expect(allPass(rerouteCase.expectedCall, [discovery, edgePropertiesInspection, rerouteEdit])).toBe(true);
     const contextualInspection = call("inspect_workflow_items", {
       returnedCount: 3,
       items: [{ kind: "workflow-edge", id: "edge-receive-archive" }],
@@ -296,10 +304,9 @@ describe("WebMCP eval fixture", () => {
       { cursor: 4, limit: 4 },
       handlers.discover_workflow({ cursor: 4, limit: 4 }),
     );
-    expect(firstDiscovery).toMatchObject({ itemPage: { cursor: 0, nextCursor: 4 } });
+    expect(firstDiscovery).toMatchObject({ itemPage: { nextCursor: 4 } });
     expect(secondDiscovery).toMatchObject({
       itemPage: {
-        cursor: 4,
         items: expect.arrayContaining([expect.objectContaining({ id: "routing-hub" })]),
       },
     });

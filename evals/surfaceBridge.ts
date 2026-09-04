@@ -7,6 +7,7 @@ import { createToolHandlers } from "../src/webmcp/toolHandlers";
 import { workflowToolDefinitions } from "../src/webmcp/registerTools";
 import { toolNames } from "../src/webmcp/toolNames";
 import { workflowSurfaceReceipt } from "../src/webmcp/surfaceReceipt";
+import { workflowSurfaceSnapshot } from "../src/webmcp/surfaceSnapshot";
 import { applyInputSchema, normalizeCommands } from "../src/webmcp/toolSchemas";
 import surfaceSnapshotJsonSchema from "../src/webmcp/schemas/surface-snapshot.v0.1.schema.json";
 import surfaceReceiptJsonSchema from "../src/webmcp/schemas/surface-receipt.v0.1.schema.json";
@@ -59,7 +60,7 @@ export function createSurfaceEvalSession(initial?: WorkflowState) {
           outputs: {
             genericEditor: genericEditorSnapshot(store.getState().workflow),
             workflowBaseline: workflowBaselineSnapshot(store.getState().workflow),
-            surfaceRfc: native.surfaceSnapshot,
+            surfaceRfc: workflowSurfaceSnapshot(store.getState().workflow),
           },
         };
       }

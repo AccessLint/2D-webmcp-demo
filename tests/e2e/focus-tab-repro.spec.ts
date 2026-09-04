@@ -22,7 +22,7 @@ test("queued focus is not advanced by the Tab used to enter the app window", asy
     const tools = (window as unknown as {
       __workflowTools: Record<string, { execute: (input: unknown) => unknown }>;
     }).__workflowTools;
-    await tools.focus_page_element.execute({ targetId: "canvas.zoom-in" });
+    await tools.show_target.execute({ kind: "page-element", id: "canvas.zoom-in" });
   });
 
   await page.bringToFront();

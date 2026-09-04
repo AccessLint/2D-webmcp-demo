@@ -6,11 +6,8 @@ Agent-friendly, screen reader accessible flow diagram editor demonstrating human
 
 | Tool | Use it to |
 | --- | --- |
-| `discover_workflow` | Start here once per task unless the canvas is visibly empty and the task only creates items. Get a compact, paginated list of item IDs with labels for nodes, plus the current revision, valid ports, named page targets, and next steps. |
-| `inspect_workflow_items` | After discovery, read compact summaries, properties, or paginated relationships for specific nodes or connections without changing the visible selection. |
-| `edit_workflow` | After discovery—or directly with no revision on a visibly empty canvas—atomically apply up to 20 typed workflow commands, clean up the completed workflow layout, and announce the resulting receipt without moving keyboard focus. |
-| `show_workflow_item` | Select a node or connection and bring it into view. Nodes also receive keyboard focus. |
-| `focus_page_element` | After discovery, queue keyboard focus for one named page target ID returned by it. |
-| `get_edit_result` | Retrieve paginated changes for an operation returned by an edit or undo. |
-| `show_edit_result` | Explicitly bring an existing edit or undo result into view and move keyboard focus to its receipt. |
+| `discover_workflow` | Get a compact, paginated list of workflow item IDs and labels plus the current revision. Skip it only for a known empty-canvas create. |
+| `inspect_workflow_items` | Read properties or relationships for workflow items, or paginated changes for an edit receipt, without changing the visible selection. |
+| `edit_workflow` | Atomically apply up to 20 create, update, delete, connect, or disconnect commands. Layout and compact receipts are automatic. |
+| `show_target` | Bring a workflow item, edit receipt, or named page element into view and move or queue keyboard focus when applicable. |
 | `undo_workflow_edit` | Undo a successful edit while it is still the latest workflow revision and return the reversal result. |

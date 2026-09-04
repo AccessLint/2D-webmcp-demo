@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { executeBatch, type WorkflowCommand } from "../src/graph/commands";
 import { nodeKinds, type WorkflowState } from "../src/graph/model";
 import { nodeDefinitions } from "../src/graph/nodeTypes";
-import { createWorkflowStore } from "../src/state/workflowStore";
-import { createToolHandlers } from "../src/webmcp/toolHandlers";
+import { jsonSchemas } from "../src/webmcp/toolSchemas";
 
 const emptyWorkflow = (): WorkflowState => ({ revision: 0, nodes: [], edges: [] });
 
@@ -72,15 +71,7 @@ describe("priority workflow node types", () => {
   });
 
   it("exposes every priority type to WebMCP authors", () => {
-    const discovery = createToolHandlers(createWorkflowStore()).discover_workflow({});
-    expect(discovery.authoring.nodeTypes).toEqual(expect.arrayContaining([
-      { type: "start", title: "Start", inputs: [], outputs: ["next"] },
-      { type: "end", title: "End", inputs: ["input"], outputs: [] },
-      { type: "input", title: "Input", inputs: [], outputs: ["data"] },
-      { type: "output", title: "Output", inputs: ["data"], outputs: [] },
-      { type: "subprocess", title: "Subprocess", inputs: ["input"], outputs: ["next"] },
-      { type: "parallel-gateway", title: "Parallel Gateway", inputs: ["input"], outputs: ["next"] },
-      { type: "data-store", title: "Data Store", inputs: ["write"], outputs: ["read"] },
-    ]));
+    const schema = JSON.stringify(jsonSchemas.apply);
+    for (const kind of nodeKinds) expect(schema).toContain(`"${kind}"`);
   });
 });

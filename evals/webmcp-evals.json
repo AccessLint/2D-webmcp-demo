@@ -14,9 +14,7 @@
               "node": {
                 "id": "draft-request",
                 "type": "action",
-                "label": "Draft request",
-                "position": { "x": 100, "y": 200 },
-                "properties": {}
+                "label": "Draft request"
               }
             },
             {
@@ -24,9 +22,7 @@
               "node": {
                 "id": "approve-request",
                 "type": "action",
-                "label": "Approve request",
-                "position": { "x": 400, "y": 200 },
-                "properties": {}
+                "label": "Approve request"
               }
             },
             {
@@ -151,9 +147,7 @@
               "node": {
                 "id": "receive-request",
                 "type": "action",
-                "label": "Receive request",
-                "position": { "x": 100, "y": 200 },
-                "properties": {}
+                "label": "Receive request"
               }
             },
             {
@@ -161,9 +155,7 @@
               "node": {
                 "id": "manual-review",
                 "type": "action",
-                "label": "Manual review",
-                "position": { "x": 400, "y": 350 },
-                "properties": {}
+                "label": "Manual review"
               }
             },
             {
@@ -171,9 +163,7 @@
               "node": {
                 "id": "archive-request",
                 "type": "end",
-                "label": "Archive request",
-                "position": { "x": 700, "y": 200 },
-                "properties": {}
+                "label": "Archive request"
               }
             },
             {
@@ -192,7 +182,7 @@
       {
         "role": "user",
         "type": "message",
-        "content": "Inspect the current connection from Receive request to Archive request. Then use replaceConnection to reroute Receive request’s success output to Manual review instead, keeping every existing node. The app will announce the change receipt automatically; do not inspect or focus the receipt afterward."
+        "content": "Inspect the current connection from Receive request to Archive request. Reroute Receive request’s success output to Manual review instead, keeping every existing node. The app will announce the change receipt automatically; do not inspect or focus the receipt afterward."
       }
     ],
     "expectedCall": [
@@ -203,8 +193,7 @@
       {
         "functionName": "inspect_workflow_items",
         "arguments": {
-          "objects": { "$type": "array" },
-          "detail": "relationships"
+          "objects": { "$type": "array" }
         },
         "result": {
           "returnedCount": { "$gte": 1 },
@@ -242,9 +231,7 @@
               "node": {
                 "id": "queue-intake",
                 "type": "action",
-                "label": "Queue intake",
-                "position": { "x": 100, "y": 100 },
-                "properties": {}
+                "label": "Queue intake"
               }
             },
             {
@@ -252,9 +239,7 @@
               "node": {
                 "id": "validate-request",
                 "type": "action",
-                "label": "Validate request",
-                "position": { "x": 100, "y": 250 },
-                "properties": {}
+                "label": "Validate request"
               }
             },
             {
@@ -262,9 +247,7 @@
               "node": {
                 "id": "score-request",
                 "type": "action",
-                "label": "Score request",
-                "position": { "x": 100, "y": 400 },
-                "properties": {}
+                "label": "Score request"
               }
             },
             {
@@ -272,9 +255,7 @@
               "node": {
                 "id": "route-a",
                 "type": "action",
-                "label": "Route A",
-                "position": { "x": 700, "y": 100 },
-                "properties": {}
+                "label": "Route A"
               }
             },
             {
@@ -282,9 +263,7 @@
               "node": {
                 "id": "route-b",
                 "type": "action",
-                "label": "Route B",
-                "position": { "x": 700, "y": 250 },
-                "properties": {}
+                "label": "Route B"
               }
             },
             {
@@ -292,9 +271,7 @@
               "node": {
                 "id": "route-c",
                 "type": "action",
-                "label": "Route C",
-                "position": { "x": 700, "y": 400 },
-                "properties": {}
+                "label": "Route C"
               }
             },
             {
@@ -302,9 +279,7 @@
               "node": {
                 "id": "routing-hub",
                 "type": "action",
-                "label": "Routing hub",
-                "position": { "x": 400, "y": 250 },
-                "properties": {}
+                "label": "Routing hub"
               }
             },
             {

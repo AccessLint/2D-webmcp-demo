@@ -51,22 +51,21 @@ const editCommandExamples = {
       target: { nodeId: "target-id", port: "input" },
     },
   },
-  replaceConnection: {
-    type: "replaceConnection",
-    edgeId: "existing-edge-id",
-    replacements: [{
-      id: "edge-new",
-      source: { nodeId: "source-id", port: "success" },
-      target: { nodeId: "target-id", port: "input" },
-    }],
-  },
 } as const;
 
-function recoveryFor(tool: ToolName, invalidInput: boolean, code?: string) {
+function isReceiptInspection(input: unknown) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return false;
+  const objects = (input as { objects?: unknown }).objects;
+  return Array.isArray(objects) && objects.some((object) => (
+    object && typeof object === "object" && "kind" in object && object.kind === "change-receipt"
+  ));
+}
+
+function recoveryFor(tool: ToolName, invalidInput: boolean, code?: string, input?: unknown) {
   if (invalidInput && tool === toolNames.editWorkflow) {
     return {
       tool,
-      reason: "Correct the listed fields and retry from commandExamples. Every command needs a top-level type; node.label belongs directly on node, not inside properties; source and target each contain nodeId and port; replacements is always an array.",
+      reason: "Correct the listed fields and retry from commandExamples. Every command needs a top-level type; node.label belongs directly on node; source and target each contain nodeId and port.",
       commandExamples: editCommandExamples,
     };
   }
@@ -75,16 +74,16 @@ function recoveryFor(tool: ToolName, invalidInput: boolean, code?: string) {
     return { action: "not-retryable", reason: "A later workflow edit makes this operation impossible to undo." };
   }
   if (code === "UNDO_NOT_AVAILABLE") {
-    return { tool: toolNames.getEditResult, reason: "Inspect the receipt; this operation no longer has an available undo snapshot." };
+    return { tool: toolNames.inspectWorkflowItems, reason: "Inspect the change receipt; this operation no longer has an available undo snapshot." };
   }
-  if (tool === toolNames.inspectWorkflowItems || tool === toolNames.showWorkflowItem) {
+  if (tool === toolNames.inspectWorkflowItems) {
+    if (isReceiptInspection(input)) {
+      return { tool, reason: "Retry with a current operation ID returned by editing or undoing." };
+    }
     return { tool: toolNames.discoverWorkflow, reason: "Refresh current workflow item IDs, then retry." };
   }
-  if (tool === toolNames.getEditResult || tool === toolNames.showEditResult || tool === toolNames.undoWorkflowEdit) {
-    return { tool, reason: "Use a current operationId returned by edit_workflow or undo_workflow_edit." };
-  }
-  if (tool === toolNames.focusPageElement) {
-    return { tool, reason: "Use a named targetId and retry after the target is available in the page." };
+  if (tool === toolNames.showTarget || tool === toolNames.undoWorkflowEdit) {
+    return { tool, reason: "Use a current target ID returned by discovery, editing, or inspection." };
   }
   if (tool === toolNames.editWorkflow) {
     return { tool: toolNames.discoverWorkflow, reason: "Refresh the revision and valid IDs before retrying the edit." };
@@ -92,7 +91,7 @@ function recoveryFor(tool: ToolName, invalidInput: boolean, code?: string) {
   return { tool, reason: "Retry the operation after checking the current application state." };
 }
 
-function recoveryError(tool: ToolName, error: unknown) {
+function recoveryError(tool: ToolName, error: unknown, input: unknown) {
   const invalidInput = error instanceof ZodError;
   const code = invalidInput ? "INVALID_INPUT" : error instanceof ToolError ? error.code : "TOOL_EXECUTION_FAILED";
   const message = invalidInput
@@ -106,7 +105,7 @@ function recoveryError(tool: ToolName, error: unknown) {
       code,
       message,
       ...(invalidInput ? { issues: flattenIssues(error.issues) } : {}),
-      recovery: recoveryFor(tool, invalidInput, code),
+      recovery: recoveryFor(tool, invalidInput, code, input),
     },
   };
 }
@@ -114,11 +113,8 @@ function recoveryError(tool: ToolName, error: unknown) {
 const parameterNamesByTool: Record<ToolName, readonly string[]> = {
   discover_workflow: ["cursor", "limit"],
   inspect_workflow_items: ["objects", "detail", "cursor", "limit"],
-  edit_workflow: ["baseRevision", "commands", "intent"],
-  show_workflow_item: ["kind", "id"],
-  focus_page_element: ["targetId", "selector"],
-  get_edit_result: ["operationId", "changeCursor", "changeLimit"],
-  show_edit_result: ["operationId"],
+  edit_workflow: ["baseRevision", "commands"],
+  show_target: ["kind", "id"],
   undo_workflow_edit: ["operationId"],
 };
 
@@ -177,7 +173,7 @@ const withRecovery = (tool: ToolName, handlers: ToolHandlers, execute: WebMCPToo
       });
       throw error;
     }
-    return finish(recoveryError(tool, error));
+    return finish(recoveryError(tool, error, input));
   };
   try {
     const result = execute(input, options);
@@ -192,7 +188,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.discoverWorkflow,
       title: "Discover workflow",
-      description: `Call this first, once per task, when the canvas contains items or its state is uncertain. Skip it when the canvas is visibly empty and the task only creates new items; call ${toolNames.editWorkflow} directly and omit baseRevision. Call discovery again only when following an itemPage or problemPage nextCursor, after a conflict, or when recovery directs you to refresh current IDs and revision. Returns a compact page of item IDs, labels, revision, valid ports, page targets, and next steps. If it answers a request to list what is on the canvas, do not call this tool again or inspect every item.`,
+      description: `List current workflow item IDs and labels with the revision required by ${toolNames.editWorkflow}. Follow itemPage.nextCursor for more items. Skip discovery only when the canvas is known to be empty and the task creates a new workflow.`,
       inputSchema: jsonSchemas.discovery,
       annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: handlers[toolNames.discoverWorkflow],
@@ -200,7 +196,7 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.inspectWorkflowItems,
       title: "Inspect workflow items",
-      description: `Call after ${toolNames.discoverWorkflow} only when detailed properties or relationships are requested. Returns data only; it does not select or reveal an item. For select, show, reveal, or bring into view, use ${toolNames.showWorkflowItem}.`,
+      description: `Read properties or relationships for discovered workflow items, or paginated changes for a change-receipt operation ID. This tool does not alter the visible selection.`,
       inputSchema: jsonSchemas.inspect,
       annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: handlers[toolNames.inspectWorkflowItems],
@@ -208,42 +204,18 @@ export function workflowToolDefinitions(handlers: ToolHandlers): WebMCPTool[] {
     {
       name: toolNames.editWorkflow,
       title: "Edit workflow",
-      description: `Call after ${toolNames.discoverWorkflow}, except when the canvas is visibly empty and the task only creates new items; then call this tool directly and omit baseRevision so it uses the current empty-canvas revision. Reuse existing IDs returned in itemPage. Before deciding an ID is absent, follow itemPage.nextCursor until it is null; one page is not proof of absence. Never create a node with an existing ID. Otherwise set baseRevision to discovery's exact revision. Do not increment it. Valid ports by node type are: ${nodePortGuide}. Every command object needs a top-level type. Create with {type:"createNode",node:{id:"node-id",type:"action",label:"Node label"}}; node.label belongs directly on node, not inside properties. Never wrap a command as {createNode:{...}}. Connect with {type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}. Replace with {type:"replaceConnection",edgeId:"existing-edge-id",replacements:[{...edge}]}. Other shapes are {type:"updateNode",id,patch}, {type:"deleteNode",id}, and {type:"disconnect",edgeId}. Positions and empty properties may be omitted. Applies up to 20 commands atomically and cleans up the completed workflow layout. The app announces the resulting receipt without moving keyboard focus. Do not call ${toolNames.showEditResult} after a successful edit unless the user explicitly asks to bring the receipt into view, and do not call ${toolNames.getEditResult} unless the user explicitly asks for every itemized change. On conflict, rediscover before retrying.`,
+      description: `Atomically apply up to 20 commands. Use these exact shapes: {type:"createNode",node:{id:"node-id",type:"action",label:"Label"}}; {type:"updateNode",id:"node-id",patch:{label:"New label"}}; {type:"deleteNode",id:"node-id"}; {type:"connect",edge:{id:"edge-id",source:{nodeId:"source-id",port:"success"},target:{nodeId:"target-id",port:"input"}}}; {type:"disconnect",edgeId:"edge-id"}. For an existing workflow, use ${toolNames.discoverWorkflow}'s exact revision as baseRevision; omit it only for an empty-canvas create. Node positions are automatic. Reroute with disconnect and connect commands in the same batch. Valid ports are ${nodePortGuide}. The app announces a compact receipt. On conflict, rediscover before retrying.`,
       inputSchema: jsonSchemas.apply,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: handlers[toolNames.editWorkflow],
     },
     {
-      name: toolNames.showWorkflowItem,
-      title: "Show workflow item",
-      description: `Use this after ${toolNames.discoverWorkflow} whenever the user asks to select, show, reveal, or bring an item into view. Do not substitute ${toolNames.inspectWorkflowItems}; inspection does not change the visible selection. For nodes, this also moves verified keyboard focus to the node.`,
-      inputSchema: jsonSchemas.reveal,
+      name: toolNames.showTarget,
+      title: "Show target",
+      description: "Bring a workflow node, edge, change receipt, or named page element into view. Nodes and receipts receive keyboard focus; page-element focus is queued for the next browser interaction.",
+      inputSchema: jsonSchemas.showTarget,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
-      execute: handlers[toolNames.showWorkflowItem],
-    },
-    {
-      name: toolNames.focusPageElement,
-      title: "Focus page element",
-      description: `Always call ${toolNames.discoverWorkflow} first in the current task. Queue keyboard focus for one named page target by passing exactly one targetId value returned by discovery. The browser applies focus when the window receives focus or an accessibility interaction occurs.`,
-      inputSchema: jsonSchemas.focusDomNode,
-      annotations: { readOnlyHint: false },
-      execute: handlers[toolNames.focusPageElement],
-    },
-    {
-      name: toolNames.getEditResult,
-      title: "Get edit result",
-      description: `Retrieve paginated changes for an operationId returned by ${toolNames.editWorkflow} or ${toolNames.undoWorkflowEdit}.`,
-      inputSchema: jsonSchemas.getEditResult,
-      annotations: { readOnlyHint: true, untrustedContentHint: true },
-      execute: handlers[toolNames.getEditResult],
-    },
-    {
-      name: toolNames.showEditResult,
-      title: "Show edit result",
-      description: `Use after ${toolNames.undoWorkflowEdit}, to revisit an existing receipt, or when the user explicitly asks to bring a receipt into view. Do not call it automatically after a successful ${toolNames.editWorkflow}; the app announces that result without moving keyboard focus. Pass the operationId to bring the history entry into view and focus it as visible evidence.`,
-      inputSchema: jsonSchemas.operation,
-      annotations: { readOnlyHint: false, untrustedContentHint: true },
-      execute: handlers[toolNames.showEditResult],
+      execute: handlers[toolNames.showTarget],
     },
     {
       name: toolNames.undoWorkflowEdit,

@@ -514,18 +514,19 @@ test("uses fixture outcome metadata when summarizing semantic success", () => {
   assert.equal(summary.byTaskType.edit.successfulAttempts, 1);
 });
 
-test("requires the existing connection to be rerouted with replaceConnection", () => {
+test("requires the existing connection to be rerouted atomically", () => {
   const commands = [
     {
-      type: "replaceConnection",
+      type: "disconnect",
       edgeId: "edge-receive-archive",
-      replacements: [
-        {
-          id: "edge-receive-review",
-          source: { nodeId: "receive-request", port: "success" },
-          target: { nodeId: "manual-review", port: "input" },
-        },
-      ],
+    },
+    {
+      type: "connect",
+      edge: {
+        id: "edge-receive-review",
+        source: { nodeId: "receive-request", port: "success" },
+        target: { nodeId: "manual-review", port: "input" },
+      },
     },
   ];
   const attempt = completedEditAttempt({
@@ -536,27 +537,24 @@ test("requires the existing connection to be rerouted with replaceConnection", (
   });
 
   assert.equal(hasVerifiedTaskOutcome(attempt, true), true);
-  const canonical = commands[0];
-  commands[0] = {
-    type: "replaceConnection",
-    edgeId: canonical.edgeId,
-    replacement: canonical.replacements,
-  };
+  const canonicalDisconnect = commands[0];
+  const canonicalConnect = commands[1];
+  commands[0] = { type: "disconnect", edgeId: "wrong-edge" };
   assert.equal(hasVerifiedTaskOutcome(attempt, true), false);
-  commands[0] = {
-    type: "replaceConnection",
-    edgeId: canonical.edgeId,
-    replacements: [{
+  commands[0] = canonicalDisconnect;
+  commands[1] = {
+    type: "connect",
+    edge: {
       id: "edge-receive-review",
       source: "receive-request",
       sourcePort: "success",
       target: "manual-review",
       targetPort: "input",
-    }],
+    },
   };
   assert.equal(hasVerifiedTaskOutcome(attempt, true), false);
-  commands[0] = canonical;
-  commands[0].type = "connect";
+  commands[1] = canonicalConnect;
+  commands.push({ type: "connect", edge: canonicalConnect.edge });
   assert.equal(hasVerifiedTaskOutcome(attempt, true), false);
 });
 

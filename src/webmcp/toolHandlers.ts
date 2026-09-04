@@ -6,12 +6,10 @@ import { WorkflowUndoError, type InvocationInput, type WorkflowStore } from "../
 import {
   applyInputSchema,
   discoveryInputSchema,
-  focusDomNodeInputSchema,
-  getEditResultInputSchema,
   inspectInputSchema,
   normalizeCommands,
   operationInputSchema,
-  revealInputSchema,
+  showTargetInputSchema,
 } from "./toolSchemas";
 import { browserUiActions, type UiActions } from "./uiActions";
 import { selectorForUiTarget } from "./uiTargets";
@@ -56,6 +54,12 @@ function requireEdge(state: WorkflowState, id: string): WorkflowEdge {
   return edge;
 }
 
+function requireReceipt(store: StoreApi<WorkflowStore>, operationId: string) {
+  const receipt = store.getState().history.find((item) => item.operationId === operationId);
+  if (!receipt) throw new ToolError("NOT_FOUND", `Receipt ${operationId} does not exist.`);
+  return receipt;
+}
+
 function isAbortError(error: unknown, signal?: AbortSignal) {
   return signal?.aborted || (error instanceof DOMException && error.name === "AbortError");
 }
@@ -97,9 +101,15 @@ export function createToolHandlers(
       checkAbort(options);
       const { objects } = inspectInputSchema.parse(input);
       const state = store.getState().workflow;
-      return objects.map(({ kind, id }) => kind === "workflow-node"
-        ? inspectNode(state, id)
-        : inspectEdge(state, id));
+      return objects.map(({ kind, id }) => {
+        if (kind === "workflow-node") return inspectNode(state, id);
+        if (kind === "workflow-edge") return inspectEdge(state, id);
+        const receipt = requireReceipt(store, id);
+        return {
+          ...receipt,
+          reference: { kind: "change-receipt" as const, id, label: receipt.summary },
+        };
+      });
     },
     async [toolNames.editWorkflow](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);
@@ -119,20 +129,6 @@ export function createToolHandlers(
         );
       }
       const baseRevision = parsed.baseRevision ?? currentWorkflow.revision;
-      const explicitlyPositionedNodeIds = new Set(parsed.commands.flatMap((command) => {
-        if (command.type === "createNode" && command.node.position !== undefined) return [command.node.id];
-        if (command.type === "updateNode" && command.patch.position !== undefined) {
-          return [command.id ?? command.nodeId!];
-        }
-        return [];
-      }));
-      const autoLayoutNodeIds = parsed.commands.flatMap((command) => (
-        command.type === "createNode"
-          && command.node.position === undefined
-          && !explicitlyPositionedNodeIds.has(command.node.id)
-          ? [command.node.id]
-          : []
-      ));
       const createdNodeIds = parsed.commands.flatMap((command) => (
         command.type === "createNode" ? [command.node.id] : []
       ));
@@ -140,9 +136,9 @@ export function createToolHandlers(
       const receipt = store.getState().apply(
         baseRevision,
         normalizeCommands(parsed.commands, store.getState().workflow.nodes),
-        parsed.intent,
+        undefined,
         {
-          autoLayoutNodeIds,
+          autoLayoutNodeIds: createdNodeIds,
           initiallyHiddenNodeIds: incrementallyRevealedNodeIds,
           cleanUpLayout: true,
         },
@@ -166,9 +162,19 @@ export function createToolHandlers(
       }
       return receipt;
     },
-    async [toolNames.showWorkflowItem](input: unknown, options?: { signal: AbortSignal }) {
+    async [toolNames.showTarget](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);
-      const parsed = revealInputSchema.parse(input);
+      const parsed = showTargetInputSchema.parse(input);
+      if (parsed.kind === "page-element") {
+        const selector = selectorForUiTarget(parsed.id);
+        const focusResult = await uiActions.focusDomNode(selector, options?.signal);
+        return { ...focusResult, targetId: parsed.id };
+      }
+      if (parsed.kind === "change-receipt") {
+        const receipt = requireReceipt(store, parsed.id);
+        const focusResult = await uiActions.focusChangeEntry(parsed.id, options?.signal);
+        return { ...focusResult, summary: receipt.summary, status: receipt.status };
+      }
       const state = store.getState().workflow;
       const object = parsed.kind === "workflow-node"
         ? requireNode(state, parsed.id)
@@ -190,28 +196,6 @@ export function createToolHandlers(
         focused: focusResult.focused,
         visible: focusResult.visible,
       };
-    },
-    async [toolNames.focusPageElement](input: unknown, options?: { signal: AbortSignal }) {
-      checkAbort(options);
-      const parsed = focusDomNodeInputSchema.parse(input);
-      const selector = "targetId" in parsed ? selectorForUiTarget(parsed.targetId) : parsed.selector;
-      const focusResult = await uiActions.focusDomNode(selector, options?.signal);
-      return "targetId" in parsed ? { ...focusResult, targetId: parsed.targetId } : focusResult;
-    },
-    [toolNames.getEditResult](input: unknown, options?: { signal: AbortSignal }) {
-      checkAbort(options);
-      const { operationId } = getEditResultInputSchema.parse(input);
-      const receipt = store.getState().history.find((item) => item.operationId === operationId);
-      if (!receipt) throw new ToolError("NOT_FOUND", `Receipt ${operationId} does not exist.`);
-      return receipt;
-    },
-    async [toolNames.showEditResult](input: unknown, options?: { signal: AbortSignal }) {
-      checkAbort(options);
-      const { operationId } = operationInputSchema.parse(input);
-      const receipt = store.getState().history.find((item) => item.operationId === operationId);
-      if (!receipt) throw new ToolError("NOT_FOUND", `Receipt ${operationId} does not exist.`);
-      const focusResult = await uiActions.focusChangeEntry(operationId, options?.signal);
-      return { ...focusResult, summary: receipt.summary, status: receipt.status };
     },
     [toolNames.undoWorkflowEdit](input: unknown, options?: { signal: AbortSignal }) {
       checkAbort(options);

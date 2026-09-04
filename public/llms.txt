@@ -2,7 +2,7 @@
 
 > An accessible browser-based workflow editor demonstrating verifiable agent actions through WebMCP. Human controls and agent tools share one graph model, and every committed edit produces an application-authored change receipt.
 
-Agents using the live application should call `discover_workflow` before any other WebMCP tool unless the canvas is visibly empty and the task only creates new items; then call `edit_workflow` directly and omit `baseRevision`. Use the returned revision and identifiers for edits on an existing canvas; after a stale-input or conflict error, discover again before retrying. Prefer named page target IDs over CSS selectors when moving focus.
+Agents editing an existing workflow should call `discover_workflow` first and use its revision and identifiers. When the canvas is known to be empty, call `edit_workflow` directly and omit `baseRevision`. After a stale-input or conflict error, discover again before retrying. Use `show_target` with a named page-element ID when moving focus.
 
 ## Documentation
 

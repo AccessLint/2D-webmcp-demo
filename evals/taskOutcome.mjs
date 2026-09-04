@@ -34,10 +34,6 @@ function edgeEndpoint(edge, side) {
   };
 }
 
-function replacementsFor(command) {
-  return Array.isArray(command?.replacements) ? command.replacements : [];
-}
-
 function createdGraphFrom(commands) {
   if (!Array.isArray(commands) || commands.some((command) =>
     !["createNode", "connect"].includes(command?.type))) return null;
@@ -134,13 +130,11 @@ function isComplexBranchCreate(commands) {
 }
 
 function isConnectionReroute(commands) {
-  if (!Array.isArray(commands) || commands.length !== 1) return false;
-  const command = commands[0];
-  const replacement = replacementsFor(command);
-  if (command?.type !== "replaceConnection"
-    || command.edgeId !== "edge-receive-archive"
-    || replacement.length !== 1) return false;
-  const edge = replacement[0];
+  if (!Array.isArray(commands) || commands.length !== 2) return false;
+  const disconnect = commands.find((command) => command?.type === "disconnect");
+  const connect = commands.find((command) => command?.type === "connect");
+  if (disconnect?.edgeId !== "edge-receive-archive" || !connect?.edge) return false;
+  const edge = connect.edge;
   const source = edgeEndpoint(edge, "source");
   const target = edgeEndpoint(edge, "target");
   return source.nodeId === "receive-request"

@@ -7,22 +7,19 @@ Live application: <https://2d-webmcp.netlify.app/>
 ## Agent workflow
 
 1. Call `discover_workflow` first unless the canvas is visibly empty and the task only creates new items; in that case, call `edit_workflow` directly and omit `baseRevision`.
-2. Optionally call `inspect_workflow_items` for full details about selected nodes or connections.
-3. For an existing canvas, copy the current revision, valid item IDs, and valid ports from discovery into one atomic `edit_workflow` request. For an empty canvas, use the node-type ports documented by `edit_workflow`.
-4. Use the returned `operationId` with `get_edit_result`, `show_edit_result`, or `undo_workflow_edit`.
+2. Optionally call `inspect_workflow_items` for properties, relationships, or receipt changes.
+3. For an existing canvas, copy the current revision and item IDs into one atomic `edit_workflow` request. Use the node-type ports documented by `edit_workflow`.
+4. Use the returned `operationId` with `inspect_workflow_items`, `show_target`, or `undo_workflow_edit`.
 5. If an edit conflicts or reports stale input, call `discover_workflow` again before retrying.
 
-For page focus, prefer a named `targetId`, such as `canvas.zoom-in`. CSS selectors are an advanced fallback. Focus requests are queued until the browser receives keyboard, DOM-focus, or assistive-technology interaction.
+For page focus, call `show_target` with `kind: "page-element"` and a named ID such as `canvas.zoom-in`. Focus is queued until the browser receives keyboard, DOM-focus, or assistive-technology interaction.
 
 ## WebMCP tools
 
-- `discover_workflow`: Return the revision, valid IDs and ports, named page targets, a draft `SurfaceSnapshot`, and example calls.
-- `inspect_workflow_items`: Return full details and relationships for specified nodes or connections.
+- `discover_workflow`: Return a compact page of workflow IDs and labels plus the current revision.
+- `inspect_workflow_items`: Return details for nodes and connections or paginated changes for a receipt.
 - `edit_workflow`: Apply a typed command batch atomically against an exact revision.
-- `show_workflow_item`: Select a node or connection and bring it into view; nodes also receive keyboard focus.
-- `focus_page_element`: Queue focus for a named page target or, as a fallback, a CSS selector.
-- `get_edit_result`: Retrieve the application-authored receipt for an edit operation.
-- `show_edit_result`: Bring a receipt into view and move keyboard focus to it.
+- `show_target`: Bring a workflow item, change receipt, or named page element into view and move or queue keyboard focus.
 - `undo_workflow_edit`: Undo an edit only while it remains the latest workflow revision.
 
 ## Architecture
