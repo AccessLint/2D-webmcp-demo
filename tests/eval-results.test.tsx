@@ -10,9 +10,8 @@ describe("evaluation results", () => {
     render(<EvalResultsPage />);
 
     const latest = screen.getByRole("region", { name: "Current fixture outcomes" });
-    expect(within(latest).getAllByText("100%")).toHaveLength(3);
-    expect(within(latest).getByText("98%")).toBeInTheDocument();
-    expect(within(latest).getByText("49 of 50 attempts")).toBeInTheDocument();
+    expect(within(latest).getAllByText("100%")).toHaveLength(4);
+    expect(within(latest).getAllByText("50 of 50 attempts")).toHaveLength(2);
     expect(within(latest).getByRole("link", { name: "Open latest raw report" })).toHaveAttribute(
       "href",
       "/evals/reports/gpt-5.6-terra-current.html",
@@ -23,16 +22,26 @@ describe("evaluation results", () => {
     );
 
     const latency = screen.getByRole("region", { name: "How long successful journeys took" });
-    expect(within(latency).getByText("7.78 s")).toBeInTheDocument();
-    expect(within(latency).getByText("1.58 s")).toBeInTheDocument();
-    expect(within(latency).getByText("33 ms")).toBeInTheDocument();
+    expect(within(latency).getByText("7.06 s")).toBeInTheDocument();
+    expect(within(latency).getByText("1.63 s")).toBeInTheDocument();
+    expect(within(latency).getByText("28 ms")).toBeInTheDocument();
     expect(within(latency).getByText("2")).toBeInTheDocument();
 
     const tokens = screen.getByRole("region", { name: "Token usage for successful journeys" });
-    expect(within(tokens).getByText("6,002")).toBeInTheDocument();
-    expect(within(tokens).getByText("p95 13,970")).toBeInTheDocument();
-    expect(within(tokens).getByText("268")).toBeInTheDocument();
-    expect(within(tokens).getByText("p95 913")).toBeInTheDocument();
+    expect(within(tokens).getByText("3,366")).toBeInTheDocument();
+    expect(within(tokens).getByText("p95 8,439")).toBeInTheDocument();
+    expect(within(tokens).getByText("249")).toBeInTheDocument();
+    expect(within(tokens).getByText("p95 836")).toBeInTheDocument();
+
+    const comparison = screen.getByRole("region", { name: "What changed from the baseline" });
+    expect(within(comparison).getByText("−39.1%")).toBeInTheDocument();
+    expect(within(comparison).getByText("−36.5%")).toBeInTheDocument();
+    expect(within(comparison).getByText("−9.3%")).toBeInTheDocument();
+    expect(within(comparison).getByText("+21.9%")).toBeInTheDocument();
+    expect(within(comparison).getByRole("link", { name: "Open pre-trim baseline report" })).toHaveAttribute(
+      "href",
+      "/evals/reports/gpt-5.6-terra-pre-trim.html",
+    );
     expect(screen.getByRole("status")).toHaveTextContent("100% of the latest journeys completed");
   });
 

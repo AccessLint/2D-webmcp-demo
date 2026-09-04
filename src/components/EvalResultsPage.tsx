@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { evalRuns, latestEvalRun } from "../evals/evalRuns";
+import { baselineEvalRun, evalRuns, latestEvalRun } from "../evals/evalRuns";
 
 type Score = { passed: number; total: number };
 
@@ -8,16 +8,25 @@ const displayPercent = (score: Score) => `${percent(score).toFixed(1).replace(".
 const displaySeconds = (milliseconds: number) => `${(milliseconds / 1000).toFixed(2)} s`;
 const displayMilliseconds = (milliseconds: number) => `${Math.round(milliseconds)} ms`;
 const displayTokens = (tokens: number) => Math.round(tokens).toLocaleString("en-US");
+const displayDelta = (current: number, baseline: number) => {
+  const value = ((current / baseline) - 1) * 100;
+  const sign = value < 0 ? "−" : "+";
+  return `${sign}${Math.abs(value).toFixed(1)}%`;
+};
 
 export function EvalResultsPage() {
   const latestLegacyRun = evalRuns.at(-1)!;
-  const smoke = latestLegacyRun.deterministicSmoke;
+  const smoke = latestEvalRun.deterministicSmoke;
   const duration = latestEvalRun.latency.durationMs;
   const firstToolCall = latestEvalRun.latency.timeToFirstToolCallMs;
   const toolExecution = latestEvalRun.latency.toolExecutionMs;
   const toolCalls = latestEvalRun.latency.toolCallCount;
   const inputTokens = latestEvalRun.latency.inputTokenCount;
   const outputTokens = latestEvalRun.latency.outputTokenCount;
+  const schemaCharacters = latestEvalRun.latency.toolSchemaCharacterCount;
+  const baselineDuration = baselineEvalRun.latency.durationMs;
+  const baselineInputTokens = baselineEvalRun.latency.inputTokenCount;
+  const baselineSchemaCharacters = baselineEvalRun.latency.toolSchemaCharacterCount;
 
   useEffect(() => {
     const skipLink = document.querySelector<HTMLAnchorElement>("body > .skip-link");
@@ -163,6 +172,46 @@ export function EvalResultsPage() {
           </div>
         </section>
 
+        <section className="eval-section" aria-labelledby="comparison-heading">
+          <div className="eval-section__heading">
+            <div>
+              <p className="eyebrow">Before and after</p>
+              <h2 id="comparison-heading">What changed from the baseline</h2>
+            </div>
+            <p>The model, browser, five cases, and 10 runs per case stayed fixed while the WebMCP interface was reduced.</p>
+          </div>
+          <div className="eval-latency-grid">
+            <article className="eval-latency-card">
+              <p>Mean input tokens</p>
+              <strong>{displayDelta(inputTokens.mean, baselineInputTokens.mean)}</strong>
+              <span>{displayTokens(baselineInputTokens.mean)} → {displayTokens(inputTokens.mean)}</span>
+            </article>
+            <article className="eval-latency-card">
+              <p>Mean schema exposure</p>
+              <strong>{displayDelta(schemaCharacters.mean, baselineSchemaCharacters.mean)}</strong>
+              <span>{displayTokens(baselineSchemaCharacters.mean)} → {displayTokens(schemaCharacters.mean)} characters</span>
+            </article>
+            <article className="eval-latency-card">
+              <p>Median end to end</p>
+              <strong>{displayDelta(duration.p50, baselineDuration.p50)}</strong>
+              <span>{displaySeconds(baselineDuration.p50)} → {displaySeconds(duration.p50)}</span>
+            </article>
+            <article className="eval-latency-card eval-latency-card--warning">
+              <p>p95 end to end</p>
+              <strong>{displayDelta(duration.p95, baselineDuration.p95)}</strong>
+              <span>{displaySeconds(baselineDuration.p95)} → {displaySeconds(duration.p95)}</span>
+            </article>
+          </div>
+          <div className="eval-evidence-links">
+            <a href={baselineEvalRun.reportPath}>Open pre-trim baseline report</a>
+            <a href={baselineEvalRun.latencyPath}>Open baseline latency data (JSON)</a>
+          </div>
+          <p className="eval-note">
+            Semantic success stayed at 100%; efficient trajectories improved from 49 of 50 to 50 of 50.
+            Median latency improved, while p95 latency increased but remained below the 20-second project limit.
+          </p>
+        </section>
+
         <section className="eval-section eval-smoke" aria-labelledby="execution-heading">
           <div>
             <p className="eyebrow">Tool check</p>
@@ -207,6 +256,17 @@ export function EvalResultsPage() {
                     <a href={latestEvalRun.reportPath}>Raw report</a>
                     <span aria-hidden="true"> · </span>
                     <a href={latestEvalRun.latencyPath}>Latency JSON</a>
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">{baselineEvalRun.label}</th>
+                  <td data-label="Date"><time dateTime={baselineEvalRun.recordedAt}>{new Date(baselineEvalRun.recordedAt).toLocaleDateString("en-US")}</time></td>
+                  <td data-label="Model"><code>{baselineEvalRun.model}</code></td>
+                  <td data-label="Matrix">{baselineEvalRun.cases} cases × {baselineEvalRun.runsPerCase} runs</td>
+                  <td data-label="Evidence">
+                    <a href={baselineEvalRun.reportPath}>Raw report</a>
+                    <span aria-hidden="true"> · </span>
+                    <a href={baselineEvalRun.latencyPath}>Latency JSON</a>
                   </td>
                 </tr>
                 {evalRuns.map((run) => (

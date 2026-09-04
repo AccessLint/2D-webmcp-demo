@@ -1,4 +1,5 @@
-import latestLatencyReport from "../../.evals/report-1788485842899-latency.json";
+import baselineLatencyReport from "../../.evals/report-1788485842899-latency.json";
+import latestLatencyReport from "../../.evals/report-1788489646719-latency.json";
 
 export type EvalRun = {
   id: string;
@@ -16,9 +17,9 @@ export type EvalRun = {
 };
 
 export const latestEvalRun = {
-  id: "2026-09-03-gpt-5-6-terra-current-1788485842899",
+  id: "2026-09-03-gpt-5-6-terra-current-1788489646719",
   label: "Current fixture",
-  recordedAt: "2026-09-03T21:37:22-04:00",
+  recordedAt: "2026-09-03T22:40:46-04:00",
   model: latestLatencyReport.source.model,
   backend: "Vercel",
   browser: "Chrome Stable",
@@ -27,6 +28,7 @@ export const latestEvalRun = {
   fixture: latestLatencyReport.source.evalsFile,
   reportPath: "/evals/reports/gpt-5.6-terra-current.html",
   latencyPath: "/evals/reports/gpt-5.6-terra-current-latency.json",
+  deterministicSmoke: { passed: 12, total: 12 },
   outcomes: {
     all: {
       passed: latestLatencyReport.all.successfulAttempts,
@@ -47,7 +49,32 @@ export const latestEvalRun = {
   },
   latency: latestLatencyReport.all.metrics,
   note:
-    "All 50 journeys reached the requested workflow outcome. The agent followed the expected efficient trajectory in 49 attempts; the remaining reroute inspected edge properties instead of explicitly requesting relationships before making the correct edit.",
+    "All 50 journeys reached the requested workflow outcome through the expected efficient trajectory, with no retries or redundant calls. The smaller five-tool interface cut mean input tokens by 39.1% and mean schema exposure by 36.5% from the pre-trim baseline.",
+};
+
+export const baselineEvalRun = {
+  id: "2026-09-03-gpt-5-6-terra-pre-trim-1788485842899",
+  label: "Pre-trim baseline",
+  recordedAt: "2026-09-03T21:37:22-04:00",
+  model: baselineLatencyReport.source.model,
+  backend: "Vercel",
+  browser: "Chrome Stable",
+  runsPerCase: baselineLatencyReport.source.runs,
+  cases: baselineLatencyReport.all.attempts / baselineLatencyReport.source.runs,
+  fixture: baselineLatencyReport.source.evalsFile,
+  reportPath: "/evals/reports/gpt-5.6-terra-pre-trim.html",
+  latencyPath: "/evals/reports/gpt-5.6-terra-pre-trim-latency.json",
+  outcomes: {
+    all: {
+      passed: baselineLatencyReport.all.successfulAttempts,
+      total: baselineLatencyReport.all.attempts,
+    },
+    efficient: {
+      passed: baselineLatencyReport.all.trajectorySuccessfulAttempts,
+      total: baselineLatencyReport.all.attempts,
+    },
+  },
+  latency: baselineLatencyReport.all.metrics,
 };
 
 export const evalRuns: EvalRun[] = [

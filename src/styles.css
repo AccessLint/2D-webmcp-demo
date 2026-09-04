@@ -99,6 +99,7 @@ button:disabled { opacity: .48; cursor: not-allowed; }
 .eval-latency-card { display: grid; gap: 7px; padding: 18px; border: 1px solid var(--line); background: var(--panel); }
 .eval-latency-card p { margin: 0; color: var(--ink); font-size: .82rem; font-weight: 700; }
 .eval-latency-card strong { color: var(--mint); font: 700 clamp(1.6rem, 4vw, 2.5rem) DM Mono, monospace; }
+.eval-latency-card--warning strong { color: var(--orange); }
 .eval-latency-card span, .eval-latency-card small { color: var(--muted); font: .7rem DM Mono, monospace; }
 .eval-smoke { display: flex; align-items: center; justify-content: space-between; gap: 36px; }
 .eval-smoke > div { max-width: 720px; }

@@ -10,9 +10,9 @@ describe("evaluation token usage", () => {
     const inputTokens = within(tokenUsage).getByRole("article", { name: "Input tokens" });
     const outputTokens = within(tokenUsage).getByRole("article", { name: "Output tokens" });
 
-    expect(inputTokens).toHaveTextContent("6,002");
-    expect(inputTokens).toHaveTextContent("p95 13,970");
-    expect(outputTokens).toHaveTextContent("268");
-    expect(outputTokens).toHaveTextContent("p95 913");
+    expect(inputTokens).toHaveTextContent("3,366");
+    expect(inputTokens).toHaveTextContent("p95 8,439");
+    expect(outputTokens).toHaveTextContent("249");
+    expect(outputTokens).toHaveTextContent("p95 836");
   });
 });
