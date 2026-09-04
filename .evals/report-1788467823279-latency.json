@@ -1,0 +1,929 @@
+{
+  "generatedAt": "2026-09-04T01:09:06.077Z",
+  "source": {
+    "model": "openai:gpt-5.6-terra",
+    "backend": "vercel",
+    "runs": 10,
+    "evalsFile": "evals/webmcp-evals.json"
+  },
+  "units": {
+    "duration": "milliseconds",
+    "successRate": "fraction"
+  },
+  "all": {
+    "attempts": 50,
+    "successfulAttempts": 50,
+    "timedSuccessfulAttempts": 50,
+    "successRate": 1,
+    "trajectorySuccessfulAttempts": 42,
+    "trajectorySuccessRate": 0.84,
+    "metrics": {
+      "durationMs": {
+        "count": 50,
+        "min": 5220.56,
+        "mean": 9892.83,
+        "p50": 9515.47,
+        "p95": 14387.3,
+        "max": 19665.29
+      },
+      "timeToFirstToolCallMs": {
+        "count": 50,
+        "min": 1242.33,
+        "mean": 1680.77,
+        "p50": 1493.6,
+        "p95": 2569.05,
+        "max": 3941.82
+      },
+      "toolExecutionMs": {
+        "count": 50,
+        "min": 21.6,
+        "mean": 56.56,
+        "p50": 36.36,
+        "p95": 59.11,
+        "max": 990.05
+      },
+      "nonToolDurationMs": {
+        "count": 50,
+        "min": 5187.3,
+        "mean": 9836.27,
+        "p50": 9476.54,
+        "p95": 14092.13,
+        "max": 19622.63
+      },
+      "modelExecutionMs": {
+        "count": 50,
+        "min": 5186.44,
+        "mean": 9835.51,
+        "p50": 9475.7,
+        "p95": 14090.91,
+        "max": 19621.59
+      },
+      "modelStepCount": {
+        "count": 50,
+        "min": 3,
+        "mean": 3.94,
+        "p50": 4,
+        "p95": 6,
+        "max": 7
+      },
+      "inputTokenCount": {
+        "count": 50,
+        "min": 5114,
+        "mean": 7699.86,
+        "p50": 7338,
+        "p95": 12462,
+        "max": 15300
+      },
+      "outputTokenCount": {
+        "count": 50,
+        "min": 223,
+        "mean": 490.1,
+        "p50": 367,
+        "p95": 1199,
+        "max": 1290
+      },
+      "toolSchemaCharacterCount": {
+        "count": 50,
+        "min": 32892,
+        "mean": 43198.16,
+        "p50": 43856,
+        "p95": 65784,
+        "max": 76748
+      },
+      "toolCallCount": {
+        "count": 50,
+        "min": 2,
+        "mean": 2.98,
+        "p50": 3,
+        "p95": 5,
+        "max": 6
+      },
+      "retryToolCallCount": {
+        "count": 50,
+        "min": 0,
+        "mean": 0.02,
+        "p50": 0,
+        "p95": 0,
+        "max": 1
+      },
+      "redundantToolCallCount": {
+        "count": 50,
+        "min": 0,
+        "mean": 0.06,
+        "p50": 0,
+        "p95": 1,
+        "max": 1
+      },
+      "allAttemptDurationMs": {
+        "count": 50,
+        "min": 5220.56,
+        "mean": 9892.83,
+        "p50": 9515.47,
+        "p95": 14387.3,
+        "max": 19665.29
+      }
+    }
+  },
+  "byTaskType": {
+    "create": {
+      "attempts": 20,
+      "successfulAttempts": 20,
+      "timedSuccessfulAttempts": 20,
+      "successRate": 1,
+      "trajectorySuccessfulAttempts": 19,
+      "trajectorySuccessRate": 0.95,
+      "metrics": {
+        "durationMs": {
+          "count": 20,
+          "min": 5220.56,
+          "mean": 9797.19,
+          "p50": 8441.43,
+          "p95": 14096.7,
+          "max": 14616.27
+        },
+        "timeToFirstToolCallMs": {
+          "count": 20,
+          "min": 1242.33,
+          "mean": 1664.08,
+          "p50": 1539.34,
+          "p95": 2314.18,
+          "max": 2569.05
+        },
+        "toolExecutionMs": {
+          "count": 20,
+          "min": 25.18,
+          "mean": 43.74,
+          "p50": 41.06,
+          "p95": 59.11,
+          "max": 60.47
+        },
+        "nonToolDurationMs": {
+          "count": 20,
+          "min": 5187.3,
+          "mean": 9753.45,
+          "p50": 8405.07,
+          "p95": 14053.14,
+          "max": 14564.08
+        },
+        "modelExecutionMs": {
+          "count": 20,
+          "min": 5186.44,
+          "mean": 9752.83,
+          "p50": 8404.47,
+          "p95": 14052.61,
+          "max": 14563.46
+        },
+        "modelStepCount": {
+          "count": 20,
+          "min": 3,
+          "mean": 3.05,
+          "p50": 3,
+          "p95": 3,
+          "max": 4
+        },
+        "inputTokenCount": {
+          "count": 20,
+          "min": 5114,
+          "mean": 5861.4,
+          "p50": 6235,
+          "p95": 6392,
+          "max": 7733
+        },
+        "outputTokenCount": {
+          "count": 20,
+          "min": 223,
+          "mean": 696.15,
+          "p50": 414,
+          "p95": 1216,
+          "max": 1290
+        },
+        "toolSchemaCharacterCount": {
+          "count": 20,
+          "min": 32892,
+          "mean": 33440.2,
+          "p50": 32892,
+          "p95": 32892,
+          "max": 43856
+        },
+        "toolCallCount": {
+          "count": 20,
+          "min": 2,
+          "mean": 2.05,
+          "p50": 2,
+          "p95": 2,
+          "max": 3
+        },
+        "retryToolCallCount": {
+          "count": 20,
+          "min": 0,
+          "mean": 0.05,
+          "p50": 0,
+          "p95": 0,
+          "max": 1
+        },
+        "redundantToolCallCount": {
+          "count": 20,
+          "min": 0,
+          "mean": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "allAttemptDurationMs": {
+          "count": 20,
+          "min": 5220.56,
+          "mean": 9797.19,
+          "p50": 8441.43,
+          "p95": 14096.7,
+          "max": 14616.27
+        }
+      }
+    },
+    "edit": {
+      "attempts": 30,
+      "successfulAttempts": 30,
+      "timedSuccessfulAttempts": 30,
+      "successRate": 1,
+      "trajectorySuccessfulAttempts": 23,
+      "trajectorySuccessRate": 0.77,
+      "metrics": {
+        "durationMs": {
+          "count": 30,
+          "min": 5865.53,
+          "mean": 9956.59,
+          "p50": 9515.47,
+          "p95": 14387.3,
+          "max": 19665.29
+        },
+        "timeToFirstToolCallMs": {
+          "count": 30,
+          "min": 1244.57,
+          "mean": 1691.89,
+          "p50": 1458.91,
+          "p95": 2687.74,
+          "max": 3941.82
+        },
+        "toolExecutionMs": {
+          "count": 30,
+          "min": 21.6,
+          "mean": 65.1,
+          "p50": 34.96,
+          "p95": 44.85,
+          "max": 990.05
+        },
+        "nonToolDurationMs": {
+          "count": 30,
+          "min": 5836.05,
+          "mean": 9891.49,
+          "p50": 9476.54,
+          "p95": 14092.13,
+          "max": 19622.63
+        },
+        "modelExecutionMs": {
+          "count": 30,
+          "min": 5835.61,
+          "mean": 9890.63,
+          "p50": 9475.7,
+          "p95": 14090.91,
+          "max": 19621.59
+        },
+        "modelStepCount": {
+          "count": 30,
+          "min": 3,
+          "mean": 4.53,
+          "p50": 4,
+          "p95": 6,
+          "max": 7
+        },
+        "inputTokenCount": {
+          "count": 30,
+          "min": 5224,
+          "mean": 8925.5,
+          "p50": 7646,
+          "p95": 12490,
+          "max": 15300
+        },
+        "outputTokenCount": {
+          "count": 30,
+          "min": 233,
+          "mean": 352.73,
+          "p50": 359,
+          "p95": 450,
+          "max": 452
+        },
+        "toolSchemaCharacterCount": {
+          "count": 30,
+          "min": 32892,
+          "mean": 49703.47,
+          "p50": 43856,
+          "p95": 65784,
+          "max": 76748
+        },
+        "toolCallCount": {
+          "count": 30,
+          "min": 2,
+          "mean": 3.6,
+          "p50": 3,
+          "p95": 5,
+          "max": 6
+        },
+        "retryToolCallCount": {
+          "count": 30,
+          "min": 0,
+          "mean": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "redundantToolCallCount": {
+          "count": 30,
+          "min": 0,
+          "mean": 0.1,
+          "p50": 0,
+          "p95": 1,
+          "max": 1
+        },
+        "allAttemptDurationMs": {
+          "count": 30,
+          "min": 5865.53,
+          "mean": 9956.59,
+          "p50": 9515.47,
+          "p95": 14387.3,
+          "max": 19665.29
+        }
+      }
+    }
+  },
+  "byCase": {
+    "Add a notification step to an approval workflow": {
+      "attempts": 10,
+      "successfulAttempts": 10,
+      "timedSuccessfulAttempts": 10,
+      "successRate": 1,
+      "trajectorySuccessfulAttempts": 10,
+      "trajectorySuccessRate": 1,
+      "metrics": {
+        "durationMs": {
+          "count": 10,
+          "min": 5865.53,
+          "mean": 8404.13,
+          "p50": 8281.33,
+          "p95": 11280.36,
+          "max": 11280.36
+        },
+        "timeToFirstToolCallMs": {
+          "count": 10,
+          "min": 1244.57,
+          "mean": 1536.97,
+          "p50": 1359.52,
+          "p95": 2240.89,
+          "max": 2240.89
+        },
+        "toolExecutionMs": {
+          "count": 10,
+          "min": 21.6,
+          "mean": 29.49,
+          "p50": 28.86,
+          "p95": 38.1,
+          "max": 38.1
+        },
+        "nonToolDurationMs": {
+          "count": 10,
+          "min": 5836.05,
+          "mean": 8374.64,
+          "p50": 8250.47,
+          "p95": 11258.77,
+          "max": 11258.77
+        },
+        "modelExecutionMs": {
+          "count": 10,
+          "min": 5835.61,
+          "mean": 8373.78,
+          "p50": 8249.9,
+          "p95": 11258.24,
+          "max": 11258.24
+        },
+        "modelStepCount": {
+          "count": 10,
+          "min": 3,
+          "mean": 3.5,
+          "p50": 3,
+          "p95": 4,
+          "max": 4
+        },
+        "inputTokenCount": {
+          "count": 10,
+          "min": 5224,
+          "mean": 6360.2,
+          "p50": 5305,
+          "p95": 7646,
+          "max": 7646
+        },
+        "outputTokenCount": {
+          "count": 10,
+          "min": 233,
+          "mean": 305.1,
+          "p50": 301,
+          "p95": 359,
+          "max": 359
+        },
+        "toolSchemaCharacterCount": {
+          "count": 10,
+          "min": 32892,
+          "mean": 38374,
+          "p50": 32892,
+          "p95": 43856,
+          "max": 43856
+        },
+        "toolCallCount": {
+          "count": 10,
+          "min": 2,
+          "mean": 2.5,
+          "p50": 2,
+          "p95": 3,
+          "max": 3
+        },
+        "retryToolCallCount": {
+          "count": 10,
+          "min": 0,
+          "mean": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "redundantToolCallCount": {
+          "count": 10,
+          "min": 0,
+          "mean": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "allAttemptDurationMs": {
+          "count": 10,
+          "min": 5865.53,
+          "mean": 8404.13,
+          "p50": 8281.33,
+          "p95": 11280.36,
+          "max": 11280.36
+        }
+      }
+    },
+    "Create a complex multi-branch bug workflow": {
+      "attempts": 10,
+      "successfulAttempts": 10,
+      "timedSuccessfulAttempts": 10,
+      "successRate": 1,
+      "trajectorySuccessfulAttempts": 10,
+      "trajectorySuccessRate": 1,
+      "metrics": {
+        "durationMs": {
+          "count": 10,
+          "min": 11142.35,
+          "mean": 13107.14,
+          "p50": 13288.85,
+          "p95": 14616.27,
+          "max": 14616.27
+        },
+        "timeToFirstToolCallMs": {
+          "count": 10,
+          "min": 1242.33,
+          "mean": 1709.94,
+          "p50": 1435.83,
+          "p95": 2569.05,
+          "max": 2569.05
+        },
+        "toolExecutionMs": {
+          "count": 10,
+          "min": 39.25,
+          "mean": 51.58,
+          "p50": 52.19,
+          "p95": 60.47,
+          "max": 60.47
+        },
+        "nonToolDurationMs": {
+          "count": 10,
+          "min": 11089.85,
+          "mean": 13055.57,
+          "p50": 13247.9,
+          "p95": 14564.08,
+          "max": 14564.08
+        },
+        "modelExecutionMs": {
+          "count": 10,
+          "min": 11089.07,
+          "mean": 13054.96,
+          "p50": 13247.4,
+          "p95": 14563.46,
+          "max": 14563.46
+        },
+        "modelStepCount": {
+          "count": 10,
+          "min": 3,
+          "mean": 3,
+          "p50": 3,
+          "p95": 3,
+          "max": 3
+        },
+        "inputTokenCount": {
+          "count": 10,
+          "min": 6235,
+          "mean": 6310.5,
+          "p50": 6293,
+          "p95": 6392,
+          "max": 6392
+        },
+        "outputTokenCount": {
+          "count": 10,
+          "min": 943,
+          "mean": 1111.9,
+          "p50": 1106,
+          "p95": 1290,
+          "max": 1290
+        },
+        "toolSchemaCharacterCount": {
+          "count": 10,
+          "min": 32892,
+          "mean": 32892,
+          "p50": 32892,
+          "p95": 32892,
+          "max": 32892
+        },
+        "toolCallCount": {
+          "count": 10,
+          "min": 2,
+          "mean": 2,
+          "p50": 2,
+          "p95": 2,
+          "max": 2
+        },
+        "retryToolCallCount": {
+          "count": 10,
+          "min": 0,
+          "mean": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "redundantToolCallCount": {
+          "count": 10,
+          "min": 0,
+          "mean": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "allAttemptDurationMs": {
+          "count": 10,
+          "min": 11142.35,
+          "mean": 13107.14,
+          "p50": 13288.85,
+          "p95": 14616.27,
+          "max": 14616.27
+        }
+      }
+    },
+    "Create a new approval workflow": {
+      "attempts": 10,
+      "successfulAttempts": 10,
+      "timedSuccessfulAttempts": 10,
+      "successRate": 1,
+      "trajectorySuccessfulAttempts": 9,
+      "trajectorySuccessRate": 0.9,
+      "metrics": {
+        "durationMs": {
+          "count": 10,
+          "min": 5220.56,
+          "mean": 6487.23,
+          "p50": 6024.84,
+          "p95": 8441.43,
+          "max": 8441.43
+        },
+        "timeToFirstToolCallMs": {
+          "count": 10,
+          "min": 1248.45,
+          "mean": 1618.21,
+          "p50": 1546.18,
+          "p95": 2314.18,
+          "max": 2314.18
+        },
+        "toolExecutionMs": {
+          "count": 10,
+          "min": 25.18,
+          "mean": 35.91,
+          "p50": 35.87,
+          "p95": 43.12,
+          "max": 43.12
+        },
+        "nonToolDurationMs": {
+          "count": 10,
+          "min": 5187.3,
+          "mean": 6451.33,
+          "p50": 5981.72,
+          "p95": 8405.07,
+          "max": 8405.07
+        },
+        "modelExecutionMs": {
+          "count": 10,
+          "min": 5186.44,
+          "mean": 6450.69,
+          "p50": 5980.72,
+          "p95": 8404.47,
+          "max": 8404.47
+        },
+        "modelStepCount": {
+          "count": 10,
+          "min": 3,
+          "mean": 3.1,
+          "p50": 3,
+          "p95": 4,
+          "max": 4
+        },
+        "inputTokenCount": {
+          "count": 10,
+          "min": 5114,
+          "mean": 5412.3,
+          "p50": 5150,
+          "p95": 7733,
+          "max": 7733
+        },
+        "outputTokenCount": {
+          "count": 10,
+          "min": 223,
+          "mean": 280.4,
+          "p50": 263,
+          "p95": 414,
+          "max": 414
+        },
+        "toolSchemaCharacterCount": {
+          "count": 10,
+          "min": 32892,
+          "mean": 33988.4,
+          "p50": 32892,
+          "p95": 43856,
+          "max": 43856
+        },
+        "toolCallCount": {
+          "count": 10,
+          "min": 2,
+          "mean": 2.1,
+          "p50": 2,
+          "p95": 3,
+          "max": 3
+        },
+        "retryToolCallCount": {
+          "count": 10,
+          "min": 0,
+          "mean": 0.1,
+          "p50": 0,
+          "p95": 1,
+          "max": 1
+        },
+        "redundantToolCallCount": {
+          "count": 10,
+          "min": 0,
+          "mean": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "allAttemptDurationMs": {
+          "count": 10,
+          "min": 5220.56,
+          "mean": 6487.23,
+          "p50": 6024.84,
+          "p95": 8441.43,
+          "max": 8441.43
+        }
+      }
+    },
+    "Inspect and edit a paginated large workflow": {
+      "attempts": 10,
+      "successfulAttempts": 10,
+      "timedSuccessfulAttempts": 10,
+      "successRate": 1,
+      "trajectorySuccessfulAttempts": 9,
+      "trajectorySuccessRate": 0.9,
+      "metrics": {
+        "durationMs": {
+          "count": 10,
+          "min": 10230.8,
+          "mean": 12593.65,
+          "p50": 11665.54,
+          "p95": 19665.29,
+          "max": 19665.29
+        },
+        "timeToFirstToolCallMs": {
+          "count": 10,
+          "min": 1389.12,
+          "mean": 1964.87,
+          "p50": 1710.43,
+          "p95": 3941.82,
+          "max": 3941.82
+        },
+        "toolExecutionMs": {
+          "count": 10,
+          "min": 36.01,
+          "mean": 135.01,
+          "p50": 39.85,
+          "p95": 990.05,
+          "max": 990.05
+        },
+        "nonToolDurationMs": {
+          "count": 10,
+          "min": 10194.24,
+          "mean": 12458.65,
+          "p50": 11620.69,
+          "p95": 19622.63,
+          "max": 19622.63
+        },
+        "modelExecutionMs": {
+          "count": 10,
+          "min": 10193.51,
+          "mean": 12457.62,
+          "p50": 11619.73,
+          "p95": 19621.59,
+          "max": 19621.59
+        },
+        "modelStepCount": {
+          "count": 10,
+          "min": 6,
+          "mean": 6.1,
+          "p50": 6,
+          "p95": 7,
+          "max": 7
+        },
+        "inputTokenCount": {
+          "count": 10,
+          "min": 12423,
+          "mean": 12729.9,
+          "p50": 12441,
+          "p95": 15300,
+          "max": 15300
+        },
+        "outputTokenCount": {
+          "count": 10,
+          "min": 358,
+          "mean": 378.5,
+          "p50": 367,
+          "p95": 450,
+          "max": 450
+        },
+        "toolSchemaCharacterCount": {
+          "count": 10,
+          "min": 65784,
+          "mean": 66880.4,
+          "p50": 65784,
+          "p95": 76748,
+          "max": 76748
+        },
+        "toolCallCount": {
+          "count": 10,
+          "min": 5,
+          "mean": 5.1,
+          "p50": 5,
+          "p95": 6,
+          "max": 6
+        },
+        "retryToolCallCount": {
+          "count": 10,
+          "min": 0,
+          "mean": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "redundantToolCallCount": {
+          "count": 10,
+          "min": 0,
+          "mean": 0.1,
+          "p50": 0,
+          "p95": 1,
+          "max": 1
+        },
+        "allAttemptDurationMs": {
+          "count": 10,
+          "min": 10230.8,
+          "mean": 12593.65,
+          "p50": 11665.54,
+          "p95": 19665.29,
+          "max": 19665.29
+        }
+      }
+    },
+    "Reroute an existing workflow connection": {
+      "attempts": 10,
+      "successfulAttempts": 10,
+      "timedSuccessfulAttempts": 10,
+      "successRate": 1,
+      "trajectorySuccessfulAttempts": 4,
+      "trajectorySuccessRate": 0.4,
+      "metrics": {
+        "durationMs": {
+          "count": 10,
+          "min": 7386.39,
+          "mean": 8871.98,
+          "p50": 8451.33,
+          "p95": 11556.27,
+          "max": 11556.27
+        },
+        "timeToFirstToolCallMs": {
+          "count": 10,
+          "min": 1248.2,
+          "mean": 1573.84,
+          "p50": 1435.55,
+          "p95": 2477.12,
+          "max": 2477.12
+        },
+        "toolExecutionMs": {
+          "count": 10,
+          "min": 22.41,
+          "mean": 30.8,
+          "p50": 30.25,
+          "p95": 38.92,
+          "max": 38.92
+        },
+        "nonToolDurationMs": {
+          "count": 10,
+          "min": 7356.14,
+          "mean": 8841.18,
+          "p50": 8426.81,
+          "p95": 11520,
+          "max": 11520
+        },
+        "modelExecutionMs": {
+          "count": 10,
+          "min": 7355.62,
+          "mean": 8840.49,
+          "p50": 8425.15,
+          "p95": 11519.34,
+          "max": 11519.34
+        },
+        "modelStepCount": {
+          "count": 10,
+          "min": 4,
+          "mean": 4,
+          "p50": 4,
+          "p95": 4,
+          "max": 4
+        },
+        "inputTokenCount": {
+          "count": 10,
+          "min": 7338,
+          "mean": 7686.4,
+          "p50": 7438,
+          "p95": 8406,
+          "max": 8406
+        },
+        "outputTokenCount": {
+          "count": 10,
+          "min": 308,
+          "mean": 374.6,
+          "p50": 370,
+          "p95": 452,
+          "max": 452
+        },
+        "toolSchemaCharacterCount": {
+          "count": 10,
+          "min": 43856,
+          "mean": 43856,
+          "p50": 43856,
+          "p95": 43856,
+          "max": 43856
+        },
+        "toolCallCount": {
+          "count": 10,
+          "min": 3,
+          "mean": 3.2,
+          "p50": 3,
+          "p95": 4,
+          "max": 4
+        },
+        "retryToolCallCount": {
+          "count": 10,
+          "min": 0,
+          "mean": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "redundantToolCallCount": {
+          "count": 10,
+          "min": 0,
+          "mean": 0.2,
+          "p50": 0,
+          "p95": 1,
+          "max": 1
+        },
+        "allAttemptDurationMs": {
+          "count": 10,
+          "min": 7386.39,
+          "mean": 8871.98,
+          "p50": 8451.33,
+          "p95": 11556.27,
+          "max": 11556.27
+        }
+      }
+    }
+  }
+}

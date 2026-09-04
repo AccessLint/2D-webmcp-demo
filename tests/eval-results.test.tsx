@@ -7,9 +7,9 @@ describe("evaluation results", () => {
     render(<EvalResultsPage />);
 
     const latest = screen.getByRole("region", { name: "Current fixture outcomes" });
-    expect(within(latest).getByText("88%")).toBeInTheDocument();
-    expect(within(latest).getByText("100%")).toBeInTheDocument();
-    expect(within(latest).getByText("80%")).toBeInTheDocument();
+    expect(within(latest).getAllByText("100%")).toHaveLength(3);
+    expect(within(latest).getByText("84%")).toBeInTheDocument();
+    expect(within(latest).getByText("42 of 50 attempts")).toBeInTheDocument();
     expect(within(latest).getByRole("link", { name: "Open latest raw report" })).toHaveAttribute(
       "href",
       "/evals/reports/gpt-5.6-terra-current.html",
@@ -20,15 +20,19 @@ describe("evaluation results", () => {
     );
 
     const latency = screen.getByRole("region", { name: "How long successful journeys took" });
-    expect(within(latency).getByText("12.77 s")).toBeInTheDocument();
-    expect(within(latency).getByText("1.55 s")).toBeInTheDocument();
-    expect(within(latency).getByText("35 ms")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("88% of the latest journeys completed");
+    expect(within(latency).getByText("9.52 s")).toBeInTheDocument();
+    expect(within(latency).getByText("1.49 s")).toBeInTheDocument();
+    expect(within(latency).getByText("36 ms")).toBeInTheDocument();
+    expect(within(latency).getByText("3")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("100% of the latest journeys completed");
   });
 
-  it("does not show the legacy score breakdown", () => {
+  it("does not show the legacy trend section", () => {
     render(<EvalResultsPage />);
 
-    expect(screen.queryByRole("region", { name: "Legacy score breakdown" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Legacy results over time" })).not.toBeInTheDocument();
+    expect(screen.getByText("Baseline")).toBeInTheDocument();
+    expect(screen.getByText("Iteration 1")).toBeInTheDocument();
+    expect(screen.getByText("Iteration 2")).toBeInTheDocument();
   });
 });

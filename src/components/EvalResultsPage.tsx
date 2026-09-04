@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { evalRuns, latestEvalRun, type EvalRun } from "../evals/evalRuns";
+import { evalRuns, latestEvalRun } from "../evals/evalRuns";
 
 type Score = { passed: number; total: number };
 
@@ -7,79 +7,6 @@ const percent = ({ passed, total }: Score) => (total === 0 ? 0 : (passed / total
 const displayPercent = (score: Score) => `${percent(score).toFixed(1).replace(".0", "")}%`;
 const displaySeconds = (milliseconds: number) => `${(milliseconds / 1000).toFixed(2)} s`;
 const displayMilliseconds = (milliseconds: number) => `${Math.round(milliseconds)} ms`;
-
-const metrics: Array<{
-  label: string;
-  description: string;
-  getScore: (run: EvalRun) => Score;
-}> = [
-  {
-    label: "Read the workflow",
-    description: "The agent discovered what was on the canvas",
-    getScore: (run) => run.journeys.discover,
-  },
-  {
-    label: "Inspect an item",
-    description: "The agent inspected Enrich company and its connections",
-    getScore: (run) => run.journeys.inspect,
-  },
-  {
-    label: "Reveal an item",
-    description: "The agent revealed Enrich company on the canvas",
-    getScore: (run) => run.journeys.reveal,
-  },
-  {
-    label: "Focus a control",
-    description: "The agent focused the named Zoom In control",
-    getScore: (run) => run.journeys.focus,
-  },
-  {
-    label: "Edit and show evidence",
-    description: "The agent completed the legacy complex edit and surfaced its receipt",
-    getScore: (run) => run.journeys.complexEditJourney,
-  },
-];
-
-function TrendMetric({ label, description, getScore }: (typeof metrics)[number]) {
-  const baseline = getScore(evalRuns[0]);
-  const latest = getScore(evalRuns.at(-1)!);
-
-  return (
-    <article className="eval-metric">
-      <div className="eval-metric__heading">
-        <div>
-          <h3>{label}</h3>
-          <p>{description}</p>
-        </div>
-        <strong>{displayPercent(latest)}</strong>
-      </div>
-      <div className="eval-run-series" aria-label={`${label} over time`}>
-        {evalRuns.map((run) => {
-          const score = getScore(run);
-          const delta = percent(score) - percent(baseline);
-          return (
-            <div className="eval-run-point" key={run.id}>
-              <div
-                className="eval-bar"
-                role="img"
-                aria-label={`${run.label}: ${score.passed} of ${score.total}, ${displayPercent(score)}`}
-              >
-                <span style={{ width: `${percent(score)}%` }} />
-              </div>
-              <div className="eval-run-point__labels">
-                <span>{run.label}</span>
-                <span>
-                  {displayPercent(score)}
-                  {evalRuns.length > 1 && ` · ${delta >= 0 ? "+" : ""}${delta.toFixed(1)} points`}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </article>
-  );
-}
 
 export function EvalResultsPage() {
   const latestLegacyRun = evalRuns.at(-1)!;
@@ -96,7 +23,7 @@ export function EvalResultsPage() {
       skipLink.href = "#eval-results";
       skipLink.textContent = "Skip to evaluation results";
     }
-    document.title = "WebMCP evaluation history";
+    document.title = "WebMCP evaluation results";
     return () => {
       if (skipLink) {
         skipLink.href = "#workspace";
@@ -110,7 +37,7 @@ export function EvalResultsPage() {
     <div className="eval-page">
       <nav className="site-nav" aria-label="Primary">
         <a href="/">WebMCP demo</a>
-        <a href="/evals" aria-current="page">Evaluation history</a>
+        <a href="/evals" aria-current="page">Evaluation results</a>
       </nav>
       <main id="eval-results">
         <header className="eval-hero">
@@ -118,7 +45,7 @@ export function EvalResultsPage() {
           <h1>Can an AI agent use these tools successfully?</h1>
           <p>
             I run the same tasks several times to see whether the agent chooses the right tools, sends the
-            right inputs, and finishes the job. I will keep publishing each comparable run here.
+            right inputs, and finishes the job. The latest complete run is published here.
           </p>
           <div className="eval-status" role="status">
             <strong>{displayPercent(latestEvalRun.outcomes.all)} of the latest journeys completed.</strong>
@@ -155,6 +82,12 @@ export function EvalResultsPage() {
               <strong>{displayPercent(latestEvalRun.outcomes.edit)}</strong>
               <span>{latestEvalRun.outcomes.edit.passed} of {latestEvalRun.outcomes.edit.total} attempts</span>
               <small>Adding, rerouting, and paginated inspection-and-edit tasks.</small>
+            </article>
+            <article className="eval-score-card">
+              <p>Efficient trajectories</p>
+              <strong>{displayPercent(latestEvalRun.outcomes.efficient)}</strong>
+              <span>{latestEvalRun.outcomes.efficient.passed} of {latestEvalRun.outcomes.efficient.total} attempts</span>
+              <small>Completed every required call without a failed expected step.</small>
             </article>
           </div>
           <div className="eval-evidence-links">
@@ -199,31 +132,7 @@ export function EvalResultsPage() {
             </article>
           </div>
           <p className="eval-note">
-            Duration percentiles exclude the six unsuccessful attempts. Tool-call counts cover all 50 attempts.
-          </p>
-        </section>
-
-        <section className="eval-section" aria-labelledby="model-outcomes-heading">
-          <div className="eval-section__heading">
-            <div>
-              <p className="eyebrow">What happened</p>
-              <h2 id="model-outcomes-heading">Legacy results over time</h2>
-            </div>
-            <p>Each task was attempted 10 times with GPT-5 mini. I checked successful results, not just call order.</p>
-          </div>
-          <div className="eval-metrics">
-            {metrics.map((metric) => <TrendMetric key={metric.label} {...metric} />)}
-          </div>
-          <p className="eval-note">
-            <strong>Legacy complex-edit detail:</strong> completion rose from {displayPercent(evalRuns[0].complexEdit)}
-            to {displayPercent(latestLegacyRun.complexEdit)} successful attempts, and visible receipt evidence rose from
-            {` ${displayPercent(evalRuns[0].journeys.complexEditJourney)} to ${displayPercent(latestLegacyRun.journeys.complexEditJourney)}`}.
-          </p>
-          <p className="eval-note">
-            <strong>Exact-call score:</strong> {displayPercent(evalRuns[0].strictSteps)} → {displayPercent(latestLegacyRun.strictSteps)}
-            ({evalRuns[0].strictSteps.passed} of {evalRuns[0].strictSteps.total} → {latestLegacyRun.strictSteps.passed} of {latestLegacyRun.strictSteps.total} comparisons).
-            Extra or retried calls count against this diagnostic score,
-            so it is not the same as task completion.
+            All 50 attempts reached the requested end state. Tool-call counts also cover all 50 attempts.
           </p>
         </section>
 
