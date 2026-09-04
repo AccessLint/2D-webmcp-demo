@@ -68,7 +68,9 @@ function WorkflowDemo() {
               </button>
             </div>
             <blockquote>{demoPrompt}</blockquote>
-            <RealRunTraceControls caseName={matchingEvalCase} prompt={matchingEvalPrompt} />
+            {import.meta.env.DEV
+              ? <RealRunTraceControls caseName={matchingEvalCase} prompt={matchingEvalPrompt} />
+              : null}
           </div>
         </header>
         <div className="workbench">
